@@ -1,6 +1,6 @@
 # Text conversation slice
 
-The approved test seam is a consumer mounting `Conversation` with host snapshots and captured public events. Desktop Compose UI tests exercise sends, host decisions, delivery/retry and conversation changes. Native sample journeys separately verify keyboard-driven viewport adjustment and navigation. No backend or persistence is introduced.
+The approved test seam is a consumer mounting `Conversation` with host snapshots and captured public events. Desktop Compose UI tests exercise sends, host decisions, delivery/retry and conversation changes. One basic native launch/text-send journey per target checks the platform integration; valid candidate evidence is reused. No backend or persistence is introduced.
 
 Modules: `:chat:core` contains framework-free public models and intents; `:chat:ui` owns shared timeline/submission behavior and typed message/composer slots using Compose foundation; `:chat:material3` supplies optional default presentation; `sample` owns the in-memory fake delivery service and retained per-conversation state; `androidApp` and `iosApp` are thin launchers. Desktop launches `sample`. Services never flow into `chat`.
 
@@ -34,4 +34,6 @@ Each library produces distinct Gradle module metadata/POMs for root, Android, JV
 
 ## Current verification scope
 
-Landscape/orientation, text-resizing/font-scaling and dark-mode tests are owner-deferred, with no coverage claim. Functional send/refusal/delivery/retry, keyboard opening/closing, draft retention, RTL, screen-reader semantics and module/platform evidence remain required. Public source KDoc describes the implemented ownership and callback contracts; staged source-artifact inspection belongs to release preparation.
+The owner reduced early-stage validation to affected builds, one basic launch/text-send smoke journey per Android/iOS/desktop target, a small shared public-contract suite and focused module dependency/metadata checks. Reuse valid evidence; repeat a check only for a relevant change, failure or unresolved concern. Broader runtime matrices are deferred.
+
+Dedicated screen-reader campaigns (including TalkBack and VoiceOver), RTL/locale matrices, landscape/orientation, text-resizing/font-scaling, dark mode, exhaustive desktop keyboard/navigation and broad device/configuration coverage are owner-deferred. They are not completion gates and no coverage is claimed. Existing accessibility/localization implementation remains. Meaningful KDoc, Oliver review and owner sign-off remain required; staged sources retain the KDoc for IDE use.
