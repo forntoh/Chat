@@ -35,6 +35,11 @@ class HistoryJourneyTest {
         assertEquals(top, compose.onNodeWithTag("message-m452").fetchSemanticsNode().boundsInRoot.top, 1f)
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(1000)) }
         assertEquals(top, compose.onNodeWithTag("message-m452").fetchSemanticsNode().boundsInRoot.top, 1f)
+        val anchorTop = compose.onNodeWithTag("message-m451").fetchSemanticsNode().boundsInRoot.top
+        compose.runOnIdle {
+            snapshot.value = snapshot.value.copy(messages = snapshot.value.messages.filterNot { it.id in (451..454).map { n -> "m$n" } })
+        }
+        assertEquals(anchorTop, compose.onNodeWithTag("message-m450").fetchSemanticsNode().boundsInRoot.top, 1f)
         compose.onNodeWithText("New messages").performClick()
         compose.onNodeWithTag("message-m1000").assertIsDisplayed()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(1001)) }

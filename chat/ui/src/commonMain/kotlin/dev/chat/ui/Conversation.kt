@@ -60,7 +60,8 @@ class ComposerContent(
  * Supply [historyContent] for loading/error/empty feedback and [latestContent] for a deliberate
  * return control while away from the bottom. Requests can originate from a boundary effect;
  * no transport runs inside this component. Stable row keys preserve position on prepend;
- * a removed anchor falls forward to the next surviving row, then backward. Appended rows
+ * a removed anchor uses the nearest survivor in prior host order (later row wins ties),
+ * retaining its scroll offset. Appended rows
  * follow the bottom only if the reader was already there. Switching conversation resets
  * these UI latches; the host must isolate drafts and reject obsolete asynchronous results.
  *
@@ -113,13 +114,13 @@ fun Conversation(
             var previousIds by remember { mutableStateOf<List<String>>(emptyList()) }
             var newMessages by remember { mutableStateOf(false) }
             val ids = state.messages.map { it.id }
-            val oldLayout = list.layoutInfo
-            val wasAtBottom = previousIds.isEmpty() || oldLayout.visibleItemsInfo.lastOrNull()?.let {
-                it.key == previousIds.lastOrNull() && it.offset + it.size <= oldLayout.viewportEndOffset
-            } == true
-            val anchor = oldLayout.visibleItemsInfo.firstOrNull { it.index == list.firstVisibleItemIndex }
-            val anchorOffset = list.firstVisibleItemScrollOffset
             LaunchedEffect(ids) {
+                val oldLayout = list.layoutInfo
+                val wasAtBottom = previousIds.isEmpty() || oldLayout.visibleItemsInfo.lastOrNull()?.let {
+                    it.key == previousIds.lastOrNull() && it.offset + it.size <= oldLayout.viewportEndOffset
+                } == true
+                val anchor = oldLayout.visibleItemsInfo.firstOrNull { it.index == list.firstVisibleItemIndex }
+                val anchorOffset = list.firstVisibleItemScrollOffset
                 val appended = previousIds.lastOrNull()?.let { oldLast ->
                     val index = ids.indexOf(oldLast)
                     index >= 0 && index < ids.lastIndex
@@ -129,8 +130,11 @@ fun Conversation(
                         list.scrollToItem(ids.lastIndex)
                     } else if (anchor != null && previousIds.isNotEmpty()) {
                         val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
-                            ?: previousIds.drop(anchor.index).firstNotNullOfOrNull { old -> ids.indexOf(old).takeIf { it >= 0 } }
-                            ?: previousIds.take(anchor.index).lastOrNull { it in ids }?.let(ids::indexOf)
+                            ?: (1..previousIds.size).firstNotNullOfOrNull { distance ->
+                                val later = previousIds.getOrNull(anchor.index + distance)?.let(ids::indexOf)
+                                val earlier = previousIds.getOrNull(anchor.index - distance)?.let(ids::indexOf)
+                                later?.takeIf { it >= 0 } ?: earlier?.takeIf { it >= 0 }
+                            }
                         if (surviving != null) list.scrollToItem(surviving, anchorOffset)
                     }
                 }
@@ -171,7 +175,8 @@ fun Conversation(
                     }
                 }
             }
-            if (list.canScrollForward) latestContent(LatestContent(newMessages) {
+            val awayFromLatest by remember { derivedStateOf { list.canScrollForward } }
+            if (awayFromLatest) latestContent(LatestContent(newMessages) {
                 scope.launch { if (ids.isNotEmpty()) list.scrollToItem(ids.lastIndex); newMessages = false }
             })
         }
