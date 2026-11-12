@@ -28,3 +28,6 @@ Verify selectable artifacts locally (no network publication):
 ```
 
 Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All three artifacts use the same configured platform/toolchain floors.
+
+See [customization](docs/customization.md) for host strings, ordered semantics, mixed renderers
+and the Jetchat-referenced sample themes.

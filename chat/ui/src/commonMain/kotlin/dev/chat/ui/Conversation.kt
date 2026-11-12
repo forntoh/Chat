@@ -43,7 +43,10 @@ class ComposerContent(
  * Changing conversation discards remembered timeline and message-slot state.
  * [messageContent] receives the row, current-sender flag and a nullable retry callback; only
  * current-participant failed rows get retry. Retry is not latched: the host must update delivery
- * and reject duplicate or stale requests. Slots own their presentation and semantics.
+ * and reject duplicate or stale requests. Slots own their presentation and semantics. A custom
+ * row should expose sender, content, host-formatted time and delivery once in that order,
+ * with separately named actions. Swapping slots at this call site does not accept a draft
+ * or reset pending submission; keep [state] authoritative rather than copying it into a slot.
  * [composerContent] receives guarded composer callbacks and pending state via [ComposerContent].
  *
  * A send latches synchronously before invoking [onEvent]. Changing conversation or draft

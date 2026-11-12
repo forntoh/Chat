@@ -13,6 +13,63 @@ import kotlin.test.assertEquals
 class ConversationTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun hostStringsReachDefaultControlsAndOrderedMessageSemantics() {
+        val row = Message("m", Participant("me", "Sam"), 1, "10:15", "Hello 🌍", Delivery.Failed)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(row)))
+        val history = mutableStateOf(dev.chat.ui.HistoryState(dev.chat.ui.HistoryStatus.Error))
+        val strings = ConversationStrings(
+            message = "Write here", messageDescription = "Draft input",
+            send = "Post", sendDescription = "Post draft", retry = "Again", retryDescription = "Retry delivery",
+            sending = "In transit", sent = "Delivered", failed = "Not delivered", historyError = "Earlier messages unavailable", historyErrorDescription = "Retry earlier messages",
+            loading = "Fetching", empty = "Begin here", exhausted = "Beginning", loadEarlier = "Older",
+        )
+        val events = mutableListOf<ConversationEvent>()
+        compose.setContent { MaterialTheme {
+            Conversation(snapshot.value, events::add, history = history.value, strings = strings)
+        } }
+        compose.onNodeWithContentDescription("Draft input").assertExists()
+        compose.onNodeWithText("Write here").assertExists()
+        compose.onNodeWithContentDescription("Post draft").assertIsNotEnabled()
+        compose.onNodeWithText("Post").assertExists()
+        compose.onNodeWithContentDescription("Sam, Hello 🌍, 10:15, Not delivered").assertExists()
+        compose.onNodeWithText("Hello 🌍").assertDoesNotExist() // grouped once for accessibility
+        compose.onNodeWithContentDescription("Retry delivery").performClick()
+        compose.onNodeWithText("Again").assertExists()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(row.copy(delivery = Delivery.Sending))) }
+        compose.onNodeWithContentDescription("Sam, Hello 🌍, 10:15, In transit").assertExists()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(row.copy(delivery = Delivery.Sent))) }
+        compose.onNodeWithContentDescription("Sam, Hello 🌍, 10:15, Delivered").assertExists()
+        compose.runOnIdle { assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.RetryMessage("room", "m")), events) }
+        compose.onNodeWithContentDescription("Retry earlier messages").assertExists()
+        compose.onNodeWithText("Earlier messages unavailable").assertExists()
+        compose.runOnIdle { history.value = dev.chat.ui.HistoryState(dev.chat.ui.HistoryStatus.Loading, 1) }
+        compose.onNodeWithText("Fetching").assertExists()
+        compose.runOnIdle { history.value = dev.chat.ui.HistoryState(dev.chat.ui.HistoryStatus.Exhausted, 2) }
+        compose.onNodeWithText("Beginning").assertExists()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = emptyList()) }
+        compose.onNodeWithText("Begin here").assertExists()
+        compose.runOnIdle { history.value = dev.chat.ui.HistoryState(dev.chat.ui.HistoryStatus.Idle, 3) }
+        compose.onNodeWithText("Older").assertExists()
+    }
+
+    @Test fun latestAndArrivalActionsUseHostLabelsAndKeepReaderControlExplicit() {
+        val rows = (0..39).map { Message("m$it", Participant("other", "Avery"), it.toLong(), "09:41", "Message $it", Delivery.Sent) }
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = rows))
+        compose.setContent { MaterialTheme {
+            Conversation(snapshot.value, {}, strings = ConversationStrings(
+                latest = "Return", latestDescription = "Return to newest",
+                newMessages = "Arrivals", newMessagesDescription = "Read arrivals"))
+        } }
+        compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        compose.onNodeWithText("Return").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Return to newest").assertExists()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = rows + rows.last().copy(id = "new", text = "Arrival")) }
+        compose.onNodeWithText("Arrivals").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Read arrivals").performClick()
+        compose.onNodeWithText("Arrivals").assertDoesNotExist()
+        compose.onNodeWithTag("message-new").assertIsDisplayed()
+    }
+
     @Test fun multilineSendIsExplicitAndEmittedOnceUntilHostResolvesDraft() {
         val snapshot = mutableStateOf(ConversationState("room", "me", draft = Draft(" \n\t", 1)))
         val events = mutableListOf<ConversationEvent>()
@@ -39,13 +96,13 @@ class ConversationTest {
         )))
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { MaterialTheme { Conversation(snapshot.value, events::add) } }
-        compose.onNodeWithText("Avery · 09:41").assertExists()
-        compose.onNodeWithText("You · 09:41").assertExists()
-        compose.onNodeWithText("Sending").assertExists()
+        compose.onNodeWithText("Avery · 09:41", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("You · 09:41", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Sending", useUnmergedTree = true).assertExists()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(
             snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Failed),
         )) }
-        compose.onNodeWithText("Failed").assertExists()
+        compose.onNodeWithText("Failed", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Retry").performClick()
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.RetryMessage("room", "m2")), events)
@@ -53,9 +110,9 @@ class ConversationTest {
                 snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Sent),
             ))
         }
-        compose.onAllNodesWithText("Hello\n🌍").assertCountEquals(1)
+        compose.onAllNodesWithText("Hello\n🌍", useUnmergedTree = true).assertCountEquals(1)
         compose.onNodeWithText("Retry").assertDoesNotExist()
-        compose.onAllNodesWithText("Sent").assertCountEquals(2)
+        compose.onAllNodesWithText("Sent", useUnmergedTree = true).assertCountEquals(2)
     }
 
     @Test fun switchingConversationsDoesNotReuseAnotherConversationsSubmissionLatch() {

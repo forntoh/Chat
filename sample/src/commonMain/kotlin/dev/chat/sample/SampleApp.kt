@@ -7,16 +7,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.chat.material3.Conversation
 import dev.chat.core.Delivery
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import dev.chat.material3.ConversationStrings
+import dev.chat.material3.MessageBubble
+import dev.chat.material3.MessageComposer
 import dev.chat.ui.*
 
+/** In-memory integration with independent theme/content switches and host-owned draft state. */
 @Composable
 fun SampleApp(host: FakeHost = remember { FakeHost() }) {
     var showConversation by remember { mutableStateOf(true) }
     var custom by remember { mutableStateOf(false) }
-    MaterialTheme {
+    var hostTheme by remember { mutableStateOf(false) }
+    SampleTheme(hostTheme) {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -28,6 +35,7 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                     FlowRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(onClick = host::useHistoryFixture) { Text("History fixture") }
                         TextButton(onClick = host::switchRoom) { Text("Switch room") }
+                        TextButton(onClick = { hostTheme = !hostTheme }) { Text(if (hostTheme) "Jetchat theme" else "Host theme") }
                         TextButton(onClick = { custom = !custom }) { Text(if (custom) "Material3 UI" else "Custom UI") }
                         TextButton(onClick = host::receiveMessage) { Text("New arrival") }
                         if (host.pendingHistory != null) {
@@ -43,38 +51,41 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                             TextButton(onClick = { host.completeDelivery(Delivery.Failed) }) { Text("Fail delivery") }
                         }
                     }
-                    if (custom) {
-                        dev.chat.ui.Conversation(host.state, host::onEvent, Modifier.weight(1f),
-                            messageContent = { message, _, _ ->
-                                Column(Modifier.padding(8.dp)) {
-                                    BasicText("${message.sender.displayName} · ${message.displayTime}")
-                                    BasicText(message.text)
+                    // One Conversation instance: switching presentation retains the send/history latches.
+                    val strings = ConversationStrings()
+                    Conversation(host.state, host::onEvent, Modifier.weight(1f),
+                        strings = strings,
+                        messageContent = { message, outgoing, retry ->
+                            if (custom && !outgoing) {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier.testTag("custom-incoming").clearAndSetSemantics {
+                                        contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${strings.deliveryLabel(message.delivery)}"
+                                    },
+                                ) {
+                                    Column(Modifier.padding(16.dp)) {
+                                        Text(message.sender.displayName, style = MaterialTheme.typography.titleSmall)
+                                        Text(message.text, style = MaterialTheme.typography.bodyLarge)
+                                        Text("${message.displayTime} · ${strings.deliveryLabel(message.delivery)}",
+                                            style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
-                            },
-                            composerContent = { content ->
-                                Row(Modifier.padding(12.dp)) {
-                                    BasicTextField(content.draft.text, content.onTextChange, Modifier.weight(1f), enabled = !content.pending)
-                                    BasicText("Send", Modifier.padding(12.dp).clickable(enabled = content.canSend, onClick = content.onSend))
-                                }
-                            },
-                            history = host.history, onLoadEarlier = host::loadEarlier,
-                            historyContent = { content ->
-                                val label = when (content.state.status) {
-                                    HistoryStatus.Idle -> "Load earlier"
-                                    HistoryStatus.Loading -> "Loading messages…"
-                                    HistoryStatus.Error -> "Couldn't load messages · Retry"
-                                    HistoryStatus.Exhausted -> if (host.state.messages.isEmpty()) "No messages yet" else "Start of conversation"
-                                }
-                                BasicText(label, Modifier.padding(12.dp).clickable(enabled = content.canLoadEarlier, onClick = content.onLoadEarlier))
-                            },
-                            latestContent = { content ->
-                                BasicText(if (content.hasNewMessages) "New messages · Latest" else "Latest",
-                                    Modifier.padding(12.dp).clickable(onClick = content.onReturnToLatest))
-                            })
-                    } else {
-                        Conversation(host.state, host::onEvent, Modifier.weight(1f),
-                            history = host.history, onLoadEarlier = host::loadEarlier)
-                    }
+                            } else {
+                                MessageBubble(message, outgoing, retry, strings)
+                            }
+                        },
+                        composerContent = { content ->
+                            Column {
+                                if (custom) Text("Custom composer · host draft",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                                MessageComposer(content, strings)
+                            }
+                        },
+                        history = host.history, onLoadEarlier = host::loadEarlier)
+
                 } else {
                     Text("Your draft stays with the retained host.", Modifier.padding(16.dp))
                 }
