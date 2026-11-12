@@ -25,12 +25,7 @@ final class ConversationJourney: XCTestCase {
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Keep this draft")
         capture("iOS retained draft and delivered message")
-        XCUIDevice.shared.orientation = .landscapeLeft
-        XCTAssertTrue(composer.waitForExistence(timeout: 5))
-        XCTAssertEqual(composer.value as? String, "Keep this draft")
-        XCTAssertTrue(app.buttons["Send"].isHittable)
-        capture("iOS landscape composer")
-        XCUIDevice.shared.orientation = .portrait
+
     }
 
     private func capture(_ name: String) {

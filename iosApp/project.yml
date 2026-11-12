@@ -34,3 +34,12 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.chat.sample.ios.tests
         TEST_TARGET_NAME: ChatSample
+
+schemes:
+  ChatSample:
+    build:
+      targets:
+        ChatSample: all
+    test:
+      targets:
+        - ChatSampleUITests

@@ -10,6 +10,22 @@ import dev.chat.core.*
 import dev.chat.ui.ComposerContent
 import dev.chat.ui.Conversation as BaseConversation
 
+/**
+ * Default presentation from optional `chat-material3`, using the surrounding [MaterialTheme].
+ * The host supplies authoritative [state] and resolves [onEvent] as documented by
+ * [dev.chat.ui.Conversation]. No messaging service or persistence is installed.
+ *
+ * ```kotlin
+ * MaterialTheme {
+ *     Conversation(state = hostState, onEvent = ::handleConversationEvent)
+ * }
+ * ```
+ *
+ * [messageContent] defaults to [MessageBubble]; [composerContent] defaults to [MessageComposer].
+ * Replacements receive the same guarded intents and must provide their own semantics and labels.
+ * Default labels are English in this text slice. [modifier] is passed to the shared IME-aware
+ * layout. Use `chat-ui` directly when Material3 is not wanted.
+ */
 @Composable
 fun Conversation(
     state: ConversationState,
@@ -23,6 +39,12 @@ fun Conversation(
     BaseConversation(state, onEvent, modifier, messageContent, composerContent)
 }
 
+/**
+ * Plain-text row with host sender/time, text and delivery status. [isCurrentParticipant]
+ * selects outgoing colors; it confers no permission. A non-null [onRetry] shows Retry and
+ * is invoked on each activation. Standalone callers must validate eligibility themselves;
+ * [Conversation] supplies retry only for current-participant failed rows.
+ */
 @Composable
 fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() -> Unit)?) {
     Surface(
@@ -39,6 +61,12 @@ fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() 
     }
 }
 
+/**
+ * Multiline host-controlled text field and explicit Send control using [content].
+ * Pending submissions disable editing; blank drafts disable Send. Input is not trimmed.
+ * The field shows at most five lines and scrolls further text within its own viewport.
+ * Labels use English; replace the composer slot when different presentation is required.
+ */
 @Composable
 fun MessageComposer(content: ComposerContent) {
     Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

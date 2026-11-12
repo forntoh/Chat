@@ -1,6 +1,6 @@
 # Text conversation slice
 
-The approved test seam is a consumer mounting `Conversation` with host snapshots and captured public events. Desktop Compose UI tests exercise sends, host decisions, delivery/retry and conversation changes. Native sample journeys separately verify keyboard, resizing and navigation. No backend or persistence is introduced.
+The approved test seam is a consumer mounting `Conversation` with host snapshots and captured public events. Desktop Compose UI tests exercise sends, host decisions, delivery/retry and conversation changes. Native sample journeys separately verify keyboard-driven viewport adjustment and navigation. No backend or persistence is introduced.
 
 Modules: `:chat:core` contains framework-free public models and intents; `:chat:ui` owns shared timeline/submission behavior and typed message/composer slots using Compose foundation; `:chat:material3` supplies optional default presentation; `sample` owns the in-memory fake delivery service and retained per-conversation state; `androidApp` and `iosApp` are thin launchers. Desktop launches `sample`. Services never flow into `chat`.
 
@@ -31,3 +31,7 @@ Dependency direction: material3 → ui → core. Public model types live in `dev
 Each library produces distinct Gradle module metadata/POMs for root, Android, JVM and both iOS targets. `chat.staging` writes only to `build/staging`; `dev.chat.candidate:*:0.1.0-local` are local verification coordinates, not approved public coordinates. No remote publication repository is configured. Samples/launchers apply no publication convention.
 
 `consumers/` is a separate Gradle build with no producer project dependency, included build or convention plugins. Its core-only, custom-ui and default-material3 projects consume only staged artifact coordinates. Consumer plugin versions are explicitly pinned as an independent adoption example. The custom consumer uses foundation controls and runs the accepted public send/refusal/delivery/retry checks without Material3. `verifySelection` validates resolved runtime graphs; compile checks cover Android, iOS arm64/simulator arm64 and JVM. The source tree/build-logic is needed to *produce* artifacts, never to consume them.
+
+## Current verification scope
+
+Landscape/orientation, text-resizing/font-scaling and dark-mode tests are owner-deferred, with no coverage claim. Functional send/refusal/delivery/retry, keyboard opening/closing, draft retention, RTL, screen-reader semantics and module/platform evidence remain required. Public source KDoc describes the implemented ownership and callback contracts; staged source-artifact inspection belongs to release preparation.

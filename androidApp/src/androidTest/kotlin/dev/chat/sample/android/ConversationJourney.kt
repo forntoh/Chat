@@ -29,13 +29,7 @@ class ConversationJourney {
         compose.onNodeWithTag("composer").assertTextContains("Retained draft")
         compose.onNodeWithText("Send").assertIsDisplayed()
         capture("android-retained-draft")
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            compose.activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        }
-        compose.waitForIdle()
-        compose.onNodeWithTag("composer").assertTextContains("Retained draft")
-        compose.onNodeWithText("Send").assertIsDisplayed()
-        capture("android-landscape")
+
     }
 
     private fun capture(name: String) {

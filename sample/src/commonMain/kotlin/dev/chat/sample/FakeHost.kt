@@ -5,7 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.chat.core.*
 
-/** In-memory, main-thread sample host. Manual decisions make failures reproducible. */
+/**
+ * In-memory sample adapter, called on the UI thread. Manual acceptance and delivery controls
+ * demonstrate separate submission/delivery decisions. Retention lasts only as long as this
+ * instance; there is no network, persistence or production authorization implementation.
+ */
 class FakeHost {
     var state by mutableStateOf(initialState("studio"))
         private set
