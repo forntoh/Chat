@@ -7,9 +7,38 @@ import org.junit.Test
 import androidx.test.platform.app.InstrumentationRegistry
 import android.graphics.Bitmap
 import java.io.File
+import android.os.Build
+import android.view.WindowInsets
+import androidx.test.espresso.Espresso
+import org.junit.Assume.assumeTrue
+import org.junit.Assert.assertTrue
 
 class ConversationJourney {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test fun keyboardOpeningAndClosingAdjustsComposerViewportWithoutLosingDraft() {
+        assumeTrue(Build.VERSION.SDK_INT >= 30)
+        val composer = compose.onNodeWithTag("composer")
+        val closedBottom = composer.fetchSemanticsNode().boundsInRoot.bottom
+        composer.performClick().performTextInput("Retained\nkeyboard draft")
+        compose.waitUntil(5_000) {
+            compose.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true
+        }
+        compose.waitForIdle()
+        val openBottom = composer.fetchSemanticsNode().boundsInRoot.bottom
+        assertTrue("Composer moves above the keyboard", openBottom < closedBottom)
+        compose.onNodeWithText("Send").assertIsDisplayed()
+        capture("android-keyboard-open")
+        Espresso.pressBack()
+        compose.waitUntil(5_000) {
+            compose.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == false
+        }
+        compose.waitForIdle()
+        assertTrue("Composer returns to the expanded viewport", composer.fetchSemanticsNode().boundsInRoot.bottom > openBottom)
+        composer.assertTextContains("Retained\nkeyboard draft")
+        compose.onNodeWithText("Send").assertIsDisplayed()
+        capture("android-keyboard-closed")
+    }
 
     @Test fun sendFailureRetryAndNavigationWithKeyboard() {
         compose.onNodeWithTag("composer").performClick().performTextInput("Hello\nfrom Android")
