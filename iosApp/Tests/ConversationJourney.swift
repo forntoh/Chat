@@ -1,6 +1,26 @@
 import XCTest
 
 final class ConversationJourney: XCTestCase {
+    func testRTLComposerAndFailureRetryRemainReachable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(ar)", "-AppleLocale", "ar", "-NSForceRightToLeftWritingDirection", "YES"]
+        app.launch()
+        let composer = app.textViews.firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15))
+        XCTAssertLessThan(app.buttons["Send"].frame.maxX, composer.frame.minX)
+        composer.tap()
+        composer.typeText("مرحبا\nRTL")
+        XCTAssertTrue(app.buttons["Send"].isHittable)
+        app.buttons["Send"].tap()
+        app.buttons["Accept"].tap()
+        app.buttons["Fail delivery"].tap()
+        XCTAssertTrue(app.buttons["Retry"].isHittable)
+        capture("iOS RTL failed delivery and reachable Retry")
+        app.buttons["Retry"].tap()
+        app.buttons["Deliver"].tap()
+        XCTAssertFalse(app.buttons["Retry"].exists)
+    }
+
     func testSendFailureRetryAndRetainedDraft() {
         let app = XCUIApplication()
         app.launch()

@@ -12,9 +12,31 @@ import android.view.WindowInsets
 import androidx.test.espresso.Espresso
 import org.junit.Assume.assumeTrue
 import org.junit.Assert.assertTrue
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import dev.chat.sample.SampleApp
 
 class ConversationJourney {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test fun rtlComposerAndFailureRetryRemainReachable() {
+        compose.activity.setContent {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) { SampleApp() }
+        }
+        val composer = compose.onNodeWithTag("composer")
+        assertTrue(compose.onNodeWithText("Send").fetchSemanticsNode().boundsInRoot.right < composer.fetchSemanticsNode().boundsInRoot.left)
+        composer.performClick().performTextInput("مرحبا\nRTL")
+        compose.onNodeWithText("Send").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Accept").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Fail delivery").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Retry").assertIsDisplayed()
+        capture("android-rtl-failed")
+        compose.onNodeWithText("Retry").performClick()
+        compose.onNodeWithText("Deliver").performClick()
+        compose.onAllNodesWithText("مرحبا\nRTL").assertCountEquals(1)
+    }
 
     @Test fun keyboardOpeningAndClosingAdjustsComposerViewportWithoutLosingDraft() {
         assumeTrue(Build.VERSION.SDK_INT >= 30)
