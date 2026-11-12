@@ -91,8 +91,8 @@ fun Conversation(
                                 {
                                     onEvent(
                                         ConversationEvent.RetryMessage(
-                                            state.conversationId,
-                                            message.id
+                                            conversationId = state.conversationId,
+                                            messageId = message.id
                                         )
                                     )
                                 }
@@ -105,13 +105,24 @@ fun Conversation(
         composerContent(ComposerContent(state.draft, pending,
             onTextChange = {
                 if (!submitted && !state.draft.submitting) {
-                    onEvent(ConversationEvent.DraftChanged(state.conversationId, it))
+                    onEvent(
+                        ConversationEvent.DraftChanged(
+                            conversationId = state.conversationId,
+                            text = it,
+                        ),
+                    )
                 }
             },
             onSend = {
                 if (!submitted && !state.draft.submitting && state.draft.text.isNotBlank()) {
                     submitted = true
-                    onEvent(ConversationEvent.SendDraft(state.conversationId, state.draft.revision, state.draft.text))
+                    onEvent(
+                        ConversationEvent.SendDraft(
+                            conversationId = state.conversationId,
+                            revision = state.draft.revision,
+                            text = state.draft.text
+                        )
+                    )
                 }
             },
         ))

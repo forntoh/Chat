@@ -2,7 +2,7 @@
 
 A host-owned text conversation for Android, iOS and desktop JVM. This slice includes a shared UI and an in-memory sample; transport, authentication and persistence belong to the consumer.
 
-Use JDK 21 (`JAVA_HOME`), Android SDK (`ANDROID_HOME`), and a full Xcode installation (`DEVELOPER_DIR` if it is not selected globally).
+Use JDK 21 (`JAVA_HOME`) to launch Gradle and provide the compilation toolchain, Android SDK (`ANDROID_HOME`), and a full Xcode installation (`DEVELOPER_DIR` if it is not selected globally). The committed `gradle/gradle-daemon-jvm.properties` selects Java 25 for the Gradle daemon independently of `JAVA_HOME`. Gradle uses a matching installed/cached JDK or provisions it through the download URLs in that file; first-time provisioning needs network access. Kotlin/JVM compilation still uses the JDK 21 toolchain configured by the convention plugin.
 
 ```sh
 ./gradlew :chat:material3:jvmTest :sample:jvmTest :androidApp:assembleDebug
