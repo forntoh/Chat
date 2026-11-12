@@ -73,13 +73,29 @@ fun Conversation(
     val pending = state.draft.submitting || submitted
     Column(modifier.fillMaxSize().imePadding()) {
         key(state.conversationId) {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("timeline"), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth().testTag("timeline"),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 items(state.messages, key = { it.id }) { message ->
                     val isCurrent = message.sender.id == state.currentParticipantId
-                    Column(Modifier.fillMaxWidth().testTag("message-${message.id}"), horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start) {
-                        messageContent(message, isCurrent,
+                    Column(
+                        Modifier.fillMaxWidth().testTag("message-${message.id}"),
+                        horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start
+                    ) {
+                        messageContent(
+                            message,
+                            isCurrent,
                             if (isCurrent && message.delivery == Delivery.Failed) {
-                                { onEvent(ConversationEvent.RetryMessage(state.conversationId, message.id)) }
+                                {
+                                    onEvent(
+                                        ConversationEvent.RetryMessage(
+                                            state.conversationId,
+                                            message.id
+                                        )
+                                    )
+                                }
                             } else null,
                         )
                     }
@@ -87,7 +103,11 @@ fun Conversation(
             }
         }
         composerContent(ComposerContent(state.draft, pending,
-            onTextChange = { if (!submitted && !state.draft.submitting) onEvent(ConversationEvent.DraftChanged(state.conversationId, it)) },
+            onTextChange = {
+                if (!submitted && !state.draft.submitting) {
+                    onEvent(ConversationEvent.DraftChanged(state.conversationId, it))
+                }
+            },
             onSend = {
                 if (!submitted && !state.draft.submitting && state.draft.text.isNotBlank()) {
                     submitted = true
