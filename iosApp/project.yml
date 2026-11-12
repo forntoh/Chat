@@ -1,0 +1,36 @@
+name: ChatSample
+options:
+  bundleIdPrefix: dev.chat.sample
+  deploymentTarget:
+    iOS: '15.0'
+targets:
+  ChatSample:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.chat.sample.ios
+        PRODUCT_MODULE_NAME: ChatSampleHost
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        FRAMEWORK_SEARCH_PATHS: '$(SRCROOT)/../sample/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)'
+        OTHER_LDFLAGS: '$(inherited) -framework ChatSample'
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    preBuildScripts:
+      - name: Build shared Compose framework
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :sample:embedAndSignAppleFrameworkForXcode
+        basedOnDependencyAnalysis: false
+  ChatSampleUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: ChatSample
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.chat.sample.ios.tests
+        TEST_TARGET_NAME: ChatSample

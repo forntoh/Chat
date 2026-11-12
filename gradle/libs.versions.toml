@@ -1,0 +1,19 @@
+[versions]
+kotlin = "2.4.0"
+compose = "1.11.1"
+material3 = "1.11.0-alpha07"
+agp = "9.1.0"
+
+[libraries]
+kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradle = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose" }
+compose-compiler-gradle = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+android-gradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
+compose-test = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "compose" }
+material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
