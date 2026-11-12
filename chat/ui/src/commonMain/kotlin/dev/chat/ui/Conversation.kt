@@ -144,8 +144,13 @@ fun Conversation(
             LaunchedEffect(list) {
                 snapshotFlow { !list.canScrollForward }.collect { if (it) newMessages = false }
             }
-            historyContent(HistoryContent(history,
-                !requested && history.status in listOf(HistoryStatus.Idle, HistoryStatus.Error), loadEarlier))
+            historyContent(
+                HistoryContent(
+                    state = history,
+                    canLoadEarlier = !requested && history.status in listOf(HistoryStatus.Idle, HistoryStatus.Error),
+                    onLoadEarlier = loadEarlier,
+                ),
+            )
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth().testTag("timeline"),
                 state = list,
@@ -176,9 +181,16 @@ fun Conversation(
                 }
             }
             val awayFromLatest by remember { derivedStateOf { list.canScrollForward } }
-            if (awayFromLatest) latestContent(LatestContent(newMessages) {
-                scope.launch { if (ids.isNotEmpty()) list.scrollToItem(ids.lastIndex); newMessages = false }
-            })
+            if (awayFromLatest) {
+                latestContent(
+                    LatestContent(newMessages) {
+                        scope.launch {
+                            if (ids.isNotEmpty()) list.scrollToItem(ids.lastIndex); newMessages =
+                            false
+                        }
+                    },
+                )
+            }
         }
         composerContent(ComposerContent(state.draft, pending,
             onTextChange = {

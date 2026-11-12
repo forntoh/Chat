@@ -1,6 +1,5 @@
 package dev.chat.ui
 
-/** Host history availability. Error retains rows and requires explicit retry; Exhausted stops requests. */
 enum class HistoryStatus { Idle, Loading, Error, Exhausted }
 
 /**
