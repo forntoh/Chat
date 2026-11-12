@@ -10,6 +10,8 @@ Run the same sample on each target. The service is in memory and delivery comple
 6. Enter a new draft, leave the conversation, then open it. Text remains. The composer remains reachable and the retained host draft survives navigation.
 7. Open the native keyboard, enter several lines, and confirm Send and native navigation remain reachable. Verify long messages scroll in the timeline without displacing the composer.
 
-Automated entry points: `:chat:material3:jvmTest`, `:sample:jvmTest`, `:androidApp:connectedDebugAndroidTest`, and the generated `ChatSampleUITests` Xcode target. Automated semantics tests do not substitute for screen-reader or physical-device validation. Record actual successes, failures and skips in the candidate handoff.
+Current early-stage validation is limited to affected builds, one basic launch/text-send smoke journey on Android, iOS and desktop, and a small shared public-contract suite for send suppression, failure/retry identity and host-owned draft state. Reuse valid candidate evidence; do not rerun the complete matrix without a relevant change or failure. The steps above describe product behavior, not a mandatory exhaustive campaign.
 
-Owner-deferred at this stage: landscape/orientation, text-resizing/font-scaling and dark-mode tests. Do not execute these or report them as passed. Keyboard-driven viewport adjustment remains in scope.
+Automated entry points include `:chat:ui:jvmTest`, `:chat:material3:jvmTest`, `:sample:jvmTest`, `:androidApp:connectedDebugAndroidTest`, and the generated `ChatSampleUITests` Xcode target. Record exact candidate, actual evidence and limitations in the handoff.
+
+Owner-deferred: dedicated TalkBack/VoiceOver and other screen-reader campaigns, RTL/locale matrices, landscape/orientation, text-resizing/font-scaling, dark mode, exhaustive keyboard/navigation and broad device/configuration coverage. These do not gate this slice. Existing semantics and localization support remain available. No deferred coverage is claimed.
