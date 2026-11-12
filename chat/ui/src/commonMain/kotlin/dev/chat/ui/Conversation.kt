@@ -17,6 +17,11 @@ import dev.chat.core.*
  * require nonblank text. Call them only for explicit user input, never during composition.
  * Callbacks capture the rendered snapshot; do not retain them after that snapshot is replaced.
  * Custom content owns its labels, focus behavior and accessibility semantics.
+ *
+ * @param draft Rendered host snapshot; display its text without a separate local draft copy.
+ * @param pending Whether host submission or the composition's send latch blocks editing and sending.
+ * @param onTextChange Requests exact replacement text on user input; ignored while pending.
+ * @param onSend Requests submission of the rendered nonblank draft; ignored while pending.
  */
 class ComposerContent(
     val draft: Draft,
@@ -46,6 +51,14 @@ class ComposerContent(
  *
  * For a host-rendered composer, forward changes with `content.onTextChange(newText)` and an
  * explicit send with `content.onSend()`, enabling the send control with `content.canSend`.
+ *
+ * @param state Authoritative host snapshot containing ordered messages and the retained draft.
+ * @param onEvent Synchronous user-intent handler; return promptly and resolve submissions through host state.
+ * @param modifier Outer layout modifier, empty by default; provide bounded height and host window insets.
+ * @param messageContent Required row renderer receiving the message, current-participant flag and nullable
+ * retry callback. Retry is available only for outgoing failed rows; supply presentation and semantics.
+ * @param composerContent Required composer renderer receiving guarded input/send callbacks and pending state.
+ * Supply its labels, focus behavior and accessibility semantics.
  */
 @Composable
 fun Conversation(

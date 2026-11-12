@@ -25,6 +25,14 @@ import dev.chat.ui.Conversation as BaseConversation
  * Replacements receive the same guarded intents and must provide their own semantics and labels.
  * Default labels are English in this text slice. [modifier] is passed to the shared IME-aware
  * layout. Use `chat-ui` directly when Material3 is not wanted.
+ *
+ * @param state Authoritative host snapshot, including ordered messages and a retained conversation draft.
+ * @param onEvent Synchronous user-intent handler; host validation and state updates resolve each intent.
+ * @param modifier Outer IME-aware layout modifier; defaults to empty and requires bounded host space.
+ * @param messageContent Row renderer receiving the message, current-participant flag and nullable retry
+ * callback; defaults to [MessageBubble]. Replacements provide their own presentation and semantics.
+ * @param composerContent Composer renderer receiving guarded callbacks and pending state; defaults to
+ * [MessageComposer]. Replacements provide their own labels, focus behavior and semantics.
  */
 @Composable
 fun Conversation(
@@ -44,6 +52,10 @@ fun Conversation(
  * selects outgoing colors; it confers no permission. A non-null [onRetry] shows Retry and
  * is invoked on each activation. Standalone callers must validate eligibility themselves;
  * [Conversation] supplies retry only for current-participant failed rows.
+ *
+ * @param message Host row whose sender, formatted time, plain text and delivery state are displayed.
+ * @param isCurrentParticipant Whether to use outgoing colors; does not grant permission to retry.
+ * @param onRetry Explicit retry callback, or null to hide Retry; standalone callers validate eligibility.
  */
 @Composable
 fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() -> Unit)?) {
@@ -66,6 +78,8 @@ fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() 
  * Pending submissions disable editing; blank drafts disable Send. Input is not trimmed.
  * The field shows at most five lines and scrolls further text within its own viewport.
  * Labels use English; replace the composer slot when different presentation is required.
+ *
+ * @param content Rendered host draft, pending state and guarded input/send callbacks from the shared layout.
  */
 @Composable
 fun MessageComposer(content: ComposerContent) {
