@@ -3,6 +3,9 @@ package dev.chat.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -53,6 +56,14 @@ class ComposerContent(
  * For a host-rendered composer, forward changes with `content.onTextChange(newText)` and an
  * explicit send with `content.onSend()`, enabling the send control with `content.canSend`.
  *
+ * [history] and [onLoadEarlier] are optional host-driven paging contracts in `chat-ui`.
+ * Supply [historyContent] for loading/error/empty feedback and [latestContent] for a deliberate
+ * return control while away from the bottom. Requests can originate from a boundary effect;
+ * no transport runs inside this component. Stable row keys preserve position on prepend;
+ * a removed anchor falls forward to the next surviving row, then backward. Appended rows
+ * follow the bottom only if the reader was already there. Switching conversation resets
+ * these UI latches; the host must isolate drafts and reject obsolete asynchronous results.
+ *
  * @param state Authoritative host snapshot containing ordered messages and the retained draft.
  * @param onEvent Synchronous user-intent handler; return promptly and resolve submissions through host state.
  * @param modifier Outer layout modifier, empty by default; provide bounded height and host window insets.
@@ -60,6 +71,10 @@ class ComposerContent(
  * retry callback. Retry is available only for outgoing failed rows; supply presentation and semantics.
  * @param composerContent Required composer renderer receiving guarded input/send callbacks and pending state.
  * Supply its labels, focus behavior and accessibility semantics.
+ * @param history Host paging availability; exhausted by default, so no requests are emitted.
+ * @param onLoadEarlier Synchronous request handler; publish Loading before starting host async work.
+ * @param historyContent Optional status/retry slot above the timeline; custom content owns empty/error labels.
+ * @param latestContent Optional control below the timeline while away from the bottom; receives new-arrival state.
  */
 @Composable
 fun Conversation(
@@ -68,13 +83,68 @@ fun Conversation(
     modifier: Modifier = Modifier,
     messageContent: @Composable (message: Message, isCurrentParticipant: Boolean, onRetry: (() -> Unit)?) -> Unit,
     composerContent: @Composable (ComposerContent) -> Unit,
+    history: HistoryState = HistoryState(),
+    onLoadEarlier: (HistoryRequest) -> Unit = {},
+    historyContent: @Composable (HistoryContent) -> Unit = {},
+    latestContent: @Composable (LatestContent) -> Unit = {},
 ) {
     var submitted by remember(state.conversationId, state.draft.revision) { mutableStateOf(false) }
     val pending = state.draft.submitting || submitted
     Column(modifier.fillMaxSize().imePadding()) {
         key(state.conversationId) {
+            val list = rememberLazyListState()
+            val scope = rememberCoroutineScope()
+            var requested by remember(history.revision, history.status) { mutableStateOf(false) }
+            val currentHistory by rememberUpdatedState(history)
+            val currentRequest by rememberUpdatedState(onLoadEarlier)
+            val loadEarlier = {
+                if (!requested && currentHistory.status in listOf(HistoryStatus.Idle, HistoryStatus.Error)) {
+                    requested = true
+                    currentRequest(HistoryRequest(state.conversationId, currentHistory.revision))
+                }
+            }
+            val currentLoad by rememberUpdatedState(loadEarlier)
+            LaunchedEffect(history) {
+                snapshotFlow { list.firstVisibleItemIndex == 0 && list.firstVisibleItemScrollOffset == 0 }
+                    .distinctUntilChanged().collect { atStart ->
+                        if (atStart && currentHistory.status == HistoryStatus.Idle) currentLoad()
+                    }
+            }
+            var previousIds by remember { mutableStateOf<List<String>>(emptyList()) }
+            var newMessages by remember { mutableStateOf(false) }
+            val ids = state.messages.map { it.id }
+            val oldLayout = list.layoutInfo
+            val wasAtBottom = previousIds.isEmpty() || oldLayout.visibleItemsInfo.lastOrNull()?.let {
+                it.key == previousIds.lastOrNull() && it.offset + it.size <= oldLayout.viewportEndOffset
+            } == true
+            val anchor = oldLayout.visibleItemsInfo.firstOrNull { it.index == list.firstVisibleItemIndex }
+            val anchorOffset = list.firstVisibleItemScrollOffset
+            LaunchedEffect(ids) {
+                val appended = previousIds.lastOrNull()?.let { oldLast ->
+                    val index = ids.indexOf(oldLast)
+                    index >= 0 && index < ids.lastIndex
+                } == true
+                if (ids.isNotEmpty()) {
+                    if (wasAtBottom && (appended || previousIds.isEmpty())) {
+                        list.scrollToItem(ids.lastIndex)
+                    } else if (anchor != null && previousIds.isNotEmpty()) {
+                        val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
+                            ?: previousIds.drop(anchor.index).firstNotNullOfOrNull { old -> ids.indexOf(old).takeIf { it >= 0 } }
+                            ?: previousIds.take(anchor.index).lastOrNull { it in ids }?.let(ids::indexOf)
+                        if (surviving != null) list.scrollToItem(surviving, anchorOffset)
+                    }
+                }
+                if (appended && !wasAtBottom) newMessages = true
+                previousIds = ids
+            }
+            LaunchedEffect(list) {
+                snapshotFlow { !list.canScrollForward }.collect { if (it) newMessages = false }
+            }
+            historyContent(HistoryContent(history,
+                !requested && history.status in listOf(HistoryStatus.Idle, HistoryStatus.Error), loadEarlier))
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth().testTag("timeline"),
+                state = list,
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -101,6 +171,9 @@ fun Conversation(
                     }
                 }
             }
+            if (list.canScrollForward) latestContent(LatestContent(newMessages) {
+                scope.launch { if (ids.isNotEmpty()) list.scrollToItem(ids.lastIndex); newMessages = false }
+            })
         }
         composerContent(ComposerContent(state.draft, pending,
             onTextChange = {

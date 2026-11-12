@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.chat.core.*
-import dev.chat.ui.ComposerContent
+import dev.chat.ui.*
 import dev.chat.ui.Conversation as BaseConversation
 
 /**
@@ -26,9 +26,17 @@ import dev.chat.ui.Conversation as BaseConversation
  * Default labels are English in this text slice. [modifier] is passed to the shared IME-aware
  * layout. Use `chat-ui` directly when Material3 is not wanted.
  *
+ * [history] and [onLoadEarlier] use the shared UI history contract. The default [historyContent]
+ * displays initial loading/empty/error and page retry/exhaustion; replace it for host wording.
+ * [latestContent] defaults to an explicit Latest control with a new-arrival indicator.
+ *
  * @param state Authoritative host snapshot, including ordered messages and a retained conversation draft.
  * @param onEvent Synchronous user-intent handler; host validation and state updates resolve each intent.
  * @param modifier Outer IME-aware layout modifier; defaults to empty and requires bounded host space.
+ * @param history Host paging availability, exhausted by default to disable loading.
+ * @param onLoadEarlier Host handler that publishes Loading synchronously and validates request generations.
+ * @param historyContent Replaceable status/retry presentation; defaults to English Material3 controls.
+ * @param latestContent Replaceable return control, shown while away from the bottom; defaults to Latest.
  * @param messageContent Row renderer receiving the message, current-participant flag and nullable retry
  * callback; defaults to [MessageBubble]. Replacements provide their own presentation and semantics.
  * @param composerContent Composer renderer receiving guarded callbacks and pending state; defaults to
@@ -43,8 +51,14 @@ fun Conversation(
         MessageBubble(message, isCurrent, retry)
     },
     composerContent: @Composable (ComposerContent) -> Unit = { MessageComposer(it) },
+    history: HistoryState = HistoryState(),
+    onLoadEarlier: (HistoryRequest) -> Unit = {},
+    historyContent: @Composable (HistoryContent) -> Unit = { HistoryStatusContent(it, state.messages.isEmpty()) },
+    latestContent: @Composable (LatestContent) -> Unit = { content ->
+        TextButton(onClick = content.onReturnToLatest) { Text(if (content.hasNewMessages) "New messages · Latest" else "Latest") }
+    },
 ) {
-    BaseConversation(state, onEvent, modifier, messageContent, composerContent)
+    BaseConversation(state, onEvent, modifier, messageContent, composerContent, history, onLoadEarlier, historyContent, latestContent)
 }
 
 /**
@@ -94,5 +108,22 @@ fun MessageComposer(content: ComposerContent) {
             modifier = Modifier.weight(1f).testTag("composer"),
         )
         Button(enabled = content.canSend, onClick = content.onSend, modifier = Modifier.heightIn(min = 48.dp)) { Text("Send") }
+    }
+}
+
+/**
+ * English history feedback for the optional Material3 presentation. [empty] distinguishes
+ * an empty conversation from exhausted earlier history. Failures retain existing rows;
+ * Retry is enabled only when [content] permits another explicit request.
+ */
+@Composable
+fun HistoryStatusContent(content: HistoryContent, empty: Boolean) {
+    Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+      when (content.state.status) {
+        HistoryStatus.Idle -> TextButton(enabled = content.canLoadEarlier, onClick = content.onLoadEarlier) { Text("Load earlier") }
+        HistoryStatus.Loading -> Text("Loading messages…", Modifier.padding(12.dp))
+        HistoryStatus.Error -> TextButton(enabled = content.canLoadEarlier, onClick = content.onLoadEarlier) { Text("Couldn't load messages · Retry") }
+        HistoryStatus.Exhausted -> Text(if (empty) "No messages yet" else "Start of conversation", Modifier.padding(12.dp))
+      }
     }
 }

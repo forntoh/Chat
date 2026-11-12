@@ -5,9 +5,44 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
+import dev.chat.ui.*
+import dev.chat.core.ConversationEvent
 
 class SampleJourneyTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun historyHostMergesOverlapRejectsLateResultsAndRetainsRoomDrafts() {
+        val host = FakeHost()
+        compose.setContent { SampleApp(host) }
+        compose.onNodeWithText("History fixture").performClick()
+        compose.runOnIdle {
+            host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Keep studio"))
+            host.loadEarlier(HistoryRequest(host.state.conversationId, host.history.revision))
+        }
+        compose.onNodeWithText("Loading messages…").assertExists()
+        val old = host.pendingHistory!!
+        compose.runOnIdle { host.failHistory() }
+        compose.onNodeWithText("Couldn't load messages · Retry").performClick()
+        compose.runOnIdle { host.completeHistory() }
+        compose.runOnIdle {
+            assertEquals(100, host.state.messages.size)
+            assertEquals(100, host.state.messages.map { it.id }.distinct().size)
+            assertEquals("Message 950 · refreshed", host.state.messages.first { it.id == "history-950" }.text)
+            host.loadEarlier(HistoryRequest(host.state.conversationId, host.history.revision))
+        }
+        val cancelled = host.pendingHistory!!
+        compose.runOnIdle {
+            host.switchRoom()
+            host.completeHistory(cancelled)
+            assertEquals("other", host.state.conversationId)
+            assertEquals("", host.state.draft.text)
+            host.switchRoom()
+            assertEquals("Keep studio", host.state.draft.text)
+            host.completeHistory(cancelled)
+            host.completeHistory(old)
+            assertEquals(100, host.state.messages.size)
+        }
+    }
 
     @Test fun acceptedSendFailsAndRetriesWithoutDuplicatingTheTimelineRow() {
         val host = FakeHost()

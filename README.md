@@ -18,6 +18,8 @@ The iOS project is reproducibly generated from `iosApp/project.yml` with XcodeGe
 
 See [contract and architecture](docs/implementation.md) for public state/events and dependency decisions. Native evidence and limitations are recorded in the handoff document; target declarations alone are not verified platform support. This candidate has only local verification coordinates; public distribution is not configured.
 
+See [earlier history](docs/history.md) for host paging, reader anchoring, retry and the custom/Material3 sample controls.
+
 Verify selectable artifacts locally (no network publication):
 
 ```sh
