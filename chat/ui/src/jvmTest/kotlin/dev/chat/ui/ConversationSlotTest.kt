@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import dev.chat.core.*
@@ -38,6 +42,35 @@ class ConversationSlotTest {
         }
         compose.onNodeWithText("Remembered: Room B").assertExists()
         compose.onNodeWithText("Remembered: Room A").assertDoesNotExist()
+    }
+
+    @Test fun replacingComposerPresentationPreservesDraftAndPendingSubmission() {
+        val snapshot = mutableStateOf(ConversationState("room", "me", draft = Draft("Hello\n🌍", 2)))
+        val custom = mutableStateOf(false)
+        val events = mutableListOf<ConversationEvent>()
+        compose.setContent {
+            Conversation(
+                state = snapshot.value,
+                onEvent = events::add,
+                messageContent = { _, _, _ -> },
+                composerContent = { content ->
+                    BasicText(content.draft.text)
+                    BasicText(if (custom.value) "Custom send" else "Default send",
+                        Modifier.clickable(enabled = content.canSend, onClick = content.onSend)
+                            .semantics { if (!content.canSend) disabled() })
+                },
+            )
+        }
+        compose.onNodeWithText("Default send").performClick()
+        compose.runOnIdle { custom.value = true }
+        compose.onNodeWithText("Hello\n🌍").assertExists()
+        compose.onNodeWithText("Custom send").assertIsNotEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.SendDraft("room", 2, "Hello\n🌍")), events)
+            snapshot.value = snapshot.value.copy(draft = Draft("Hello\n🌍", 3))
+        }
+        compose.onNodeWithText("Custom send").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(ConversationEvent.SendDraft("room", 3, "Hello\n🌍"), events.last()) }
     }
 
     @Test fun sendBlocksEditsAndRepeatedSendInTheSameUserActivation() {
