@@ -36,7 +36,8 @@ class ComposerContent(
 /**
  * Shared timeline/composer layout from `chat-ui`; requires Compose foundation, not Material3.
  *
- * The host owns [state] and handles [onEvent]. Rows retain [Message.id] keys in host list order.
+ * The host owns [state] and handles [onEvent]. Rows retain [Message.id] keys in host list order within each conversation.
+ * Changing conversation discards remembered timeline and message-slot state.
  * [messageContent] receives the row, current-sender flag and a nullable retry callback; only
  * current-participant failed rows get retry. Retry is not latched: the host must update delivery
  * and reject duplicate or stale requests. Slots own their presentation and semantics.
@@ -71,20 +72,22 @@ fun Conversation(
     var submitted by remember(state.conversationId, state.draft.revision) { mutableStateOf(false) }
     val pending = state.draft.submitting || submitted
     Column(modifier.fillMaxSize().imePadding()) {
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("timeline"), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(state.messages, key = { it.id }) { message ->
-                val isCurrent = message.sender.id == state.currentParticipantId
-                Column(Modifier.fillMaxWidth().testTag("message-${message.id}"), horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start) {
-                    messageContent(message, isCurrent,
-                        if (isCurrent && message.delivery == Delivery.Failed) {
-                            { onEvent(ConversationEvent.RetryMessage(state.conversationId, message.id)) }
-                        } else null,
-                    )
+        key(state.conversationId) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("timeline"), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(state.messages, key = { it.id }) { message ->
+                    val isCurrent = message.sender.id == state.currentParticipantId
+                    Column(Modifier.fillMaxWidth().testTag("message-${message.id}"), horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start) {
+                        messageContent(message, isCurrent,
+                            if (isCurrent && message.delivery == Delivery.Failed) {
+                                { onEvent(ConversationEvent.RetryMessage(state.conversationId, message.id)) }
+                            } else null,
+                        )
+                    }
                 }
             }
         }
         composerContent(ComposerContent(state.draft, pending,
-            onTextChange = { if (!pending) onEvent(ConversationEvent.DraftChanged(state.conversationId, it)) },
+            onTextChange = { if (!submitted && !state.draft.submitting) onEvent(ConversationEvent.DraftChanged(state.conversationId, it)) },
             onSend = {
                 if (!submitted && !state.draft.submitting && state.draft.text.isNotBlank()) {
                     submitted = true

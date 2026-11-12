@@ -6,8 +6,15 @@ final class ConversationJourney: XCTestCase {
         app.launch()
         let composer = app.textViews.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15), app.debugDescription)
+        let closedBottom = composer.frame.maxY
         composer.tap()
         composer.typeText("Hello\nfrom iOS")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let openBottom = composer.frame.maxY
+        XCTAssertLessThan(openBottom, closedBottom)
+        XCTAssertLessThanOrEqual(openBottom, app.keyboards.firstMatch.frame.minY)
+        XCTAssertTrue(app.buttons["Send"].isHittable)
+        capture("iOS keyboard open and composer above keyboard")
         app.buttons["Send"].tap()
         XCTAssertFalse(app.buttons["Send"].isEnabled)
         app.buttons["Accept"].tap()
@@ -21,9 +28,12 @@ final class ConversationJourney: XCTestCase {
         composer.tap()
         composer.typeText("Keep this draft")
         app.buttons["Leave"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         app.buttons["Open chat"].tap()
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, "Keep this draft")
+        XCTAssertGreaterThan(composer.frame.maxY, openBottom)
+        XCTAssertTrue(app.buttons["Send"].isHittable)
         capture("iOS retained draft and delivered message")
 
     }
