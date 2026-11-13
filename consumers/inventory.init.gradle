@@ -1,0 +1,21 @@
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+gradle.projectsEvaluated {
+    rootProject.tasks.register('dependencyInventory') {
+        doLast {
+            def report = []
+            [':combined', ':default-material3'].each { projectPath ->
+                def p = rootProject.project(projectPath)
+                ['jvmRuntimeClasspath', 'androidCompileClasspath', 'iosArm64CompileKlibraries', 'iosSimulatorArm64CompileKlibraries'].each { name ->
+                    def c = p.configurations.getByName(name)
+                    def r = c.incoming.resolutionResult
+                    def unresolved = r.allDependencies.findAll { it instanceof UnresolvedDependencyResult }
+                    assert unresolved.empty : unresolved.collect { it.failure.message }
+                    report.add([project: projectPath, configuration:name, modules:r.allComponents.findAll { it.moduleVersion != null }.collect { it.moduleVersion.toString() }.sort(), artifacts:c.incoming.artifacts.artifacts.collect { [component:it.id.componentIdentifier.toString(), file:it.file.absolutePath] }.sort { it.component }])
+                }
+            }
+            new File(rootProject.providers.gradleProperty('inventoryOutput').get()).text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
+        }
+    }
+}
