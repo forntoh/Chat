@@ -88,10 +88,6 @@ class FakeMediaHost {
         submission = null
     }
 
-    /**
-     * Fake delayed result for any exact pending target, defaulting to the oldest for manual controls.
-     * Rejects removed, replaced and navigated targets; resolving one never discards another upload.
-     */
     fun completeUpload(success: Boolean, target: MediaTarget? = upload) {
         if (target == null || target !in uploads || !current(target)) return
         val row = target.message!!.copy(delivery = if (success) Delivery.Sent else Delivery.Failed)
