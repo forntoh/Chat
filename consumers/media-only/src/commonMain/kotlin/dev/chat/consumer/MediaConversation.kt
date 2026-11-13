@@ -3,9 +3,9 @@ package dev.chat.consumer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import dev.chat.core.*
-import dev.chat.ui.*
-import dev.chat.media.*
+import com.forntoh.chat.core.*
+import com.forntoh.chat.ui.*
+import com.forntoh.chat.media.*
 
 /** Standalone foundation-only consumer; no producer projects, actions or Material3. */
 @Composable

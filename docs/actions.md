@@ -1,6 +1,6 @@
 # Host-owned message actions
 
-Select `dev.chat.candidate:chat-actions:0.1.0-local` alongside `chat-ui`. Actions depend on core,
+Select `com.forntoh.chat.candidate:chat-actions:0.1.0-local` alongside `chat-ui`. Actions depend on core,
 UI and Compose foundation; they do not add Material3, media, networking, storage or permissions.
 `consumers/actions-only` is a standalone foundation-only integration using staged artifacts.
 The sample uses the same slots with its existing optional Material3 renderers and Jetchat reference.

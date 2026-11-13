@@ -1,6 +1,6 @@
 package dev.chat.consumer
 
-import dev.chat.core.*
+import com.forntoh.chat.core.*
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*

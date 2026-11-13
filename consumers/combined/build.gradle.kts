@@ -13,8 +13,8 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     sourceSets.commonMain.dependencies {
-        implementation("dev.chat.candidate:chat-actions:0.1.0-local")
-        implementation("dev.chat.candidate:chat-media:0.1.0-local")
+        implementation("com.forntoh.chat.candidate:chat-actions:0.1.0-local")
+        implementation("com.forntoh.chat.candidate:chat-media:0.1.0-local")
     }
 }
 
@@ -35,7 +35,7 @@ tasks.register("verifySelection") {
             val components = result.allComponents.filter { it.id != result.rootComponent.get().id }
             check(components.none { it.id is ProjectComponentIdentifier }) { "Producer project coupling" }
             val modules = components.mapNotNull { it.id as? ModuleComponentIdentifier }
-            val chat = modules.filter { it.group == "dev.chat.candidate" }
+            val chat = modules.filter { it.group == "com.forntoh.chat.candidate" }
             val expected = setOf("chat-core", "chat-ui", "chat-actions", "chat-media")
             check(chat.map { it.version }.toSet() == setOf("0.1.0-local"))
             check(chat.map { it.module }.toSet() == expected + expected.map { "$it-$target" }) {

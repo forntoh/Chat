@@ -1,7 +1,7 @@
 package dev.chat.consumer
 
 import androidx.compose.foundation.text.BasicText
-import dev.chat.ui.ConversationSlots
+import com.forntoh.chat.ui.ConversationSlots
 
 /** Independent source compatibility checks against staged artifacts, including lambda inference. */
 fun legacySlotCalls(base: ConversationSlots): List<ConversationSlots> = listOf(
@@ -26,7 +26,7 @@ fun legacySlotCalls(base: ConversationSlots): List<ConversationSlots> = listOf(
 )
 
 /** component13 and thirteen-position destructuring must still have LatestContent input. */
-fun legacyLatestLabelComponents(base: ConversationSlots): List<@androidx.compose.runtime.Composable (dev.chat.ui.LatestContent) -> Unit> {
+fun legacyLatestLabelComponents(base: ConversationSlots): List<@androidx.compose.runtime.Composable (com.forntoh.chat.ui.LatestContent) -> Unit> {
     val (_, _, _, _, _, _, _, _, _, _, _, _, latestLabel) = base
     return listOf(base.component13(), latestLabel)
 }
