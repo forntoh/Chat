@@ -27,7 +27,10 @@ Verify selectable artifacts locally (no network publication):
 ./gradlew -p consumers -PchatRepository="$PWD/build/staging" verifySelection jvmJar compileAndroidMain compileKotlinIosArm64 compileKotlinIosSimulatorArm64 :custom-ui:jvmTest
 ```
 
-Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All three artifacts use the same configured platform/toolchain floors.
+Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
 
 See [customization](docs/customization.md) for host strings, ordered semantics, mixed renderers
 and the Jetchat-referenced sample themes.
+
+See [message actions](docs/actions.md) for independently selectable `chat-actions`, quote/edit/delete
+state, explicit host clipboard integration and a Material3-free outside consumer.

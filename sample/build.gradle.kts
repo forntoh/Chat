@@ -7,6 +7,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":chat:material3"))
+            implementation(project(":chat:actions"))
             implementation(libs.material3)
         }
         jvmMain.dependencies { implementation(compose.desktop.currentOs) }

@@ -16,10 +16,16 @@ import dev.chat.material3.ConversationStrings
 import dev.chat.material3.MessageBubble
 import dev.chat.material3.MessageComposer
 import dev.chat.ui.*
+import dev.chat.actions.*
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 /** In-memory integration with independent theme/content switches and host-owned draft state. */
 @Composable
 fun SampleApp(host: FakeHost = remember { FakeHost() }) {
+    val clipboard = LocalClipboardManager.current
+    val actions = rememberMessageActions(host.state, host.actions,
+        onAction = { request -> host.onAction(request) { clipboard.setText(AnnotatedString(it)) } }, onEvent = host::onEvent)
     var showConversation by remember { mutableStateOf(true) }
     var custom by remember { mutableStateOf(false) }
     var hostTheme by remember { mutableStateOf(false) }
@@ -42,6 +48,10 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                             TextButton(onClick = { host.completeHistory() }) { Text("Complete page") }
                             TextButton(onClick = host::failHistory) { Text("Fail page") }
                         }
+                        if (host.pendingAction != null) {
+                            TextButton(onClick = { host.completeAction(true) }) { Text("Complete action") }
+                            TextButton(onClick = { host.completeAction(false) }) { Text("Fail action") }
+                        }
                         if (host.pendingDraft != null) {
                             TextButton(onClick = host::accept) { Text("Accept") }
                             TextButton(onClick = host::refuse) { Text("Keep draft") }
@@ -53,9 +63,11 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                     }
                     // One Conversation instance: switching presentation retains the send/history latches.
                     val strings = ConversationStrings()
-                    Conversation(host.state, host::onEvent, Modifier.weight(1f),
+                    Conversation(host.state, actions::onConversationEvent, Modifier.weight(1f),
                         strings = strings,
                         messageContent = { message, outgoing, retry ->
+                            Column {
+                            host.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                             if (custom && !outgoing) {
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
@@ -75,13 +87,17 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                             } else {
                                 MessageBubble(message, outgoing, retry, strings)
                             }
+                            MessageActions(actions, message.id)
+                            }
                         },
                         composerContent = { content ->
                             Column {
+                                ActionComposerStatus(actions)
                                 if (custom) Text("Custom composer · host draft",
                                     style = MaterialTheme.typography.labelMedium,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                                MessageComposer(content, strings)
+                                MessageComposer(actions.composer(content), if (host.actions.editing != null)
+                                    strings.copy(send = "Save edit", sendDescription = "Save edit") else strings)
                             }
                         },
                         history = host.history, onLoadEarlier = host::loadEarlier)
