@@ -11,7 +11,7 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     sourceSets {
-        commonMain.dependencies { implementation("dev.chat.candidate:chat-ui:0.1.0-local") }
+        commonMain.dependencies { implementation("dev.forntoh.chat.candidate:chat-ui:0.1.0-local") }
         jvmTest.dependencies {
             implementation(kotlin("test"))
             implementation(compose.desktop.currentOs)

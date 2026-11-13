@@ -3,8 +3,8 @@ package dev.chat.consumer
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.chat.actions.*
-import dev.chat.core.*
+import dev.forntoh.chat.actions.*
+import dev.forntoh.chat.core.*
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals

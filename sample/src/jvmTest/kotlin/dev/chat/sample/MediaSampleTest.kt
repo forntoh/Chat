@@ -14,7 +14,7 @@ import javax.imageio.ImageIO
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.*
-import dev.chat.core.*
+import dev.forntoh.chat.core.*
 
 class MediaSampleTest {
     private fun mediaDemo(label: String) {
