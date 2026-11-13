@@ -44,6 +44,8 @@ enum class ActionCommand { OpenMenu, CloseMenu, Copy, Quote, CancelQuote, SendQu
  * [targetId] identifies the message, including a possibly unavailable quote target on send.
  * [text] is exact rendered content for copy or send. [draftRevision] accompanies quoted sends;
  * validate it and [text] against the retained draft before accepting. Other commands omit them.
+ * [attachments] carries the exact shared draft snapshot on quoted sends (empty for text-only callers);
+ * validate it with text/revision rather than discarding images while translating a send.
  * Copy requires an explicit host/platform clipboard adapter; the module accesses no resources.
  */
 data class ActionRequest(
@@ -53,6 +55,7 @@ data class ActionRequest(
     val targetId: String? = null,
     val text: String? = null,
     val draftRevision: Long? = null,
+    val attachments: List<Attachment> = emptyList(),
 )
 
 class ActionsContent internal constructor(
@@ -72,7 +75,7 @@ class ActionsContent internal constructor(
      * UI's synchronous send latch. Cancel stays available through [ActionComposerStatus].
      */
     fun composer(content: ComposerContent): ComposerContent = ComposerContent(content.draft,
-        content.pending || state.pending || (state.editing != null && !canEdit), content.onTextChange, content.onSend)
+        content.pending || state.pending || (state.editing != null && !canEdit), content.onTextChange, content.onSend, content.onDraftAction)
 
     /** Emit only explicit user activation; targets/capabilities and current context are revalidated. */
     fun request(command: ActionCommand, targetId: String? = null) {
@@ -92,7 +95,7 @@ class ActionsContent internal constructor(
                 state.editing.original.id, event.text, event.revision))
         } else if (event is ConversationEvent.SendDraft && state.quoteTargetId != null) {
             dispatch(ActionRequest(event.conversationId, state.revision, ActionCommand.SendQuote,
-                state.quoteTargetId, event.text, event.revision))
+                state.quoteTargetId, event.text, event.revision, event.attachments))
         } else conversationEvent(event)
     }
 }
@@ -162,7 +165,7 @@ fun rememberMessageActions(
                         request.draftRevision != now.draft.revision || request.text != now.draft.text || request.text.isNullOrBlank())
             ) return@dispatch
             if (request.command == ActionCommand.SendQuote &&
-                (now.draft.submitting || request.text != now.draft.text || request.text.isNullOrBlank() ||
+                (now.draft.submitting || request.text != now.draft.text || !now.draft.hasContent || request.attachments != now.draft.attachments ||
                         request.draftRevision != now.draft.revision || request.targetId != actions.quoteTargetId)
             ) return@dispatch
             emitted = true

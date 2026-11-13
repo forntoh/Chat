@@ -22,6 +22,15 @@ import androidx.compose.ui.text.AnnotatedString
 /** In-memory integration with independent theme/content switches and host-owned draft state. */
 @Composable
 fun SampleApp(host: FakeHost = remember { FakeHost() }) {
+    var mediaDemo by remember { mutableStateOf(false) }
+    val mediaHost = remember { FakeMediaHost() }
+    if (mediaDemo) {
+        Column {
+            TextButton(onClick = { mediaDemo = false }) { Text("Back to text sample") }
+            Box(Modifier.weight(1f)) { MediaSample(mediaHost) }
+        }
+        return
+    }
     val clipboard = LocalClipboardManager.current
     val actions = rememberMessageActions(host.state, host.actions,
         onAction = { request -> host.onAction(request) { clipboard.setText(AnnotatedString(it)) } }, onEvent = host::onEvent)
@@ -38,6 +47,7 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                 if (showConversation) {
                     Text("In-memory sample · host controls", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 12.dp))
                     FlowRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { mediaDemo = true }) { Text("Image sample") }
                         TextButton(onClick = host::useHistoryFixture) { Text("History fixture") }
                         TextButton(onClick = host::switchRoom) { Text("Switch room") }
                         TextButton(onClick = { hostTheme = !hostTheme }) { Text(if (hostTheme) "Jetchat theme" else "Host theme") }
