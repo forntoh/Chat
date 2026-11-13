@@ -21,16 +21,22 @@ sealed interface ConversationEvent {
      */
     data class DraftChanged(override val conversationId: String, val text: String) : ConversationEvent
     /**
-     * Requests one explicit submission of exact [text] at [revision]. Blank text is suppressed
+     * Requests one explicit submission of exact [text] and immutable [attachments] at [revision]. Empty content is suppressed
      * by the UI. While mounted, repeat sends are suppressed until the host changes revision.
      * Publish a new draft revision to accept/clear or refuse/retain; delivery remains separate.
      * Hosts must deduplicate submissions across unmount/remount and asynchronous boundaries.
      *
      * @param conversationId Conversation whose rendered draft was submitted; reject if stale.
      * @param revision Submitted draft version; validate against the current retained draft.
+     * @param attachments Exact content snapshot; validate against the retained draft alongside text/revision.
      * @param text Exact submitted content; validate together with the revision before accepting.
      */
-    data class SendDraft(override val conversationId: String, val revision: Long, val text: String) : ConversationEvent
+    data class SendDraft(
+        override val conversationId: String,
+        val revision: Long,
+        val text: String,
+        val attachments: List<Attachment> = emptyList()
+    ) : ConversationEvent
     /**
      * Requests retry of the existing [messageId], without creating a second timeline row.
      * Offered for the current participant's failed messages. Each activation can emit again

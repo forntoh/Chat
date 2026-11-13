@@ -32,6 +32,18 @@ class ConversationJourney {
 
     }
 
+    @Test fun copyActionUsesAndroidClipboard() {
+        compose.onNodeWithText("Actions").performClick()
+        compose.onNodeWithText("Copy").performClick()
+        compose.runOnIdle {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            org.junit.Assert.assertEquals("Welcome! Send a message, then choose its delivery outcome.",
+                clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString())
+        }
+        capture("android-message-actions-copy")
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
