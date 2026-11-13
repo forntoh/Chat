@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "ChatConsumers"
-include(":core-only", ":custom-ui", ":default-material3")
+include(":actions-only", ":core-only", ":custom-ui", ":default-material3")
