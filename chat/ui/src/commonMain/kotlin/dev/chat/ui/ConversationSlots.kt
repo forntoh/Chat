@@ -57,10 +57,54 @@ data class ConversationSlots(
     },
     val composerSend: @Composable (ComposerContent) -> Unit = { NeutralControl(it.onSend, it.canSend) { BasicText("Send") } },
     val historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = { NeutralHistoryFeedback(it) },
-    val latestLabel: @Composable (LatestContent) -> Unit = { BasicText(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
     val messageAvatar: @Composable (Message) -> Unit = {},
     val messageSpacing: (MessageGroupContext) -> Dp = { 12.dp },
-)
+    val latestLabel: @Composable (LatestContent) -> Unit = { BasicText(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
+) {
+
+    /** Retains the original thirteen-argument positional constructor. Optional avatar/spacing
+     * precede latestLabel in the primary constructor so trailing lambdas still target the label. */
+    constructor(
+        message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
+        composer: @Composable (ComposerContent) -> Unit,
+        history: @Composable (HistoryFeedbackContent) -> Unit,
+        latest: @Composable (LatestContent) -> Unit,
+        messageMetadata: @Composable (Message) -> Unit,
+        messageBody: @Composable (Message) -> Unit,
+        messageDelivery: @Composable (Delivery) -> Unit,
+        messageDescription: (Message) -> String,
+        retry: @Composable (RetryContent) -> Unit,
+        composerField: @Composable (ComposerContent) -> Unit,
+        composerSend: @Composable (ComposerContent) -> Unit,
+        historyFeedback: @Composable (HistoryFeedbackContent) -> Unit,
+        latestLabel: @Composable (LatestContent) -> Unit,
+    ) : this(
+        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
+        messageDescription, retry, composerField, composerSend, historyFeedback,
+        messageAvatar = {}, messageSpacing = { 12.dp }, latestLabel = latestLabel,
+    )
+
+    /** Original thirteen-argument positional copy; retains this bundle's avatar/spacing overrides. */
+    fun copy(
+        message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
+        composer: @Composable (ComposerContent) -> Unit,
+        history: @Composable (HistoryFeedbackContent) -> Unit,
+        latest: @Composable (LatestContent) -> Unit,
+        messageMetadata: @Composable (Message) -> Unit,
+        messageBody: @Composable (Message) -> Unit,
+        messageDelivery: @Composable (Delivery) -> Unit,
+        messageDescription: (Message) -> String,
+        retry: @Composable (RetryContent) -> Unit,
+        composerField: @Composable (ComposerContent) -> Unit,
+        composerSend: @Composable (ComposerContent) -> Unit,
+        historyFeedback: @Composable (HistoryFeedbackContent) -> Unit,
+        latestLabel: @Composable (LatestContent) -> Unit,
+    ): ConversationSlots = copy(
+        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
+        messageDescription, retry, composerField, composerSend, historyFeedback,
+        messageAvatar = messageAvatar, messageSpacing = messageSpacing, latestLabel = latestLabel,
+    )
+}
 
 val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
 

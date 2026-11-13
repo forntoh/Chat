@@ -68,8 +68,10 @@ Material3 reserves a 36dp incoming gutter and renders a 30dp `messageAvatar` at 
 initials as its decorative fallback. Replace that composable to draw a host-provided avatar;
 the artifact performs no image lookup or fetch. `messageSpacing` selects the gap before rows
 (except the first loaded row): neutral defaults retain 12dp, Material3 uses 8dp between groups
-and 4dp within groups. These appended slot fields preserve existing source call positions;
+and 4dp within groups. Legacy constructor/copy adapters preserve the original source call forms;
 consumers recompile against the new local candidate. There is no published binary guarantee.
+The original thirteen-parameter constructor/copy forms remain source overloads, so trailing
+`latestLabel` lambdas keep their meaning. A legacy `copy { ... }` retains avatar/spacing overrides.
 
 Host-formatted time appears inside each bubble; each message still has its full host-authored ordered semantics.
 Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
