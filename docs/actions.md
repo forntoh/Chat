@@ -59,7 +59,8 @@ revision and retained draft rather than relying on an implicit retry.
   or loses delete capability. The host validates again both on request and completion. Cancelling
   leaves messages and composer text intact. Pending confirmations cannot emit repeatedly.
 
-`FakeHost` manually completes/refuses operations; only a successful validated host completion
+`FakeHost` can manually complete/refuse operations through the toolbar’s **Manual service** mode;
+the default sample completes fake operations automatically. Only a successful validated host completion
 replaces/removes rows. Failed operations are distinct from message delivery failure. Navigation
 retains each room's drafts, action context and pending work; menu revisions invalidate old
 sessions. Demo capability revocation is scoped to a room. There is no server, persistence,

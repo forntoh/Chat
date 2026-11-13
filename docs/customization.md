@@ -45,7 +45,7 @@ behavior. Rendering must not invoke intents or keep a second draft.
 Keep one Conversation call mounted across theme or renderer changes. Its shared behavior retains
 pending submission and history position. Theme changes do not accept a draft or emit a send;
 the host resolves submissions with fresh draft revisions. Delivery remains independent of draft
-acceptance. The default composer reserves a separate Send control and scrolls after five lines.
+acceptance. The default Material3 composer integrates an icon Send control into one rounded input surface and scrolls after five lines. Its field preserves exact multiline text; disabled/pending controls still use the shared guards.
 
 This is a deliberate prerelease API migration: `ConversationStrings`, `ActionLabels` and their
 label-dependent overloads were removed without adapters. The unshipped Material3-specific Conversation entry points are also removed: import
@@ -56,3 +56,30 @@ The sample follows [Jetchat](https://github.com/android/compose-samples/tree/mai
 hierarchy and rounded presentation using original CMP code and system fonts. Host theme and
 custom UI switches retain host state. Its in-memory fake service proves no real transport,
 persistence, permissions or physical-device behavior.
+
+## Message grouping and avatars
+
+`Conversation` provides `LocalMessageGroupContext` to every effective message renderer, including
+explicit row overrides and action/media wrappers. `isFirst`/`isLast` describe contiguous sender IDs
+in host list order; formatted time strings are never parsed and no date boundary is invented.
+Prepending history recalculates adjacency while retaining message keys. Standalone renderers see
+a complete one-message group. There is no remembered grouping state.
+
+Material3 reserves a 42dp avatar gutter and renders `messageAvatar` once at group start, with
+initials as its decorative fallback. Replace that composable to draw a host-provided avatar;
+the artifact performs no image lookup or fetch. `messageSpacing` selects the gap before rows
+(except the first loaded row): neutral defaults retain 12dp, Material3 uses 8dp between groups
+and 4dp within groups. These appended slot fields preserve existing source call positions;
+consumers recompile against the new local candidate. There is no published binary guarantee.
+
+Group metadata is shown once; each message still has its full host-authored ordered semantics.
+Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
+Host delivery subslots are still invoked on every row. Explicit/bundle/ambient precedence is
+unchanged. `JetchatTheme { Conversation(...) }` supplies these defaults without sample renderers,
+actions, media or another state engine; the independent default-material3 consumer demonstrates it.
+
+The sample opens as a multi-participant conversation. Tap or long-press a message for its supported
+context menu. The toolbar overflow contains theme/fixture switches and **Manual service**;
+ordinary fake sends complete automatically. Manual mode exposes acceptance/refusal and delivery,
+action or upload outcomes in that same menu. These remain in-memory demonstrations, not services.
+See [reference comparison](jetchat-fidelity.md) for the pinned source and intentional differences.

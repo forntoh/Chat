@@ -102,16 +102,16 @@ class ConversationTest {
         val snapshot = mutableStateOf(ConversationState("room", "me", draft = Draft(" \n\t", 1)))
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
-        compose.onNodeWithText("Send").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(draft = Draft("Hello\n🌍", 2)) }
-        compose.onNodeWithText("Send").performClick()
-        compose.onNodeWithText("Send").assertIsNotEnabled().performClick()
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.onNodeWithContentDescription("Send").assertIsNotEnabled().performClick()
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.SendDraft("room", 2, "Hello\n🌍")), events)
             // Local refusal retains content but resolves this submission explicitly.
             snapshot.value = snapshot.value.copy(draft = Draft("Hello\n🌍", 3))
         }
-        compose.onNodeWithText("Send").assertIsEnabled().performClick()
+        compose.onNodeWithContentDescription("Send").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(2, events.size) }
     }
 
@@ -140,19 +140,19 @@ class ConversationTest {
         }
         compose.onAllNodesWithText("Hello\n🌍", useUnmergedTree = true).assertCountEquals(1)
         compose.onNodeWithText("Retry").assertDoesNotExist()
-        compose.onAllNodesWithText("Sent", useUnmergedTree = true).assertCountEquals(2)
+        compose.onAllNodesWithText("Sent", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test fun switchingConversationsDoesNotReuseAnotherConversationsSubmissionLatch() {
         val snapshot = mutableStateOf(ConversationState("a", "me", draft = Draft("Room A", 1)))
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithContentDescription("Send").performClick()
         compose.runOnIdle { snapshot.value = ConversationState("b", "me", draft = Draft("Room B", 1, submitting = true)) }
         compose.onNodeWithTag("composer").assertTextContains("Room B")
-        compose.onNodeWithText("Send").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(draft = Draft("Room B", 2)) }
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithContentDescription("Send").performClick()
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(
                 ConversationEvent.SendDraft("a", 1, "Room A"),

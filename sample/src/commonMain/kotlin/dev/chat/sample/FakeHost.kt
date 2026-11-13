@@ -249,6 +249,18 @@ class FakeHost {
         actionState = actionState.copy(revision = actionState.revision + 1)
     }
 
+    fun useChatFixture() {
+        state = state.copy(messages = listOf(
+            Message("welcome", Participant("avery", "Avery Chen"), 1_000, "09:41", "Morning! I’ve added the latest sketches for the shared space.", Delivery.Sent),
+            Message("sketches", Participant("avery", "Avery Chen"), 1_001, "09:41", "The quieter corner by the window could work well for reading.", Delivery.Sent),
+            Message("response", Participant("me", "You"), 1_002, "09:42", "Love that idea. Let’s keep the materials warm and simple.", Delivery.Sent),
+            Message("morgan", Participant("morgan", "Morgan Lee"), 1_003, "09:43", "I’ll bring a few samples to our afternoon review ☀️", Delivery.Sent),
+            Message("morgan-2", Participant("morgan", "Morgan Lee"), 1_004, "09:43", "Does 2:30 work for everyone?", Delivery.Sent),
+            Message("confirmed", Participant("me", "You"), 1_005, "09:44", "Perfect — see you both there!", Delivery.Sent),
+        ))
+        history = HistoryState(HistoryStatus.Exhausted)
+    }
+
     companion object {
         private fun historyMessage(n: Int) = Message("history-$n", Participant("avery", "Avery"),
             n.toLong(), "09:41", "Message $n", Delivery.Sent)

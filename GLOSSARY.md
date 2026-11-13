@@ -38,3 +38,7 @@ The host application's report of a message's sending progress or outcome.
 
 ## Message action
 An operation offered for a particular message, such as copying, replying, editing, or deleting.
+
+## Message group
+Contiguous messages from the same sender in the host's timeline order. Presentation context marks
+the first and last loaded rows in the group; it does not infer dates or service state.
