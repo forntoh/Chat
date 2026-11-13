@@ -1,7 +1,6 @@
 package dev.chat.material3
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
@@ -14,13 +13,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import dev.chat.ui.*
 
 /**
@@ -36,13 +29,9 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
     messageMetadata = {
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp)) { append(it.sender.displayName) }
-                append(" · ${it.displayTime}")
-            }, style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-        )
+        Text(it.displayTime, style = MaterialTheme.typography.labelSmall,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
+            modifier = Modifier.padding(bottom = 1.dp))
     },
     messageBody = { Text(it.text, style = MaterialTheme.typography.bodyLarge) },
     messageDelivery = {
@@ -67,7 +56,7 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
                 .testTag("composer").semantics { contentDescription = "Message" },
             decorationBox = { field ->
                 Box {
-                    if (it.draft.text.isEmpty()) Text("Message", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (it.draft.text.isEmpty()) Text("Type a message…", color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyLarge)
                     field()
                 }
@@ -79,16 +68,7 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
             onClick = it.onSend,
             modifier = Modifier.size(48.dp).semantics { contentDescription = "Send" }
         ) {
-            val color = LocalContentColor.current
-            Canvas(Modifier.size(22.dp)) {
-                val arrow = Path().apply {
-                    moveTo(0f, 0f); lineTo(size.width, size.height / 2)
-                    lineTo(0f, size.height); lineTo(0f, size.height * 0.6f)
-                    lineTo(size.width * 0.65f, size.height / 2)
-                    lineTo(0f, size.height * 0.4f); close()
-                }
-                drawPath(arrow, color)
-            }
+            Icon(TablerDefaults.Send, contentDescription = null, modifier = Modifier.size(22.dp))
         }
     },
     historyFeedback = { DefaultHistoryFeedback(it) },
@@ -98,7 +78,7 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(42.dp).clearAndSetSemantics {}
+            modifier = Modifier.size(30.dp).clearAndSetSemantics {}
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(

@@ -28,7 +28,7 @@ import javax.imageio.ImageIO
 class ConversationSlotsTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun defaultGroupsUseHostAvatarAndMetadataOnceWithoutRoutineDeliveryText() {
+    @Test fun defaultGroupsUseHostAvatarAndCompactTimeWithoutRoutineDeliveryText() {
         val a = Message("a", Participant("avery", "Avery"), 1, "09:41", "First", Delivery.Sent)
         val rows = listOf(a, a.copy(id = "b", text = "Second"),
             a.copy(id = "c", sender = Participant("me", "You"), text = "Third"))
@@ -37,9 +37,29 @@ class ConversationSlotsTest {
                 slots = jetchatConversationSlots().copy(messageAvatar = { Text("Host avatar ${it.sender.id}") }))
         } } }
         compose.onAllNodesWithText("Host avatar avery", useUnmergedTree = true).assertCountEquals(1)
-        compose.onAllNodesWithText("Avery · 09:41", useUnmergedTree = true).assertCountEquals(1)
+        compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(3)
         compose.onAllNodesWithText("Sent", useUnmergedTree = true).assertCountEquals(0)
         compose.onNodeWithContentDescription("Avery, Second, 09:41, Sent").assertExists()
+    }
+
+    @Test fun referenceLayoutUsesGroupEndPeerAvatarAndOppositeMessageEdges() {
+        val peer = Participant("peer", "Avery")
+        val rows = listOf(
+            Message("first", peer, 1, "09:37", "Hi, buddy!", Delivery.Sent),
+            Message("last", peer, 2, "09:38", "What will you do tonight?", Delivery.Sent),
+            Message("reply", Participant("me", "You"), 3, "09:41", "Hello", Delivery.Sent),
+        )
+        compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { MaterialTheme { JetchatTheme {
+            Conversation(ConversationState("room", "me", messages = rows), {},
+                slots = jetchatConversationSlots().copy(messageAvatar = { Text("Avatar ${it.id}") }))
+        } } } }
+        compose.onNodeWithText("Avatar first", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("Avatar last", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Avatar reply", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("09:38", useUnmergedTree = true).assertExists()
+        val incoming = compose.onNodeWithText("Hi, buddy!", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val outgoing = compose.onNodeWithText("Hello", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        kotlin.test.assertTrue(outgoing.left > incoming.right, "Short outgoing reply sits on the opposite edge")
     }
 
     @Test fun defaultComposerSendsExactMultilineTextAndKeepsPendingInput() {

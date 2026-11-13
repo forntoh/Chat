@@ -138,7 +138,7 @@ class SampleJourneyTest {
         compose.onNodeWithContentDescription("Send").performClick()
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         demo("Accept")
-        compose.onNodeWithTag("composer").assertTextEquals("Message", "")
+        compose.onNodeWithTag("composer").assertTextEquals("Type a message…", "")
         demo("Fail delivery")
         compose.onNodeWithText("Failed", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Retry").performClick()
