@@ -12,8 +12,14 @@ import androidx.compose.ui.unit.dp
 import dev.chat.core.*
 import dev.chat.ui.*
 
+/** Retry intent for [message], the authoritative rendered row. A standalone host validates
+ * identity, delivery and permissions before work; Conversation supplies this only for an
+ * outgoing failed row. [onRetry] is explicit repeatable intent; the host owns deduplication. */
 data class RetryContent(val message: Message, val onRetry: () -> Unit)
 
+/** Host [history] status/guarded request callback plus authoritative timeline emptiness.
+ * [empty] distinguishes initial empty-state content from exhausted existing history. Renderers
+ * never fetch during composition; invoke the callback only for explicit activation. */
 data class HistoryFeedbackContent(val history: HistoryContent, val empty: Boolean)
 
 /**

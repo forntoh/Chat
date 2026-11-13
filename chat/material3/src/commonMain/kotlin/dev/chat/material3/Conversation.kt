@@ -92,6 +92,11 @@ fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() 
     )
 }
 
+/** Explicit subslot bundle for metadata, body, delivery, retry and ordered semantics. [slots]
+ * replaces ambient presentation for this subtree; derive LocalConversationSlots.current.copy
+ * for partial replacement. [message] is the host snapshot; [isCurrentParticipant] affects only
+ * visuals. Custom message descriptions announce sender, content, host time and delivery once.
+ * A standalone caller validates the eligibility/identity of the optional [onRetry] callback. */
 @Composable
 fun MessageBubble(
     message: Message,
@@ -126,11 +131,19 @@ fun MessageBubble(
     }
 }
 
+/** Multiline default composer using ambient field/send slots. [content] must carry guarded
+ * callbacks from chat-ui, or equivalent guards supplied by a standalone host. No separate draft
+ * is retained. Default labels are English; localize field/control content through slots. */
 @Composable
 fun MessageComposer(content: ComposerContent) {
     MessageComposer(content, LocalConversationSlots.current)
 }
 
+/** Explicit field/send subslots. [slots] replaces the ambient bundle; field/send renderers receive
+ * the same host [content]. Defaults disable input while pending, disable blank/pending send,
+ * reserve a separate 48 dp send target and scroll input after five lines. Custom renderers must
+ * honor pending/canSend, supply focus/accessibility semantics and invoke only on explicit input.
+ * Rendering or changing the bundle never accepts or submits a draft. */
 @Composable
 fun MessageComposer(content: ComposerContent, slots: ConversationSlots) {
     ConversationTheme(slots) {
@@ -143,11 +156,16 @@ fun MessageComposer(content: ComposerContent, slots: ConversationSlots) {
     }
 }
 
+/** Ambient history feedback. [empty] distinguishes exhausted history from an empty conversation;
+ * [content] supplies guarded explicit request callbacks, not a transport or storage service. */
 @Composable
 fun HistoryStatusContent(content: HistoryContent, empty: Boolean) {
     HistoryStatusContent(content, empty, LocalConversationSlots.current)
 }
 
+/** Explicit history feedback subslot. [slots] replaces the ambient bundle, including loading,
+ * error, empty and retry presentation. [empty] affects exhausted feedback only. Replacements
+ * honor [HistoryContent.canLoadEarlier] and invoke its callback only on activation. */
 @Composable
 fun HistoryStatusContent(content: HistoryContent, empty: Boolean, slots: ConversationSlots) {
     ConversationTheme(slots) {
@@ -157,6 +175,9 @@ fun HistoryStatusContent(content: HistoryContent, empty: Boolean, slots: Convers
     }
 }
 
+/** Deliberate return-to-latest control using [slots] (ambient by default). Its latestLabel subslot
+ * can author wording without replacing the scroll callback in [content]. The shared layout owns
+ * scrolling; a standalone caller supplies that behavior. Rendering emits no scroll intent. */
 @Composable
 fun LatestControl(content: LatestContent, slots: ConversationSlots = LocalConversationSlots.current) {
     ConversationTheme(slots) { TextButton(onClick = content.onReturnToLatest) { slots.latestLabel(content) } }
