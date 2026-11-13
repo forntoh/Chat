@@ -1,50 +1,50 @@
 # Conversation customization
 
-Use `chat-ui` for a layout with host-rendered content and no Material3 dependency. Use optional
-`chat-material3` for ready-to-use rows, composer and history feedback. Core state/events stay
-host-owned; neither integration loads resources, contacts services or persists drafts.
+Use `chat-ui` for host-rendered content without Material3. Optional `chat-material3` supplies
+English default message, composer, history and latest controls. Core state and service results
+stay host-owned. Neither integration persists drafts or installs services.
 
-The sample's light baseline adapts the message hierarchy, sender metadata, rounded surfaces
-and distinct composer area from [Jetchat](https://github.com/android/compose-samples/tree/main/Jetchat).
-It is an original CMP implementation using system fonts, without Jetchat's Android navigation,
-dynamic-color integration, media panels or assets. “Host theme” switches colors and typography;
-“Custom UI” independently mixes a host incoming row with default outgoing rows and a decorated
-default composer. Both switches keep one Conversation call mounted.
+`ConversationSlots` and `ConversationTheme` configure renderers and their subslots. Hosts author
+wording directly with composables, using their own resources and semantics. When slot code
+uses Material3 controls, declare Material3 in the host too (see the standalone default consumer):
 
 ```kotlin
-val labels = ConversationStrings(
-    message = "Compose", messageDescription = "Conversation draft",
-    send = "Post", sendDescription = "Post draft",
-    retry = "Try again", retryDescription = "Retry delivery",
-)
-Conversation(
-    state = hostState,
-    onEvent = ::handleIntent,
-    strings = labels,
-    composerContent = { content ->
-        Column {
-            Text("Your conversation") // host-owned copy
-            MessageComposer(content, labels)
-        }
+ConversationTheme(slots = LocalConversationSlots.current.copy(
+    composerSend = { composer ->
+        Button(onClick = composer.onSend, enabled = composer.canSend) { Text("Post") }
     },
-)
+    retry = { retry -> TextButton(onClick = retry.onRetry) { Text("Try again") } },
+)) {
+    Conversation(hostState, ::handleIntent)
+}
 ```
 
-The required `strings` argument selects the new overload. Null content slots resolve to defaults
-with those strings; an explicit slot takes precedence and must pass strings to any standalone
-renderer it delegates to. `MessageBubble`, `MessageComposer` and `HistoryStatusContent` have
-strings-aware overloads. Existing positional, named and trailing-lambda entry points remain.
-Control descriptions default to the visible label when constructed. When copying a strings
-value to change a label, update its description too where needed. Feedback strings cover every
-history state, delivery state, empty timeline and latest/new-arrival action.
+A direct renderer (`messageContent`, `composerContent`, `historyContent`, `latestContent`) wins
+over its effective bundle. An explicit `slots` bundle replaces the ambient theme; derive
+`LocalConversationSlots.current.copy(...)` to preserve other themed slots. Otherwise the nearest
+theme applies, with usable built-in defaults when none is supplied. `MessageBubble`,
+`MessageComposer`, `HistoryStatusContent` and `LatestControl` are separately callable defaults;
+delegate to them without recursively invoking their top-level slot. Pass a bundle explicitly to
+customize their subslots locally. MaterialTheme continues to supply colors, typography and shapes.
 
-The default message text group announces sender, body, host-formatted time and localized delivery
-in that order once; Retry is a separate actionable control. Custom rows own equivalent semantics
-and their own labels. Custom composers display the host draft, use `pending`/`canSend` and invoke
-only the provided guarded callbacks for explicit input. Theme/content changes do not accept a
-draft or emit a send. Hosts resolve submissions with new draft revisions; delivery is separate.
-Remembered row state is keyed by conversation and message identity in the shared layout.
+Message metadata, body, delivery and the ordered semantics description can be customized
+independently. When localizing delivery, change both `messageDelivery` and `messageDescription`.
+The default text group announces sender, content, host time and delivery once; retry stays a
+separate action. Custom rows own equivalent semantics. Field/send, history feedback and latest
+label subslots receive typed host state and guarded callbacks, so host copy needs no label DTO.
+Custom controls must honor enabled/pending state and provide keyboard, focus and accessibility
+behavior. Rendering must not invoke intents or keep a second draft.
 
-At default LTR/text size, the composer reserves a separate Send control while its multiline input
-scrolls after five lines. Long timeline rows scroll to reveal their delivery actions. The sample
-uses only an in-memory fake service; it does not prove real delivery or persistence.
+Keep one Conversation call mounted across theme or renderer changes. Its shared behavior retains
+pending submission and history position. Theme changes do not accept a draft or emit a send;
+the host resolves submissions with fresh draft revisions. Delivery remains independent of draft
+acceptance. The default composer reserves a separate Send control and scrolls after five lines.
+
+This is a deliberate prerelease API migration: `ConversationStrings`, `ActionLabels` and their
+label-dependent overloads were removed without adapters. Existing compatible direct slots and
+standalone retry calls remain available; no published binary compatibility is claimed.
+
+The sample follows [Jetchat](https://github.com/android/compose-samples/tree/main/Jetchat)'s message
+hierarchy and rounded presentation using original CMP code and system fonts. Host theme and
+custom UI switches retain host state. Its in-memory fake service proves no real transport,
+persistence, permissions or physical-device behavior.

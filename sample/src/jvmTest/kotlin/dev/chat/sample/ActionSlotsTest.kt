@@ -24,9 +24,9 @@ class ActionSlotsTest {
         compose.setContent {
             val actions = rememberMessageActions(ConversationState("room", "me", messages = listOf(target)), state.value, events::add, {})
             ActionTheme(style = style, slots = ActionSlots(
-                control = { ActionControl("Host "+it.label, it.enabled, it.onClick) },
-                text = { BasicText("Host "+it, style = LocalActionStyle.current.textStyle) },
-                quote = { BasicText("Quote "+it.text) },
+                control = { button -> ActionControl(button) { BasicText("Host "+button.command.name) } },
+                status = { BasicText("Host "+(it.error ?: it.kind.name), style = LocalActionStyle.current.textStyle) },
+                quote = { BasicText("Quote "+(it.message?.text ?: "Message unavailable")) },
                 menu = { Column { BasicText("Menu slot"); it() } },
                 composerStatus = { Column { BasicText("Status slot"); it() } },
                 confirmation = { Column { BasicText("Confirmation slot"); it() } },
@@ -35,7 +35,7 @@ class ActionSlotsTest {
                 Column {
                     MessageActions(actions, "m")
                     ActionComposerStatus(actions)
-                    QuotedMessage(actions, "missing", slots = ActionSlots(quote = { BasicText("Explicit "+it.text) }))
+                    QuotedMessage(actions, "missing", slots = ActionSlots(quote = { BasicText("Explicit "+(it.message?.text ?: "Message unavailable")) }))
                 }
             }
         }
@@ -45,11 +45,11 @@ class ActionSlotsTest {
         compose.onNodeWithText("Host Refused").assertExists()
         compose.onNodeWithText("Quote Message unavailable").assertExists()
         compose.onNodeWithText("Explicit Message unavailable").assertExists()
-        compose.onNodeWithText("Host Confirm delete").assertIsNotEnabled()
+        compose.onNodeWithText("Host ConfirmDelete").assertIsNotEnabled()
         compose.onNodeWithText("Host Copy").performClick().performClick()
         compose.runOnIdle { assertEquals(listOf(ActionRequest("room", 0, ActionCommand.Copy, "m", "Original")), events) }
         compose.runOnIdle { state.value = state.value.copy(revision = 1, pending = true) }
         compose.onNodeWithText("Host Copy").assertIsNotEnabled()
-        compose.onNodeWithText("Host Request pending…").assertExists()
+        compose.onNodeWithText("Host Pending").assertExists()
     }
 }

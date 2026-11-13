@@ -2,7 +2,11 @@ package dev.chat.material3
 
 import dev.chat.core.*
 
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -13,19 +17,40 @@ import kotlin.test.assertEquals
 class ConversationTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun hostStringsReachDefaultControlsAndOrderedMessageSemantics() {
+    @Test fun hostSlotsOwnControlWordingAndOrderedMessageSemantics() {
         val row = Message("m", Participant("me", "Sam"), 1, "10:15", "Hello 🌍", Delivery.Failed)
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(row)))
         val history = mutableStateOf(dev.chat.ui.HistoryState(dev.chat.ui.HistoryStatus.Error))
-        val strings = ConversationStrings(
-            message = "Write here", messageDescription = "Draft input",
-            send = "Post", sendDescription = "Post draft", retry = "Again", retryDescription = "Retry delivery",
-            sending = "In transit", sent = "Delivered", failed = "Not delivered", historyError = "Earlier messages unavailable", historyErrorDescription = "Retry earlier messages",
-            loading = "Fetching", empty = "Begin here", exhausted = "Beginning", loadEarlier = "Older",
+        fun delivery(value: Delivery) = when (value) {
+            Delivery.Sending -> "In transit"
+            Delivery.Sent -> "Delivered"
+            Delivery.Failed -> "Not delivered"
+        }
+        val slots = ConversationSlots(
+            messageDescription = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${delivery(it.delivery)}" },
+            messageDelivery = { Text(delivery(it)) },
+            retry = { control -> TextButton(onClick = control.onRetry,
+                modifier = Modifier.semantics { contentDescription = "Retry delivery" }) { Text("Again") } },
+            composerField = { content -> OutlinedTextField(content.draft.text, content.onTextChange,
+                enabled = !content.pending, label = { Text("Write here") },
+                modifier = Modifier.semantics { contentDescription = "Draft input" }) },
+            composerSend = { content -> Button(onClick = content.onSend, enabled = content.canSend,
+                modifier = Modifier.semantics { contentDescription = "Post draft" }) { Text("Post") } },
+            historyFeedback = { content ->
+                when (content.history.state.status) {
+                    dev.chat.ui.HistoryStatus.Error -> TextButton(onClick = content.history.onLoadEarlier,
+                        enabled = content.history.canLoadEarlier,
+                        modifier = Modifier.semantics { contentDescription = "Retry earlier messages" }) { Text("Earlier messages unavailable") }
+                    dev.chat.ui.HistoryStatus.Loading -> Text("Fetching")
+                    dev.chat.ui.HistoryStatus.Exhausted -> Text(if (content.empty) "Begin here" else "Beginning")
+                    dev.chat.ui.HistoryStatus.Idle -> TextButton(onClick = content.history.onLoadEarlier,
+                        enabled = content.history.canLoadEarlier) { Text("Older") }
+                }
+            },
         )
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { MaterialTheme {
-            Conversation(snapshot.value, events::add, history = history.value, strings = strings)
+            Conversation(snapshot.value, events::add, history = history.value, slots = slots)
         } }
         compose.onNodeWithContentDescription("Draft input").assertExists()
         compose.onNodeWithText("Write here").assertExists()
@@ -56,9 +81,11 @@ class ConversationTest {
         val rows = (0..39).map { Message("m$it", Participant("other", "Avery"), it.toLong(), "09:41", "Message $it", Delivery.Sent) }
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = rows))
         compose.setContent { MaterialTheme {
-            Conversation(snapshot.value, {}, strings = ConversationStrings(
-                latest = "Return", latestDescription = "Return to newest",
-                newMessages = "Arrivals", newMessagesDescription = "Read arrivals"))
+            Conversation(snapshot.value, {}, slots = ConversationSlots(latestLabel = {
+                Text(if (it.hasNewMessages) "Arrivals" else "Return", modifier = Modifier.semantics {
+                    contentDescription = if (it.hasNewMessages) "Read arrivals" else "Return to newest"
+                })
+            }))
         } }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         compose.onNodeWithText("Return").assertIsDisplayed()

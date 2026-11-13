@@ -29,20 +29,25 @@ data class ActionStyle(
     val minimumControlSize: Dp = 48.dp,
 )
 
-/** Guarded activation for a rendered control. Custom controls must honor [enabled] and call
- * [onClick] only on activation, supplying their own keyboard, focus and accessibility behavior.
- * [label] is already resolved through the caller's [ActionLabels]. */
-data class ActionControlContent(val label: String, val enabled: Boolean, val onClick: () -> Unit)
+/** Guarded explicit action. Custom controls author their label from [command], honor [enabled],
+ * and supply focus/keyboard/button semantics. Invoke [onClick] only on activation. */
+data class ActionControlContent(val command: ActionCommand, val enabled: Boolean, val onClick: () -> Unit)
 
-/** Latest quote target, or null if unavailable. [text] includes the sender/excerpt or the host's
- * localized fallback. Keep unavailable quotes visible; rendering must not clear host state. */
-data class ActionQuoteContent(val targetId: String, val message: Message?, val text: String)
+/** Latest host quote, or null if unavailable. Preserve [targetId] when rendering a fallback;
+ * slots own their visible wording and must not clear host state while rendering. */
+data class ActionQuoteContent(val targetId: String, val message: Message?)
+
+/** Presentation feedback category, independent of message delivery state. */
+enum class ActionStatusKind { Editing, Unavailable, Replying, Pending, Error, DeletePrompt }
+
+/** Typed feedback. [error] is localized host-supplied operation feedback for Error only. */
+data class ActionStatusContent(val kind: ActionStatusKind, val error: String? = null)
 
 /**
  * Replaceable presentation for all action surfaces, with foundation defaults. Containers receive
  * their guarded child content and should render it once; they may change layout/decoration.
- * [control] receives labels, disabled state and guarded activation. [text] renders status,
- * pending/error and prompt copy. [quote] receives the resolved target and unavailable fallback.
+ * [control] receives a typed command, disabled state and guarded activation. [status] receives
+ * typed pending/error/prompt state. [quote] receives the resolved nullable target.
  * Renderers run during composition and must never dispatch actions at that time. Replacements
  * own semantics and focus; presentation does not change the host's authority or request guards.
  *
@@ -51,9 +56,9 @@ data class ActionQuoteContent(val targetId: String, val message: Message?, val t
  * while retaining the surrounding theme. No slots retain messages or draft state.
  */
 data class ActionSlots(
-    val control: @Composable (ActionControlContent) -> Unit = { ActionControl(it.label, it.enabled, it.onClick) },
-    val text: @Composable (String) -> Unit = { BasicText(it, style = LocalActionStyle.current.textStyle) },
-    val quote: @Composable (ActionQuoteContent) -> Unit = { LocalActionSlots.current.text(it.text) },
+    val control: @Composable (ActionControlContent) -> Unit = { ActionControl(it) },
+    val status: @Composable (ActionStatusContent) -> Unit = { DefaultActionStatus(it) },
+    val quote: @Composable (ActionQuoteContent) -> Unit = { DefaultActionQuote(it) },
     val menu: @Composable (@Composable () -> Unit) -> Unit = { Column { it() } },
     val composerStatus: @Composable (@Composable () -> Unit) -> Unit = { Column { it() } },
     val confirmation: @Composable (@Composable () -> Unit) -> Unit = { Column { it() } },
@@ -72,7 +77,7 @@ val LocalActionSlots = staticCompositionLocalOf { ActionSlots() }
  *
  * ```kotlin
  * ActionTheme(slots = LocalActionSlots.current.copy(control = { button ->
- *     HostButton(button.label, button.enabled, button.onClick)
+ *     HostActionButton(button.command, button.enabled, button.onClick)
  * })) { MessageActions(actions, message.id) }
  * ```
  */
@@ -98,4 +103,55 @@ fun ActionControl(label: String, enabled: Boolean, onClick: () -> Unit) {
         .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(style.controlPadding)) {
         BasicText(label, style = style.textStyle)
     }
+}
+
+/** English command content, separately callable from host control slots. Hosts may replace it
+ * with text/icons from their resource system; it performs no action and owns no state. */
+@Composable
+fun ActionLabel(command: ActionCommand) {
+    BasicText(when (command) {
+        ActionCommand.OpenMenu -> "Actions"
+        ActionCommand.CloseMenu -> "Close actions"
+        ActionCommand.Copy -> "Copy"
+        ActionCommand.Quote -> "Reply"
+        ActionCommand.CancelQuote -> "Cancel reply"
+        ActionCommand.SendQuote -> "Send"
+        ActionCommand.BeginEdit -> "Edit"
+        ActionCommand.CancelEdit -> "Cancel edit"
+        ActionCommand.SubmitEdit -> "Save edit"
+        ActionCommand.RequestDelete -> "Delete"
+        ActionCommand.CancelDelete -> "Cancel delete"
+        ActionCommand.ConfirmDelete -> "Confirm delete"
+    }, style = LocalActionStyle.current.textStyle)
+}
+
+/** Default typed control with replaceable composable label. Reads the surrounding foundation
+ * style; calling this from a custom control slot does not recurse into that slot. */
+@Composable
+fun ActionControl(content: ActionControlContent, label: @Composable () -> Unit = { ActionLabel(content.command) }) {
+    val style = LocalActionStyle.current
+    Box(Modifier.sizeIn(minWidth = style.minimumControlSize, minHeight = style.minimumControlSize)
+        .background(style.controlBackground, style.controlShape)
+        .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick).padding(style.controlPadding)) { label() }
+}
+
+/** English feedback default. Host errors are already localized; no persisted success is inferred. */
+@Composable
+fun DefaultActionStatus(content: ActionStatusContent) {
+    BasicText(when (content.kind) {
+        ActionStatusKind.Editing -> "Editing message"
+        ActionStatusKind.Unavailable -> "This action is no longer available. Cancel and select the message again."
+        ActionStatusKind.Replying -> "Replying to"
+        ActionStatusKind.Pending -> "Request pending…"
+        ActionStatusKind.Error -> content.error.orEmpty()
+        ActionStatusKind.DeletePrompt -> "Delete this message?"
+    }, style = LocalActionStyle.current.textStyle)
+}
+
+/** English quote default with explicit unavailable-message fallback. Delegating here avoids
+ * recursion into the quote slot; hosts replacing it own localized fallback and semantics. */
+@Composable
+fun DefaultActionQuote(content: ActionQuoteContent) {
+    BasicText(content.message?.let { "${it.sender.displayName}: ${it.text}" } ?: "Message unavailable",
+        style = LocalActionStyle.current.textStyle)
 }

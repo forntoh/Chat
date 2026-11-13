@@ -12,9 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import dev.chat.material3.ConversationStrings
 import dev.chat.material3.MessageBubble
 import dev.chat.material3.MessageComposer
+import dev.chat.material3.LocalConversationSlots
 import dev.chat.ui.*
 import dev.chat.actions.*
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -62,10 +62,8 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                         }
                     }
                     // One Conversation instance: switching presentation retains the send/history latches.
-                    val strings = ConversationStrings()
-                    Conversation(host.state, actions::onConversationEvent, Modifier.weight(1f),
-                        strings = strings,
-                        messageContent = { message, outgoing, retry ->
+                    Conversation(host.state, actions::onConversationEvent, modifier = Modifier.weight(1f),
+                        slots = LocalConversationSlots.current.copy(message = { message, outgoing, retry ->
                             Column {
                             host.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                             if (custom && !outgoing) {
@@ -74,32 +72,36 @@ fun SampleApp(host: FakeHost = remember { FakeHost() }) {
                                     color = MaterialTheme.colorScheme.secondaryContainer,
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                     modifier = Modifier.testTag("custom-incoming").clearAndSetSemantics {
-                                        contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${strings.deliveryLabel(message.delivery)}"
+                                        contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${message.delivery.name}"
                                     },
                                 ) {
                                     Column(Modifier.padding(16.dp)) {
                                         Text(message.sender.displayName, style = MaterialTheme.typography.titleSmall)
                                         Text(message.text, style = MaterialTheme.typography.bodyLarge)
-                                        Text("${message.displayTime} · ${strings.deliveryLabel(message.delivery)}",
+                                        Text("${message.displayTime} · ${message.delivery.name}",
                                             style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             } else {
-                                MessageBubble(message, outgoing, retry, strings)
+                                MessageBubble(message, outgoing, retry)
                             }
                             MessageActions(actions, message.id)
                             }
                         },
-                        composerContent = { content ->
+                        composer = { content ->
                             Column {
                                 ActionComposerStatus(actions)
                                 if (custom) Text("Custom composer · host draft",
                                     style = MaterialTheme.typography.labelMedium,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                                MessageComposer(actions.composer(content), if (host.actions.editing != null)
-                                    strings.copy(send = "Save edit", sendDescription = "Save edit") else strings)
+                                MessageComposer(actions.composer(content), LocalConversationSlots.current.copy(
+                                    composerSend = { composer ->
+                                        Button(onClick = composer.onSend, enabled = composer.canSend) {
+                                            Text(if (host.actions.editing != null) "Save edit" else "Send")
+                                        }
+                                    }))
                             }
-                        },
+                        }),
                         history = host.history, onLoadEarlier = host::loadEarlier)
 
                 } else {

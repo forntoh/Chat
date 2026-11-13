@@ -66,32 +66,6 @@ data class ActionRequest(
 )
 
 /**
- * English defaults for foundation surfaces; replace all visible labels and missing-target copy
- * here. Custom renderers own their additional labels and accessibility semantics. [saveEdit]
- * is supplied for host composers; [ActionComposerStatus] never renders a text input itself.
- */
-data class ActionLabels(
-    val actions: String = "Actions",
-    val copy: String = "Copy",
-    val reply: String = "Reply",
-    val close: String = "Close actions",
-    val cancelReply: String = "Cancel reply",
-    val unavailable: String = "Message unavailable",
-    val replying: String = "Replying to",
-    val pending: String = "Request pending…",
-    val edit: String = "Edit",
-    val editing: String = "Editing message",
-    val cancelEdit: String = "Cancel edit",
-    val saveEdit: String = "Save edit",
-    val delete: String = "Delete",
-    val confirmDelete: String = "Confirm delete",
-    val cancelDelete: String = "Cancel delete",
-    val deletePrompt: String = "Delete this message?",
-    val actionUnavailable: String = "This action is no longer available. Cancel and select the message again.",
-
-)
-
-/**
  * Action snapshot and guarded callbacks for host slots, created by [rememberMessageActions].
  * Render [conversation] and [state] directly, without copying draft text into local state.
  * Call only from explicit activation; replaced snapshots and pending work are suppressed.
@@ -111,7 +85,7 @@ class ActionsContent internal constructor(
 
     /**
      * Apply action pending/stale-edit locks to the existing UI composer slot. Pass the returned
-     * value to the renderer and use [ActionLabels.saveEdit] when editing. This preserves the
+     * value to the renderer and render an edit-submit control while editing. This preserves the
      * UI's synchronous send latch. Cancel stays available through [ActionComposerStatus].
      */
     fun composer(content: ComposerContent): ComposerContent = ComposerContent(content.draft,
@@ -219,109 +193,86 @@ fun rememberMessageActions(
     )
 }
 
-/** Host-capability menu using the surrounding [ActionTheme]; existing callers keep defaults. */
-@Composable
-fun MessageActions(content: ActionsContent, messageId: String, labels: ActionLabels = ActionLabels()) {
-    MessageActions(content, messageId, labels, LocalActionSlots.current)
-}
-
 /**
- * Menu for a current host message. Explicit [slots] override the ambient theme for this subtree.
- * Only enabled capabilities appear; pending work/edit/delete lock new menus. Controls receive
- * guarded callbacks; containers must render their children and custom controls own semantics.
+ * Capability-filtered message menu. [slots] replaces the ambient theme for this subtree; derive
+ * LocalActionSlots.current.copy(...) for a partial override. Controls receive typed commands and
+ * guarded activation, never a label bundle. Pending/edit/delete state locks new menus. Custom
+ * containers render their children once; custom controls own labels and input semantics.
  */
 @Composable
-fun MessageActions(content: ActionsContent, messageId: String, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
+fun MessageActions(content: ActionsContent, messageId: String, slots: ActionSlots = LocalActionSlots.current) {
     val enabled = content.state.capabilities[messageId].orEmpty()
     if (content.conversation.messages.none { it.id == messageId } || enabled.isEmpty()) return
     ActionTheme(slots = slots) {
         slots.menu {
-            slots.control(ActionControlContent(labels.actions, !content.state.pending && content.state.editing == null && content.state.deleting == null) { content.request(ActionCommand.OpenMenu, messageId) })
+            slots.control(ActionControlContent(ActionCommand.OpenMenu, !content.state.pending && content.state.editing == null && content.state.deleting == null) { content.request(ActionCommand.OpenMenu, messageId) })
             if (content.state.menuTargetId == messageId) {
                 FlowRow {
-                    if (MessageAction.Copy in enabled) slots.control(ActionControlContent(labels.copy, !content.state.pending) { content.request(ActionCommand.Copy, messageId) })
-                    if (MessageAction.Quote in enabled) slots.control(ActionControlContent(labels.reply, !content.state.pending) { content.request(ActionCommand.Quote, messageId) })
-                    if (MessageAction.Edit in enabled) slots.control(ActionControlContent(labels.edit, !content.state.pending) { content.request(ActionCommand.BeginEdit, messageId) })
-                    if (MessageAction.Delete in enabled) slots.control(ActionControlContent(labels.delete, !content.state.pending) { content.request(ActionCommand.RequestDelete, messageId) })
-                    slots.control(ActionControlContent(labels.close, !content.state.pending) { content.request(ActionCommand.CloseMenu) })
+                    if (MessageAction.Copy in enabled) slots.control(ActionControlContent(ActionCommand.Copy, !content.state.pending) { content.request(ActionCommand.Copy, messageId) })
+                    if (MessageAction.Quote in enabled) slots.control(ActionControlContent(ActionCommand.Quote, !content.state.pending) { content.request(ActionCommand.Quote, messageId) })
+                    if (MessageAction.Edit in enabled) slots.control(ActionControlContent(ActionCommand.BeginEdit, !content.state.pending) { content.request(ActionCommand.BeginEdit, messageId) })
+                    if (MessageAction.Delete in enabled) slots.control(ActionControlContent(ActionCommand.RequestDelete, !content.state.pending) { content.request(ActionCommand.RequestDelete, messageId) })
+                    slots.control(ActionControlContent(ActionCommand.CloseMenu, !content.state.pending) { content.request(ActionCommand.CloseMenu) })
                 }
             }
         }
     }
 }
 
-/** Latest host quote excerpt and replaceable missing-target fallback, using [ActionTheme]. */
+/** Latest quote snapshot for [targetId], including a nullable message for unavailable content.
+ * [slots] overrides the ambient quote renderer; hosts author fallback wording in that slot. */
 @Composable
-fun QuotedMessage(content: ActionsContent, targetId: String, labels: ActionLabels = ActionLabels()) {
-    QuotedMessage(content, targetId, labels, LocalActionSlots.current)
-}
-
-/** Resolve [targetId] on each snapshot; [slots] overrides the quote renderer and nested theme.
- * A missing message retains its identity and passes [ActionLabels.unavailable] as visible copy. */
-@Composable
-fun QuotedMessage(content: ActionsContent, targetId: String, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
-    val target = content.conversation.messages.find { it.id == targetId }
+fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots = LocalActionSlots.current) {
     ActionTheme(slots = slots) {
-        slots.quote(ActionQuoteContent(targetId, target, target?.let { "${it.sender.displayName}: ${it.text}" } ?: labels.unavailable))
+        slots.quote(ActionQuoteContent(targetId, content.conversation.messages.find { it.id == targetId }))
     }
 }
 
-/** Retained edit/quote context and operation feedback; place above any composer. Uses [ActionTheme]. */
-@Composable
-fun ActionComposerStatus(content: ActionsContent, labels: ActionLabels = ActionLabels()) {
-    ActionComposerStatus(content, labels, LocalActionSlots.current)
-}
-
 /**
- * [slots] overrides all nested edit/quote/confirmation and status presentation. Pending/errors
- * reflect host action state, independently of delivery. Cancellation preserves the host draft
- * through an intent; the host restores retained pre-edit content. No input is rendered here.
+ * Retained edit/quote context and operation feedback above a host composer. [slots] replaces the
+ * ambient bundle, including nested quote/confirmation content. Pending/errors describe actions,
+ * separately from message delivery. The host restores the retained pre-edit draft on cancellation;
+ * this component only emits guarded intents. It renders no input and retains no second draft.
  */
 @Composable
-fun ActionComposerStatus(content: ActionsContent, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
+fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {
     ActionTheme(slots = slots) {
         slots.composerStatus {
             content.state.editing?.let {
-                slots.text(labels.editing)
-                if (!content.canEdit) slots.text(labels.actionUnavailable)
-                slots.control(ActionControlContent(labels.cancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
+                slots.status(ActionStatusContent(ActionStatusKind.Editing))
+                if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+                slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
             }
             content.state.quoteTargetId?.let {
-                slots.text(labels.replying)
-                QuotedMessage(content, it, labels)
-                slots.control(ActionControlContent(labels.cancelReply, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+                slots.status(ActionStatusContent(ActionStatusKind.Replying))
+                QuotedMessage(content, it)
+                slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
             }
-            DeleteConfirmation(content, labels)
-            if (content.state.pending) slots.text(labels.pending)
-            content.state.error?.let { slots.text(it) }
+            DeleteConfirmation(content)
+            if (content.state.pending) slots.status(ActionStatusContent(ActionStatusKind.Pending))
+            content.state.error?.let { slots.status(ActionStatusContent(ActionStatusKind.Error, it)) }
         }
     }
 }
 
-/** Target-bound confirmation using [ActionTheme], disabled when the target/capability changes. */
-@Composable
-fun DeleteConfirmation(content: ActionsContent, labels: ActionLabels = ActionLabels()) {
-    DeleteConfirmation(content, labels, LocalActionSlots.current)
-}
-
 /**
- * Explicit confirmation with [slots] overriding the container, quote, text and controls. The
- * selected message snapshot is revalidated on activation; Cancel stays available while idle.
- * Custom controls must honor disabled state. The host revalidates again before service work;
- * rendering or confirming never asserts persisted success.
+ * Explicit target-bound confirm/cancel, using typed controls and prompt/quote slots. [slots]
+ * replaces ambient presentation. A changed/removed target or revoked capability disables confirm;
+ * Cancel remains available while idle. The host revalidates on completion. Custom controls must
+ * honor enabled state; activation remains guarded and never asserts persisted success.
  */
 @Composable
-fun DeleteConfirmation(content: ActionsContent, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
+fun DeleteConfirmation(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {
     val target = content.state.deleting ?: return
     val current = content.conversation.messages.find { it.id == target.id }
     val canDelete = current == target && MessageAction.Delete in content.state.capabilities[target.id].orEmpty()
     ActionTheme(slots = slots) {
         slots.confirmation {
-            slots.text(labels.deletePrompt)
-            QuotedMessage(content, target.id, labels)
+            slots.status(ActionStatusContent(ActionStatusKind.DeletePrompt))
+            QuotedMessage(content, target.id)
             Row {
-                slots.control(ActionControlContent(labels.confirmDelete, canDelete && !content.state.pending) { content.request(ActionCommand.ConfirmDelete, target.id) })
-                slots.control(ActionControlContent(labels.cancelDelete, !content.state.pending) { content.request(ActionCommand.CancelDelete) })
+                slots.control(ActionControlContent(ActionCommand.ConfirmDelete, canDelete && !content.state.pending) { content.request(ActionCommand.ConfirmDelete, target.id) })
+                slots.control(ActionControlContent(ActionCommand.CancelDelete, !content.state.pending) { content.request(ActionCommand.CancelDelete) })
             }
         }
     }
