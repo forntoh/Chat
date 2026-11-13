@@ -18,8 +18,9 @@ import dev.chat.sample.resources.Res
 import dev.chat.sample.resources.mountain
 import org.jetbrains.compose.resources.painterResource
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MediaSample(host: FakeMediaHost = remember { FakeMediaHost() }, manualService: Boolean = false) {
+fun MediaSample(host: FakeMediaHost = remember { FakeMediaHost() }, manualService: Boolean = false, onBack: (() -> Unit)? = null) {
     var denyNextSelection by remember { mutableStateOf(false) }
     var manualCompletion by remember { mutableStateOf(manualService) }
     val media = rememberMedia(host.state, host.media, { request ->
@@ -55,44 +56,53 @@ fun MediaSample(host: FakeMediaHost = remember { FakeMediaHost() }, manualServic
                 })
             }
         })) {
-        Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("# shared-images", style = MaterialTheme.typography.titleLarge)
-                        Text("Share a moment with the team", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Box {
-                        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("media-demo-menu")
-                            .semantics { contentDescription = "Image conversation options" }) { Text("⋮") }
-                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            @Composable fun entry(label: String, action: () -> Unit) {
-                                DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
+        Scaffold(
+            contentWindowInsets = WindowInsets.safeDrawing,
+            topBar = {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = { Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text("# shared-images", style = MaterialTheme.typography.titleLarge)
+                            Text("Share a moment with the team", style = MaterialTheme.typography.bodySmall)
+                        } },
+                        navigationIcon = {
+                            if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.semantics {
+                                contentDescription = "Back to conversation"
+                            }) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
+                        },
+                        actions = { Box {
+                            IconButton(onClick = { menu = true }, modifier = Modifier.testTag("media-demo-menu")
+                                .semantics { contentDescription = "Image conversation options" }) { Text("⋮") }
+                            DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                                @Composable fun entry(label: String, action: () -> Unit) {
+                                    DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
+                                }
+                                entry("Switch media room", host::switchRoom)
+                                entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
+                                entry("Deny next selection") { denyNextSelection = true }
+                                if (host.submission != null) {
+                                    entry("Accept image draft") { host.resolveDraft(true) }
+                                    entry("Keep draft") { host.resolveDraft(false) }
+                                }
+                                if (host.upload != null) {
+                                    entry("Complete upload") { host.completeUpload(true) }
+                                    entry("Fail upload") { host.completeUpload(false) }
+                                }
                             }
-                            entry("Switch media room", host::switchRoom)
-                            entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
-                            entry("Deny next selection") { denyNextSelection = true }
-                            if (host.submission != null) {
-                                entry("Accept image draft") { host.resolveDraft(true) }
-                                entry("Keep draft") { host.resolveDraft(false) }
-                            }
-                            if (host.upload != null) {
-                                entry("Complete upload") { host.completeUpload(true) }
-                                entry("Fail upload") { host.completeUpload(false) }
-                            }
-                        }
-                    }
+                        } },
+                    )
+                    HorizontalDivider()
                 }
-                HorizontalDivider()
+            },
+        ) { innerPadding ->
+            Column(Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding)) {
                 val base = LocalConversationSlots.current
                 Conversation(host.state, media.onConversationEvent, modifier = Modifier.weight(1f),
                     slots = base.copy(
                         message = { row, outgoing, retry ->
                             Column {
                                 base.message(row, outgoing, retry)
-                                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                    contentAlignment = if (outgoing) androidx.compose.ui.Alignment.CenterEnd else androidx.compose.ui.Alignment.CenterStart) {
+                                Box(Modifier.fillMaxWidth().padding(start = 62.dp, end = 12.dp)) {
                                     MediaAttachments(media, row, renderer)
                                 }
                             }

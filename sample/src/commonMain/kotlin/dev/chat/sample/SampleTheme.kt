@@ -35,8 +35,8 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
         secondaryContainer = Color(0xFFE7EED6), onSecondaryContainer = Color(0xFF252E14),
         surface = Color(0xFFFAFCF5), background = Color(0xFFFAFCF5),
     ) else lightColorScheme(
-        primary = Color(0xFF6354A4), onPrimary = Color.White,
-        primaryContainer = Color(0xFFE7DEFF), onPrimaryContainer = Color(0xFF251452),
+        primary = Color(0xFF515B92), onPrimary = Color.White,
+        primaryContainer = Color(0xFFE0E3FF), onPrimaryContainer = Color(0xFF111C44),
         secondaryContainer = Color(0xFFE8DEF2), onSecondaryContainer = Color(0xFF2D2438),
         surface = Color(0xFFFFFBFF), background = Color(0xFFFFFBFF),
     )

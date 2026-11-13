@@ -65,7 +65,7 @@ in host list order; formatted time strings are never parsed and no date boundary
 Prepending history recalculates adjacency while retaining message keys. Standalone renderers see
 a complete one-message group. There is no remembered grouping state.
 
-Material3 reserves a 42dp avatar gutter and renders `messageAvatar` once at group start, with
+Material3 reserves a shared left 42dp avatar gutter for both incoming and outgoing groups and renders `messageAvatar` once at group start, with
 initials as its decorative fallback. Replace that composable to draw a host-provided avatar;
 the artifact performs no image lookup or fetch. `messageSpacing` selects the gap before rows
 (except the first loaded row): neutral defaults retain 12dp, Material3 uses 8dp between groups
@@ -78,7 +78,7 @@ Host delivery subslots are still invoked on every row. Explicit/bundle/ambient p
 unchanged. `JetchatTheme { Conversation(...) }` supplies these defaults without sample renderers,
 actions, media or another state engine; the independent default-material3 consumer demonstrates it.
 
-The sample opens as a multi-participant conversation. Tap or long-press a message for its supported
+Both sample screens use Material3 Scaffold with a centered channel app bar and consumed safe-inset padding. The sample opens as a multi-participant conversation. Tap or long-press a message for its supported
 context menu. The toolbar overflow contains theme/fixture switches and **Manual service**;
 ordinary fake sends complete automatically. Manual mode exposes acceptance/refusal and delivery,
 action or upload outcomes in that same menu. These remain in-memory demonstrations, not services.

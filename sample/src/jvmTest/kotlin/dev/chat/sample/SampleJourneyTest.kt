@@ -157,9 +157,9 @@ class SampleJourneyTest {
         compose.onNodeWithContentDescription("Send").performClick()
         demo("Keep draft")
         compose.onNodeWithContentDescription("Send").assertIsEnabled()
-        compose.onNodeWithText("Leave").performClick()
+        compose.onNodeWithContentDescription("Leave").performClick()
         compose.onNodeWithTag("composer").assertDoesNotExist()
-        compose.onNodeWithText("Open chat").performClick()
+        compose.onNodeWithContentDescription("Open chat").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Keep\nthis draft")
         compose.onAllNodesWithText("Keep\nthis draft").assertCountEquals(1)
     }
