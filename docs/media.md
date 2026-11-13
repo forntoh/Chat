@@ -75,7 +75,9 @@ or submission state. No grouped-label model is added.
 The shared sample's **Image sample** opens a foundation-only media journey on all three configured
 targets. Its original bundled vector is a compiled resource; manual controls simulate selection,
 cancellation, denial, host acceptance/refusal, 25% upload, failure and stable-identity retry, plus a
-host viewer. Switching media rooms retains drafts and invalidates pending fake services; interrupted
+host viewer. Pending uploads are retained per exact target across subsequent text/image sends
+and retries; the manual completion/failure controls address the oldest unresolved upload.
+Switching media rooms retains drafts and invalidates pending fake services; interrupted
 uploads become retryable failures. There is no real OS permission flow, upload, remote downloading,
 persistence or production authorization. Native target compilation is separate from runtime proof.
 

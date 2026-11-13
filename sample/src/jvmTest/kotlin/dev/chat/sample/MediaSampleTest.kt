@@ -98,4 +98,51 @@ class MediaSampleTest {
         compose.onNodeWithText("Couldn't upload image").assertExists()
     }
 
+    @Test fun laterTextImageAndRetryDoNotReplaceAnUnresolvedUpload() {
+        val host = FakeMediaHost()
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
+        compose.onNodeWithText("Attach image").performClick()
+        compose.onNodeWithText("Choose bundled image").performClick()
+        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithText("Accept image draft").performClick()
+        val first = host.upload!!
+
+        compose.onNodeWithTag("composer").performTextInput("A later text message")
+        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithText("Accept image draft").performClick()
+        compose.runOnIdle {
+            assertEquals(first, host.upload, "Text acceptance must retain the earlier upload controls")
+            assertEquals(Delivery.Sent, host.state.messages.last().delivery)
+        }
+        compose.onNodeWithText("Complete upload").assertExists()
+
+        compose.onNodeWithText("Attach image").performClick()
+        compose.onNodeWithText("Choose bundled image").performClick()
+        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithText("Accept image draft").performClick()
+        val secondId = host.state.messages.last().id
+        compose.runOnIdle { assertEquals(first, host.upload, "Image acceptance must retain the earlier upload") }
+        capture("06-overlapping-uploads")
+        compose.onNodeWithText("Fail upload").performClick()
+        compose.runOnIdle {
+            assertEquals(secondId, host.upload!!.message!!.id)
+            assertEquals(Delivery.Failed, host.state.messages.first().delivery)
+        }
+        compose.onNodeWithText("Retry upload").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(secondId, host.upload!!.message!!.id, "Retry must not replace another active upload") }
+        compose.onNodeWithText("Complete upload").performClick()
+        compose.runOnIdle {
+            assertEquals(first.attachment!!.id, host.upload!!.attachment!!.id)
+            assertEquals(first.message!!.id, host.upload!!.message!!.id)
+            assertEquals(Delivery.Sent, host.state.messages.last().delivery)
+        }
+        compose.onNodeWithText("Complete upload").performClick()
+        compose.runOnIdle {
+            assertNull(host.upload)
+            assertEquals(3, host.state.messages.size)
+            assertTrue(host.state.messages.all { it.delivery == Delivery.Sent })
+        }
+        capture("07-resolved-uploads")
+    }
+
 }

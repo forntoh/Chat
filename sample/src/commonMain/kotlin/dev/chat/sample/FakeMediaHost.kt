@@ -14,7 +14,8 @@ class FakeMediaHost {
     var media by mutableStateOf(MediaState()); private set
     var selection by mutableStateOf<MediaRequest?>(null); private set
     var submission by mutableStateOf<ConversationEvent.SendDraft?>(null); private set
-    var upload by mutableStateOf<MediaTarget?>(null); private set
+    private var uploads by mutableStateOf<List<MediaTarget>>(emptyList())
+    val upload: MediaTarget? get() = uploads.firstOrNull()
     var viewer by mutableStateOf<MediaTarget?>(null); private set
     private var serial = 1
     private val rooms = mutableMapOf<String, ConversationState>()
@@ -40,8 +41,9 @@ class FakeMediaHost {
             MediaCommand.Retry -> if (media.images[request.target]?.status == ImageStatus.Failed) {
                 val row = request.target.message!!.copy(delivery = Delivery.Sending)
                 state = state.copy(messages = state.messages.map { if (it.id == row.id) row else it })
-                upload = request.target.copy(message = row)
-                media = media.copy(revision = media.revision + 1, images = media.images - request.target + (upload!! to ImageState(ImageStatus.Uploading, .25f)))
+                val retry = request.target.copy(message = row)
+                uploads = uploads + retry
+                media = media.copy(revision = media.revision + 1, images = media.images - request.target + (retry to ImageState(ImageStatus.Uploading, .25f)))
             }
             MediaCommand.View -> if ((media.images[request.target]?.status ?: ImageStatus.Ready) == ImageStatus.Ready) viewer = request.target
         }
@@ -77,22 +79,26 @@ class FakeMediaHost {
             val row = Message("image-${serial++}", Participant("me", "You"), serial.toLong(), "Now", pending.text,
                 Delivery.Sending, pending.attachments)
             state = state.copy(messages = state.messages + row, draft = Draft(revision = pending.revision + 1))
-            upload = row.attachments.firstOrNull()?.let { MediaTarget(state.conversationId, it, message = row) }
+            val newUpload = row.attachments.firstOrNull()?.let { MediaTarget(state.conversationId, it, message = row) }
+            if (newUpload != null) uploads = uploads + newUpload
             media = media.copy(revision = media.revision + 1,
-                images = upload?.let { media.images + (it to ImageState(ImageStatus.Uploading, .25f)) } ?: media.images)
-            if (upload == null) state = state.copy(messages = state.messages.map { if (it.id == row.id) it.copy(delivery = Delivery.Sent) else it })
+                images = newUpload?.let { media.images + (it to ImageState(ImageStatus.Uploading, .25f)) } ?: media.images)
+            if (newUpload == null) state = state.copy(messages = state.messages.map { if (it.id == row.id) it.copy(delivery = Delivery.Sent) else it })
         } else state = state.copy(draft = state.draft.copy(submitting = false, revision = pending.revision + 1))
         submission = null
     }
 
-    /** Fake delayed result; rejects removed, replaced and navigated targets before writing state. */
+    /**
+     * Fake delayed result for any exact pending target, defaulting to the oldest for manual controls.
+     * Rejects removed, replaced and navigated targets; resolving one never discards another upload.
+     */
     fun completeUpload(success: Boolean, target: MediaTarget? = upload) {
-        if (target == null || target != upload || !current(target)) return
+        if (target == null || target !in uploads || !current(target)) return
         val row = target.message!!.copy(delivery = if (success) Delivery.Sent else Delivery.Failed)
         state = state.copy(messages = state.messages.map { if (it.id == row.id) row else it })
         media = media.copy(revision = media.revision + 1, images = media.images - target +
             (target.copy(message = row) to ImageState(if (success) ImageStatus.Ready else ImageStatus.Failed)))
-        upload = null
+        uploads = uploads - target
     }
 
     fun closeViewer() { viewer = null }
@@ -108,6 +114,6 @@ class FakeMediaHost {
         media = MediaState(revision = media.revision + 1,
             images = state.messages.flatMap { row -> row.attachments.map { MediaTarget(room, it, message = row) to
                 ImageState(if (row.delivery == Delivery.Sent) ImageStatus.Ready else ImageStatus.Failed) } }.toMap())
-        selection = null; submission = null; upload = null; viewer = null
+        selection = null; submission = null; uploads = emptyList(); viewer = null
     }
 }
