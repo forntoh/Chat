@@ -35,7 +35,8 @@ class DefaultArtifactTest {
                 if (event is ConversationEvent.DraftChanged) state.value = state.value.copy(draft = Draft(event.text, state.value.draft.revision + 1))
             }
         } } } }
-        compose.onAllNodesWithText("Avery Chen · 09:41", useUnmergedTree = true).assertCountEquals(1)
+        compose.onNodeWithText("Design team").assertIsDisplayed()
+        compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(3)
         capture("default-artifact")
         compose.onNodeWithTag("composer").performTextInput("Exact text\nSecond line  ")
         compose.onNodeWithContentDescription("Send").performClick()

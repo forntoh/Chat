@@ -3,8 +3,10 @@ kotlin = "2.4.0"
 compose = "1.11.1"
 material3 = "1.11.0-alpha07"
 agp = "9.1.0"
+tabler = "2.2.1"
 
 [libraries]
+tabler-icons = { group = "com.composables", name = "icons-tabler-outline-cmp", version.ref = "tabler" }
 kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 compose-gradle = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose" }
 compose-compiler-gradle = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }

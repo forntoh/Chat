@@ -3,11 +3,15 @@ package dev.chat.consumer
 import androidx.compose.runtime.Composable
 import dev.chat.core.*
 import dev.chat.ui.Conversation
-import dev.chat.material3.JetchatTheme
+import dev.chat.material3.ChatTheme
+import dev.chat.material3.ChatScaffold
+import androidx.compose.material3.Text
 
 @Composable
 fun DefaultConversation(state: ConversationState, onEvent: (ConversationEvent) -> Unit) {
-    JetchatTheme { Conversation(state = state, onEvent = onEvent) }
+    ChatTheme {
+        ChatScaffold(title = { Text("Design team") }) { Conversation(state = state, onEvent = onEvent) }
+    }
 }
 
 /** Compile-time consumer evidence for existing positional and trailing-lambda entry points. */

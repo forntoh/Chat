@@ -1,7 +1,8 @@
 package dev.chat.sample
 
 import dev.chat.actions.*
-import dev.chat.material3.JetchatTheme
+import dev.chat.material3.ChatTheme
+import dev.chat.material3.chatColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,9 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * Portable light themes for the sample. The baseline takes Jetchat's Material3 hierarchy,
- * rounded messages and distinct sender metadata as a visual reference; it does not port its
- * Android dynamic colors, assets or features. [hostTheme] demonstrates host control of colors
+ * The sample uses the library's default reference palette and renderer theme. [hostTheme] demonstrates host control of colors
  * and typography with system font families, without installing fonts or changing chat state.
  */
 @Composable
@@ -34,12 +35,8 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
         primaryContainer = Color(0xFFCBF1DF), onPrimaryContainer = Color(0xFF092E24),
         secondaryContainer = Color(0xFFE7EED6), onSecondaryContainer = Color(0xFF252E14),
         surface = Color(0xFFFAFCF5), background = Color(0xFFFAFCF5),
-    ) else lightColorScheme(
-        primary = Color(0xFF515B92), onPrimary = Color.White,
-        primaryContainer = Color(0xFFE0E3FF), onPrimaryContainer = Color(0xFF111C44),
-        secondaryContainer = Color(0xFFE8DEF2), onSecondaryContainer = Color(0xFF2D2438),
-        surface = Color(0xFFFFFBFF), background = Color(0xFFFFFBFF),
-    )
+    ) else chatColorScheme()
+
     val type = if (hostTheme) Typography(
         bodyLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 18.sp, lineHeight = 25.sp),
         titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 24.sp),
@@ -79,7 +76,19 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
                     )) { ActionLabel(button.command) }
                 } },
             ),
-            content = { JetchatTheme(content = content) },
+            content = { ChatTheme(colorScheme = colors, typography = type, content = content) },
         )
+    }
+}
+
+/** Host-owned identity content for the scaffold's avatar slot. */
+@Composable
+internal fun SampleAvatar(initials: String) {
+    Surface(shape = androidx.compose.foundation.shape.CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.size(36.dp).clearAndSetSemantics {}) {
+        androidx.compose.foundation.layout.Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Text(initials, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }

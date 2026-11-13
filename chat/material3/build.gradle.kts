@@ -5,6 +5,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":chat:ui"))
             implementation(libs.material3)
+            implementation(libs.tabler.icons)
         }
 
     }

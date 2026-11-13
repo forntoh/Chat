@@ -17,13 +17,13 @@ import androidx.compose.ui.graphics.SolidColor
 import dev.chat.ui.*
 
 /**
- * Jetchat-referenced Material3 implementations of shared UI slots. This factory supplies
+ * Reference-design Material3 implementations of shared UI slots. This factory supplies
  * each standard renderer/subslot with Material3 content.
  * Customize the returned bundle with copy(...) to retain these defaults. It creates no services
  * or behavior state and requires neither actions nor media. Wording is English composable content;
  * hosts localize subslots directly, including visible and accessible delivery content together.
  */
-fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
+fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     message = { row, outgoing, retry -> MessageBubble(row, outgoing, retry) },
     composer = { MessageComposer(it) },
     history = { HistoryStatusContent(it.history, it.empty) },
@@ -68,7 +68,7 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
             onClick = it.onSend,
             modifier = Modifier.size(48.dp).semantics { contentDescription = "Send" }
         ) {
-            Icon(TablerDefaults.Send, contentDescription = null, modifier = Modifier.size(22.dp))
+            Icon(ChatIcons.Send, contentDescription = null, modifier = Modifier.size(22.dp))
         }
     },
     historyFeedback = { DefaultHistoryFeedback(it) },
@@ -93,19 +93,13 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
     messageSpacing = { if (it.isFirst) 8.dp else 4.dp },
 )
 
+/** Legacy factory name. Prefer [chatConversationSlots] for the current reference design. */
+fun jetchatConversationSlots(): ConversationSlots = chatConversationSlots()
+
 /**
- * Optional Material3 presentation provider for the one shared [dev.chat.ui.Conversation]. Wrap
- * this in the host's MaterialTheme to choose colors/typography. [slots] defaults to Jetchat
- * renderers and replaces the ambient shared bundle; derive jetchatConversationSlots().copy(...)
- * for host overrides. The shared Conversation's explicit slots/renderers still take precedence.
- * Keep the shared component mounted across theme changes to retain send/history guards.
- *
- * ```kotlin
- * MaterialTheme {
- *     JetchatTheme { Conversation(hostState, ::handleEvent) }
- * }
- * ```
- * No alternate Conversation, host state, actions/media dependency or service is installed.
+ * Legacy slots-only provider, retaining host MaterialTheme ownership and existing signatures.
+ * Prefer [ChatTheme] for the reference palette and [ChatScaffold] for customizable screen chrome.
+ * Existing explicit/bundle overrides still take precedence. No alternate Conversation is created.
  */
 @Composable
 fun JetchatTheme(slots: ConversationSlots = jetchatConversationSlots(), content: @Composable () -> Unit) {
