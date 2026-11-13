@@ -40,25 +40,30 @@ fun MessageBubble(
 ) {
     val group = LocalMessageGroupContext.current
     ConversationTheme(slots) {
-        Box(Modifier.fillMaxWidth()) {
-            Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AvatarGutter(message, group.isFirst, slots)
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                    Column(Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) }) {
-                        if (group.isFirst) slots.messageMetadata(message)
-                        Surface(
-                            color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                            shape = RoundedCornerShape(
-                                topStart = if (group.isFirst) 4.dp else 20.dp,
-                                topEnd = 20.dp,
-                                bottomStart = 20.dp, bottomEnd = 20.dp,
-                            ),
-                        ) {
-                            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart) {
+            Row(
+                Modifier.widthIn(max = 560.dp).fillMaxWidth(if (isCurrentParticipant) 0.82f else 0.88f),
+                horizontalArrangement = if (isCurrentParticipant) Arrangement.End else Arrangement.Start,
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                if (!isCurrentParticipant) AvatarGutter(message, group.isLast, slots)
+                Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
+                    Surface(
+                        color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.Bottom,
+                                itemVerticalAlignment = Alignment.Bottom,
+                            ) {
                                 slots.messageBody(message)
-                                slots.messageDelivery(message.delivery)
+                                slots.messageMetadata(message)
                             }
+                            slots.messageDelivery(message.delivery)
                         }
                     }
                     if (onRetry != null) slots.retry(RetryContent(message, onRetry))
@@ -70,7 +75,7 @@ fun MessageBubble(
 
 @Composable
 private fun AvatarGutter(message: Message, visible: Boolean, slots: ConversationSlots) {
-    Box(Modifier.width(42.dp)) {
+    Box(Modifier.width(36.dp).padding(end = 6.dp)) {
         if (visible) slots.messageAvatar(message)
     }
 }
@@ -84,25 +89,20 @@ fun MessageComposer(content: ComposerContent) {
 fun MessageComposer(content: ComposerContent, slots: ConversationSlots) {
     var focused by remember { mutableStateOf(false) }
     ConversationTheme(slots) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
-            .onFocusChanged { focused = it.hasFocus }) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Surface(
-                shape = RoundedCornerShape(32.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                border = if (focused) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+                modifier = Modifier.weight(1f).onFocusChanged { focused = it.hasFocus },
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(4.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Box(Modifier.weight(1f)) { slots.composerField(content) }
-                    slots.composerSend(content)
-                }
+                slots.composerField(content)
             }
+            slots.composerSend(content)
         }
     }
 }

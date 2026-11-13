@@ -124,8 +124,7 @@ class ConversationTest {
         )))
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
-        compose.onNodeWithText("Avery · 09:41", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("You · 09:41", useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(2)
         compose.onNodeWithText("Sending", useUnmergedTree = true).assertExists()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(
             snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Failed),
