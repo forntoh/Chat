@@ -53,7 +53,7 @@ class ActionsJourneyTest {
         demo("Host theme")
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         capture("05-host-theme-quoted-draft")
-        demo("Jetchat theme")
+        demo("Default chat theme")
         compose.onNodeWithText("Cancel reply").performClick()
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()

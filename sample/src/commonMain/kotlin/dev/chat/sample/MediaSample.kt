@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.chat.ui.*
 import dev.chat.media.*
 import dev.chat.material3.MessageComposer
+import dev.chat.material3.ChatScaffold
+import dev.chat.material3.ChatIcons
 import dev.chat.sample.resources.Res
 import dev.chat.sample.resources.mountain
 import org.jetbrains.compose.resources.painterResource
@@ -49,7 +51,7 @@ fun MediaSample(
         MediaTheme(slots = LocalMediaSlots.current.copy(control = { button ->
             if (button.command == MediaCommand.Select) {
                 IconButton(onClick = button.onClick, enabled = button.enabled,
-                    modifier = Modifier.semantics { contentDescription = "Attach image" }) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                    modifier = Modifier.semantics { contentDescription = "Attach image" }) { Icon(ChatIcons.Paperclip, null) }
             } else TextButton(onClick = button.onClick, enabled = button.enabled) {
                 Text(when (button.command) {
                     MediaCommand.Remove -> "Remove image"
@@ -59,79 +61,71 @@ fun MediaSample(
                 })
             }
         })) {
-        Scaffold(
-            contentWindowInsets = WindowInsets.safeDrawing,
-            topBar = {
-                Column {
-                CenterAlignedTopAppBar(
-                    title = { Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                        Text("# shared-images", style = MaterialTheme.typography.titleLarge)
-                        Text("Share a moment with the team", style = MaterialTheme.typography.bodySmall)
-                    } },
-                    navigationIcon = {
-                        if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.semantics {
-                            contentDescription = "Back to conversation"
-                        }) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
-                    },
-                    actions = { Box {
-                        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("media-demo-menu")
-                            .semantics { contentDescription = "Image conversation options" }) { Text("⋮") }
-                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            @Composable fun entry(label: String, action: () -> Unit) {
-                                DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
-                            }
-                            entry("Switch media room", host::switchRoom)
-                            entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
-                            entry("Deny next selection") { denyNextSelection = true }
-                            if (host.submission != null) {
-                                entry("Accept image draft") { host.resolveDraft(true) }
-                                entry("Keep draft") { host.resolveDraft(false) }
-                            }
-                            if (host.upload != null) {
-                                entry("Complete upload") { host.completeUpload(true) }
-                                entry("Fail upload") { host.completeUpload(false) }
+        ChatScaffold(
+            title = { Column {
+                Text("Shared images", style = MaterialTheme.typography.titleMedium)
+                Text("Share a moment with the team", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } },
+            avatar = { SampleAvatar("SI") },
+            navigationIcon = {
+                if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.semantics {
+                    contentDescription = "Back to conversation"
+                }) { Icon(ChatIcons.ArrowLeft, null) }
+            },
+            actions = { Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.testTag("media-demo-menu")
+                    .semantics { contentDescription = "Image conversation options" }) { Icon(ChatIcons.DotsVertical, null) }
+                DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                    @Composable fun entry(label: String, action: () -> Unit) {
+                        DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
+                    }
+                    entry("Switch media room", host::switchRoom)
+                    entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
+                    entry("Deny next selection") { denyNextSelection = true }
+                    if (host.submission != null) {
+                        entry("Accept image draft") { host.resolveDraft(true) }
+                        entry("Keep draft") { host.resolveDraft(false) }
+                    }
+                    if (host.upload != null) {
+                        entry("Complete upload") { host.completeUpload(true) }
+                        entry("Fail upload") { host.completeUpload(false) }
+                    }
+                }
+            } },
+        ) {
+            val base = LocalConversationSlots.current
+            Conversation(host.state, media.onConversationEvent, modifier = Modifier.weight(1f),
+                slots = base.copy(
+                    message = { row, outgoing, retry ->
+                        Column {
+                            base.message(row, outgoing, retry)
+                            Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                contentAlignment = if (outgoing) androidx.compose.ui.Alignment.CenterEnd else androidx.compose.ui.Alignment.CenterStart) {
+                                MediaAttachments(media, row, renderer)
                             }
                         }
-                    } },
-                )
-                HorizontalDivider()
-                }
-            },
-        ) { innerPadding ->
-            Column(Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding)) {
-                val base = LocalConversationSlots.current
-                Conversation(host.state, media.onConversationEvent, modifier = Modifier.weight(1f),
-                    slots = base.copy(
-                        message = { row, outgoing, retry ->
-                            Column {
-                                base.message(row, outgoing, retry)
-                                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                    contentAlignment = if (outgoing) androidx.compose.ui.Alignment.CenterEnd else androidx.compose.ui.Alignment.CenterStart) {
-                                    MediaAttachments(media, row, renderer)
-                                }
-                            }
-                        },
-                        composer = { content ->
-                            Column {
-                                val mediaSlots = LocalMediaSlots.current
-                                val adapted = media.composer(content)
-                                Column(Modifier.padding(horizontal = 16.dp)) {
-                                    MediaDraft(media, content, renderer, mediaSlots.copy(control = {
-                                        if (it.command != MediaCommand.Select) mediaSlots.control(it)
-                                    }))
-                                }
-                                MessageComposer(adapted, base.copy(composerField = { field ->
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
-                                        mediaSlots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
-                                            media.request(MediaCommand.Select, composer = adapted)
-                                        })
-                                        Box(Modifier.weight(1f)) { base.composerField(field) }
-                                    }
+                    },
+                    composer = { content ->
+                        Column {
+                            val mediaSlots = LocalMediaSlots.current
+                            val adapted = media.composer(content)
+                            Column(Modifier.padding(horizontal = 16.dp)) {
+                                MediaDraft(media, content, renderer, mediaSlots.copy(control = {
+                                    if (it.command != MediaCommand.Select) mediaSlots.control(it)
                                 }))
                             }
-                        },
-                    ))
-            }
+                            MessageComposer(adapted, base.copy(composerField = { field ->
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                                    mediaSlots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
+                                        media.request(MediaCommand.Select, composer = adapted)
+                                    })
+                                    Box(Modifier.weight(1f)) { base.composerField(field) }
+                                }
+                            }))
+                        }
+                    },
+                ))
             if (host.selection != null) AlertDialog(
                 onDismissRequest = { host.resolveSelection() },
                 title = { Text("Choose an image") },

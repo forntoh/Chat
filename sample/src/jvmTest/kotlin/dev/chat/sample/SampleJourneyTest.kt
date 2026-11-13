@@ -93,7 +93,7 @@ class SampleJourneyTest {
         capture("03-mixed-content")
         compose.onNodeWithTag("composer").performTextInput("Retained draft")
         demo("Material3 UI")
-        demo("Jetchat theme")
+        demo("Default chat theme")
         compose.onNodeWithTag("composer").assertTextContains("Retained draft")
         compose.onNodeWithContentDescription("Send").assertIsEnabled()
     }
