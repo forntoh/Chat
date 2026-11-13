@@ -72,6 +72,9 @@ and 4dp within groups. Legacy constructor/copy adapters preserve the original so
 consumers recompile against the new local candidate. There is no published binary guarantee.
 The original thirteen-parameter constructor/copy forms remain source overloads, so trailing
 `latestLabel` lambdas keep their meaning. A legacy `copy { ... }` retains avatar/spacing overrides.
+The immutable bundle explicitly preserves copy/equality/hash/component semantics: component13 and
+thirteen-position destructuring still yield latestLabel; avatar/spacing remain components 14/15.
+These mappings are independent of constructor order, so new defaults cannot shift legacy components.
 
 Host-formatted time appears inside each bubble; each message still has its full host-authored ordered semantics.
 Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
