@@ -1,5 +1,8 @@
 package dev.chat.sample
 
+import dev.chat.actions.*
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
@@ -36,5 +39,15 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
         bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, lineHeight = 24.sp),
         titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 22.sp),
     )
-    MaterialTheme(colorScheme = colors, typography = type, content = content)
+    MaterialTheme(colorScheme = colors, typography = type) {
+        // The sample bridges its optional Material3 theme at the host boundary.
+        ActionTheme(
+            style = ActionStyle(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)),
+            slots = LocalActionSlots.current.copy(
+                control = { button -> TextButton(onClick = button.onClick, enabled = button.enabled) { Text(button.label) } },
+                text = { Text(it, style = MaterialTheme.typography.bodyMedium) },
+            ),
+            content = content,
+        )
+    }
 }

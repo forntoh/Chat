@@ -48,7 +48,7 @@ revision and retained draft rather than relying on an implicit retry.
   `SendQuote` includes conversation, target ID, action revision, exact text and draft revision.
   The host accepts/refuses through new draft/action snapshots and stores the quote association
   on its accepted row. Missing targets retain their identity and use the replaceable fallback;
-  existing targets show current text in a two-line excerpt.
+  existing targets show current text through the replaceable quote slot.
 - Begin edit retains the original target and the entire pre-edit draft/quote context in
   `EditingMessage`, then the host publishes selected message text as a fresh composer draft.
   Edit mode and quote mode are exclusive. Submit edit carries target, text and draft revision;
@@ -73,3 +73,38 @@ a new platform integration. Desktop captures come from the shared Compose test r
 These checks do not imply a repeated native platform matrix or physical-device coverage.
 Owner-deferred screen-reader, RTL/locale, orientation, font scaling, dark-mode, exhaustive
 keyboard/device/configuration and every-module-combination runtime campaigns remain deferred.
+
+## Slots and themes
+
+Every action surface inherits `ActionTheme`. Existing calls keep foundation defaults. Replace
+individual slots for controls, status/prompt/error text, quote excerpts, and the menu, composer
+status and confirmation containers. Containers receive their children as composable content;
+render it once, or provide an equivalent complete host surface. Custom controls must honor
+`enabled`, invoke the supplied guarded callback only on activation, and provide keyboard/focus
+and accessibility semantics. Host state remains authoritative when renderers or themes change.
+
+```kotlin
+ActionTheme(
+    style = ActionStyle(textStyle = hostTextStyle),
+    slots = LocalActionSlots.current.copy(
+        control = { button -> HostButton(button.label, button.enabled, button.onClick) },
+        quote = { quote -> HostQuote(quote.message, quote.text) },
+    ),
+) {
+    MessageActions(actions, message.id)
+    ActionComposerStatus(actions)
+}
+```
+
+`ActionStyle` controls foundation text, control background, shape, padding and minimum size.
+`ActionControl` is a public foundation renderer that custom slots can delegate to without
+recursing into their own slot. For a local override, pass `slots = LocalActionSlots.current.copy(...)`
+to `MessageActions`, `QuotedMessage`, `ActionComposerStatus` or `DeleteConfirmation`; this set
+also reaches nested quotes and confirmation. `ActionQuoteContent` retains the requested target
+ID even when `message` is null, with localized unavailable text already resolved.
+
+For Material3, keep the bridge in the host (as in `SampleTheme`): wrap the conversation in
+`MaterialTheme`, map its typography/colors to `ActionStyle`, and supply `TextButton`/`Text`
+slots. The actions artifact itself has no Material3 dependency. English `ActionLabels` defaults
+and explicit labels continue to work with either renderer set. Theme changes do not authorize
+requests, clear drafts, or report persisted results.

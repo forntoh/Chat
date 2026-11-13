@@ -1,13 +1,7 @@
 package dev.chat.actions
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextOverflow
 import dev.chat.core.*
 import dev.chat.ui.ComposerContent
 
@@ -225,84 +219,110 @@ fun rememberMessageActions(
     )
 }
 
-/**
- * Foundation menu for [messageId]; offers only current host capabilities. Button semantics,
- * keyboard/touch activation and 48 dp targets are provided. [labels] supplies English defaults.
- * Edit/confirmation and pending work disable new menus until the host resolves the mode.
- */
+/** Host-capability menu using the surrounding [ActionTheme]; existing callers keep defaults. */
 @Composable
 fun MessageActions(content: ActionsContent, messageId: String, labels: ActionLabels = ActionLabels()) {
+    MessageActions(content, messageId, labels, LocalActionSlots.current)
+}
+
+/**
+ * Menu for a current host message. Explicit [slots] override the ambient theme for this subtree.
+ * Only enabled capabilities appear; pending work/edit/delete lock new menus. Controls receive
+ * guarded callbacks; containers must render their children and custom controls own semantics.
+ */
+@Composable
+fun MessageActions(content: ActionsContent, messageId: String, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
     val enabled = content.state.capabilities[messageId].orEmpty()
     if (content.conversation.messages.none { it.id == messageId } || enabled.isEmpty()) return
-    Column {
-        ActionControl(labels.actions, !content.state.pending && content.state.editing == null && content.state.deleting == null) { content.request(ActionCommand.OpenMenu, messageId) }
-        if (content.state.menuTargetId == messageId) {
-            FlowRow {
-                if (MessageAction.Copy in enabled) ActionControl(labels.copy, !content.state.pending) { content.request(ActionCommand.Copy, messageId) }
-                if (MessageAction.Quote in enabled) ActionControl(labels.reply, !content.state.pending) { content.request(ActionCommand.Quote, messageId) }
-                if (MessageAction.Edit in enabled) ActionControl(labels.edit, !content.state.pending) { content.request(ActionCommand.BeginEdit, messageId) }
-                if (MessageAction.Delete in enabled) ActionControl(labels.delete, !content.state.pending) { content.request(ActionCommand.RequestDelete, messageId) }
-                ActionControl(labels.close, !content.state.pending) { content.request(ActionCommand.CloseMenu) }
+    ActionTheme(slots = slots) {
+        slots.menu {
+            slots.control(ActionControlContent(labels.actions, !content.state.pending && content.state.editing == null && content.state.deleting == null) { content.request(ActionCommand.OpenMenu, messageId) })
+            if (content.state.menuTargetId == messageId) {
+                FlowRow {
+                    if (MessageAction.Copy in enabled) slots.control(ActionControlContent(labels.copy, !content.state.pending) { content.request(ActionCommand.Copy, messageId) })
+                    if (MessageAction.Quote in enabled) slots.control(ActionControlContent(labels.reply, !content.state.pending) { content.request(ActionCommand.Quote, messageId) })
+                    if (MessageAction.Edit in enabled) slots.control(ActionControlContent(labels.edit, !content.state.pending) { content.request(ActionCommand.BeginEdit, messageId) })
+                    if (MessageAction.Delete in enabled) slots.control(ActionControlContent(labels.delete, !content.state.pending) { content.request(ActionCommand.RequestDelete, messageId) })
+                    slots.control(ActionControlContent(labels.close, !content.state.pending) { content.request(ActionCommand.CloseMenu) })
+                }
             }
         }
     }
 }
 
-/**
- * Two-line excerpt for [targetId] in the current conversation, including latest edited text.
- * Missing targets use [ActionLabels.unavailable]; [labels] defaults to English. Custom quote
- * surfaces own their equivalent fallback/semantics and must preserve the quoted target ID.
- */
+/** Latest host quote excerpt and replaceable missing-target fallback, using [ActionTheme]. */
 @Composable
 fun QuotedMessage(content: ActionsContent, targetId: String, labels: ActionLabels = ActionLabels()) {
-    val target = content.conversation.messages.find { it.id == targetId }
-    BasicText(target?.let { "${it.sender.displayName}: ${it.text}" } ?: labels.unavailable,
-        maxLines = 2, overflow = TextOverflow.Ellipsis)
+    QuotedMessage(content, targetId, labels, LocalActionSlots.current)
 }
 
-/** Retained quote context and operation feedback; place above any host-rendered composer. */
+/** Resolve [targetId] on each snapshot; [slots] overrides the quote renderer and nested theme.
+ * A missing message retains its identity and passes [ActionLabels.unavailable] as visible copy. */
 @Composable
-fun ActionComposerStatus(content: ActionsContent, labels: ActionLabels = ActionLabels()) {
-    Column {
-        content.state.editing?.let {
-            BasicText(labels.editing)
-            if (!content.canEdit) BasicText(labels.actionUnavailable)
-            ActionControl(labels.cancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) }
-        }
-        content.state.quoteTargetId?.let {
-            BasicText(labels.replying)
-            QuotedMessage(content, it, labels)
-            ActionControl(labels.cancelReply, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) }
-        }
-        DeleteConfirmation(content, labels)
-        if (content.state.pending) BasicText(labels.pending)
-        content.state.error?.let { BasicText(it) }
+fun QuotedMessage(content: ActionsContent, targetId: String, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
+    val target = content.conversation.messages.find { it.id == targetId }
+    ActionTheme(slots = slots) {
+        slots.quote(ActionQuoteContent(targetId, target, target?.let { "${it.sender.displayName}: ${it.text}" } ?: labels.unavailable))
     }
 }
 
+/** Retained edit/quote context and operation feedback; place above any composer. Uses [ActionTheme]. */
+@Composable
+fun ActionComposerStatus(content: ActionsContent, labels: ActionLabels = ActionLabels()) {
+    ActionComposerStatus(content, labels, LocalActionSlots.current)
+}
+
 /**
- * Explicit target-bound confirmation. Disables confirmation if the message changed, disappeared,
- * or lost delete capability; Cancel remains available when idle. No persisted success is shown.
- * [ActionState.deleting] retains the selected message snapshot so replaced text cannot silently
- * become the target of an older confirmation. Hosts revalidate again when completing service work.
+ * [slots] overrides all nested edit/quote/confirmation and status presentation. Pending/errors
+ * reflect host action state, independently of delivery. Cancellation preserves the host draft
+ * through an intent; the host restores retained pre-edit content. No input is rendered here.
  */
 @Composable
+fun ActionComposerStatus(content: ActionsContent, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
+    ActionTheme(slots = slots) {
+        slots.composerStatus {
+            content.state.editing?.let {
+                slots.text(labels.editing)
+                if (!content.canEdit) slots.text(labels.actionUnavailable)
+                slots.control(ActionControlContent(labels.cancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
+            }
+            content.state.quoteTargetId?.let {
+                slots.text(labels.replying)
+                QuotedMessage(content, it, labels)
+                slots.control(ActionControlContent(labels.cancelReply, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+            }
+            DeleteConfirmation(content, labels)
+            if (content.state.pending) slots.text(labels.pending)
+            content.state.error?.let { slots.text(it) }
+        }
+    }
+}
+
+/** Target-bound confirmation using [ActionTheme], disabled when the target/capability changes. */
+@Composable
 fun DeleteConfirmation(content: ActionsContent, labels: ActionLabels = ActionLabels()) {
+    DeleteConfirmation(content, labels, LocalActionSlots.current)
+}
+
+/**
+ * Explicit confirmation with [slots] overriding the container, quote, text and controls. The
+ * selected message snapshot is revalidated on activation; Cancel stays available while idle.
+ * Custom controls must honor disabled state. The host revalidates again before service work;
+ * rendering or confirming never asserts persisted success.
+ */
+@Composable
+fun DeleteConfirmation(content: ActionsContent, labels: ActionLabels = ActionLabels(), slots: ActionSlots) {
     val target = content.state.deleting ?: return
     val current = content.conversation.messages.find { it.id == target.id }
     val canDelete = current == target && MessageAction.Delete in content.state.capabilities[target.id].orEmpty()
-    Column {
-        BasicText(labels.deletePrompt)
-        QuotedMessage(content, target.id, labels)
-        Row {
-            ActionControl(labels.confirmDelete, canDelete && !content.state.pending) { content.request(ActionCommand.ConfirmDelete, target.id) }
-            ActionControl(labels.cancelDelete, !content.state.pending) { content.request(ActionCommand.CancelDelete) }
+    ActionTheme(slots = slots) {
+        slots.confirmation {
+            slots.text(labels.deletePrompt)
+            QuotedMessage(content, target.id, labels)
+            Row {
+                slots.control(ActionControlContent(labels.confirmDelete, canDelete && !content.state.pending) { content.request(ActionCommand.ConfirmDelete, target.id) })
+                slots.control(ActionControlContent(labels.cancelDelete, !content.state.pending) { content.request(ActionCommand.CancelDelete) })
+            }
         }
     }
-}
-
-@Composable
-private fun ActionControl(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-        .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(8.dp)) { BasicText(label) }
 }
