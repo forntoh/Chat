@@ -126,4 +126,19 @@ class ActionsJourneyTest {
         compose.runOnIdle { assertEquals(listOf("welcome"), host.state.messages.map { it.id }) }
     }
 
+    @Test fun quotedImageSubmissionPreservesTheSharedDraftSnapshot() {
+        val image = Attachment("photo", "image/png", "host-bundle")
+        val conversation = ConversationState("room", "me", Draft(attachments = listOf(image)))
+        val requests = mutableListOf<ActionRequest>()
+        compose.setContent {
+            val actions = rememberMessageActions(conversation, ActionState(quoteTargetId = "quote"), requests::add, {})
+            Box(Modifier.size(360.dp, 600.dp)) { dev.chat.ui.Conversation(conversation, actions::onConversationEvent) }
+        }
+        compose.onNodeWithText("Send").performClick()
+        compose.runOnIdle {
+            assertEquals(ActionCommand.SendQuote, requests.single().command)
+            assertEquals(listOf(image), requests.single().attachments)
+        }
+    }
+
 }

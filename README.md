@@ -38,3 +38,8 @@ state, explicit host clipboard integration and a Material3-free outside consumer
 `ConversationTheme` and `ConversationSlots` live in `dev.chat.ui`. For optional Material3 presentation,
 wrap the same `dev.chat.ui.Conversation` in `MaterialTheme { dev.chat.material3.JetchatTheme { ... } }`.
 The Material3 module supplies slot renderers and has no separate Conversation component.
+
+See [host-supplied images](docs/media.md) for independently selectable `chat-media`, guarded
+image drafts, host rendering/upload/viewer integration and the bundled **Image sample**.
+Stage `:chat:media:publishAllPublicationsToStagingRepository` alongside core/ui, then verify
+`:media-only:verifySelection :media-only:jvmTest` in the separate consumer build.

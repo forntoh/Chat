@@ -88,8 +88,8 @@ class FakeHost {
             ActionCommand.CancelQuote -> actionState = actionState.copy(quoteTargetId = null)
             ActionCommand.SendQuote -> {
                 if (request.targetId != actionState.quoteTargetId || request.text != state.draft.text ||
-                    request.draftRevision != state.draft.revision || request.text.isNullOrBlank()) return
-                onEvent(ConversationEvent.SendDraft(state.conversationId, state.draft.revision, state.draft.text))
+                    request.draftRevision != state.draft.revision || !state.draft.hasContent || request.attachments != state.draft.attachments) return
+                onEvent(ConversationEvent.SendDraft(state.conversationId, state.draft.revision, state.draft.text, request.attachments))
                 pendingQuoteTarget = request.targetId
             }
         }
@@ -208,7 +208,7 @@ class FakeHost {
             }
             is ConversationEvent.SendDraft -> {
                 if (pendingDraft != null || event.revision != state.draft.revision ||
-                    event.text != state.draft.text || event.text.isBlank()) return
+                    event.text != state.draft.text || event.attachments != state.draft.attachments || !state.draft.hasContent) return
                 pendingDraft = event
                 state = state.copy(draft = state.draft.copy(submitting = true))
             }
@@ -226,7 +226,7 @@ class FakeHost {
         val id = "${state.conversationId}-${nextMessage++}"
         state = state.copy(
             draft = Draft(revision = pending.revision + 1),
-            messages = state.messages + Message(id, Participant("me", "You"), 1_000L + nextMessage, "09:42", pending.text, Delivery.Sending),
+            messages = state.messages + Message(id, Participant("me", "You"), 1_000L + nextMessage, "09:42", pending.text, Delivery.Sending, pending.attachments),
         )
         actionState = actionState.copy(revision = actionState.revision + 1, quoteTargetId = null,
             quotes = pendingQuoteTarget?.let { actionState.quotes + (id to it) } ?: actionState.quotes)
@@ -243,7 +243,7 @@ class FakeHost {
 
     fun refuse() {
         val pending = pendingDraft ?: return
-        state = state.copy(draft = Draft(pending.text, pending.revision + 1))
+        state = state.copy(draft = Draft(pending.text, pending.revision + 1, attachments = pending.attachments))
         pendingDraft = null
         pendingQuoteTarget = null
         actionState = actionState.copy(revision = actionState.revision + 1)
