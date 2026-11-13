@@ -1,6 +1,6 @@
 package dev.chat.consumer
 
-import com.forntoh.chat.core.*
+import dev.forntoh.chat.core.*
 
 fun conversationFromHost(): ConversationState = ConversationState(
     conversationId = "core-consumer", currentParticipantId = "me", draft = Draft("Hello\nworld"),

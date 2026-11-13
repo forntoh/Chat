@@ -13,8 +13,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
-import com.forntoh.chat.ui.*
-import com.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.ui.*
+import dev.forntoh.chat.core.ConversationEvent
 
 class SampleJourneyTest {
     private fun demo(label: String) {
@@ -37,7 +37,7 @@ class SampleJourneyTest {
         compose.onNodeWithContentDescription("Send").performClick()
         compose.runOnIdle {
             assertEquals("See you soon!\nI’ll bring the sketches.", host.state.messages.last().text)
-            assertEquals(com.forntoh.chat.core.Delivery.Sent, host.state.messages.last().delivery)
+            assertEquals(dev.forntoh.chat.core.Delivery.Sent, host.state.messages.last().delivery)
             assertEquals("", host.state.draft.text)
         }
         capture("pat254-03-sent")

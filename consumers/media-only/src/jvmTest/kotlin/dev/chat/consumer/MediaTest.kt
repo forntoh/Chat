@@ -5,8 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import com.forntoh.chat.core.*
-import com.forntoh.chat.media.*
+import dev.forntoh.chat.core.*
+import dev.forntoh.chat.media.*
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals

@@ -5,8 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
-import com.forntoh.chat.core.*
-import com.forntoh.chat.actions.*
+import dev.forntoh.chat.core.*
+import dev.forntoh.chat.actions.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -137,7 +137,7 @@ class ActionsJourneyTest {
         val requests = mutableListOf<ActionRequest>()
         compose.setContent {
             val actions = rememberMessageActions(conversation, ActionState(quoteTargetId = "quote"), requests::add, {})
-            Box(Modifier.size(360.dp, 600.dp)) { com.forntoh.chat.ui.Conversation(conversation, actions::onConversationEvent) }
+            Box(Modifier.size(360.dp, 600.dp)) { dev.forntoh.chat.ui.Conversation(conversation, actions::onConversationEvent) }
         }
         compose.onNodeWithText("Send").performClick()
         compose.runOnIdle {

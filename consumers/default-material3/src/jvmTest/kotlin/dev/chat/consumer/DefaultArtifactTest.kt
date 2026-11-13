@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
-import com.forntoh.chat.core.*
+import dev.forntoh.chat.core.*
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -46,29 +46,29 @@ class DefaultArtifactTest {
     }
 
     @Test fun legacySlotLambdasStillRenderLatestLabelsAndCopiesRetainGroupingOverrides() {
-        val base = com.forntoh.chat.material3.chatConversationSlots().copy(
+        val base = dev.forntoh.chat.material3.chatConversationSlots().copy(
             messageAvatar = { androidx.compose.material3.Text("Host avatar") },
             messageSpacing = { 19.dp },
         )
         val bundles = legacySlotCalls(base)
         compose.setContent { androidx.compose.foundation.layout.Column {
-            bundles.forEach { it.latestLabel(com.forntoh.chat.ui.LatestContent(false) {}) }
+            bundles.forEach { it.latestLabel(dev.forntoh.chat.ui.LatestContent(false) {}) }
             bundles[1].messageAvatar(Message("a", Participant("peer", "Avery"), 1, "Now", "Hi", Delivery.Sent))
         } }
         compose.onAllNodesWithText("Latest").assertCountEquals(5)
         compose.onAllNodesWithText("Newest").assertCountEquals(3)
         compose.onNodeWithText("Host avatar").assertExists()
-        assertEquals(19.dp, bundles[1].messageSpacing(com.forntoh.chat.ui.MessageGroupContext()))
+        assertEquals(19.dp, bundles[1].messageSpacing(dev.forntoh.chat.ui.MessageGroupContext()))
     }
 
     @Test fun legacyComponentAndDestructuringLabelsKeepTheirContentAndValueSemantics() {
         val arrivals = mutableStateOf(false)
-        val base = com.forntoh.chat.ui.ConversationSlots(latestLabel = {
+        val base = dev.forntoh.chat.ui.ConversationSlots(latestLabel = {
             androidx.compose.material3.Text(if (it.hasNewMessages) "Read arrivals" else "Read latest")
         })
         val labels = legacyLatestLabelComponents(base)
         compose.setContent { androidx.compose.foundation.layout.Column {
-            labels.forEach { it(com.forntoh.chat.ui.LatestContent(arrivals.value) {}) }
+            labels.forEach { it(dev.forntoh.chat.ui.LatestContent(arrivals.value) {}) }
         } }
         compose.onAllNodesWithText("Read latest").assertCountEquals(2)
         compose.runOnIdle { arrivals.value = true }
