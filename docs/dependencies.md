@@ -1,7 +1,7 @@
 # Candidate dependency inventory
 
 This inventory covers production library dependencies resolved from the existing
-`dev.chat.candidate:*:0.1.0-local` stage for JVM runtime, Android compile and arm64 iOS
+`com.forntoh.chat.candidate:*:0.1.0-local` stage for JVM runtime, Android compile and arm64 iOS
 device/simulator compile graphs. The combined actions+media graph plus default Material3 graph
 cover all five Chat modules. It lists root metadata modules and selected platform modules separately;
 these are coordinates, not 210 separately bundled libraries. No dependency was added or upgraded.

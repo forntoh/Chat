@@ -2,8 +2,10 @@
 
 ## Unreleased — initial local candidate
 
-No public release has been published. `dev.chat.candidate:*:0.1.0-local` are local verification coordinates.
+No public release has been published. `com.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
+- Library namespace/root package is `com.forntoh.chat`; update prior `dev.chat.*` library imports
+  and local staging group to `com.forntoh.chat.candidate`. Sample/consumer packages are unchanged.
 - Host-owned conversation state/events and shared Compose UI for Android, arm64 iOS and desktop JVM.
 - Stable message identity, guarded send, host delivery/retry and draft acceptance/retention.
 - Host-driven earlier history, reader anchoring and loading/error/retry/exhaustion states.

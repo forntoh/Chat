@@ -11,11 +11,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
-import dev.chat.ui.*
-import dev.chat.media.*
-import dev.chat.material3.MessageComposer
-import dev.chat.material3.ChatScaffold
-import dev.chat.material3.ChatIcons
+import com.forntoh.chat.ui.*
+import com.forntoh.chat.media.*
+import com.forntoh.chat.material3.MessageComposer
+import com.forntoh.chat.material3.ChatScaffold
+import com.forntoh.chat.material3.ChatIcons
 import dev.chat.sample.resources.Res
 import dev.chat.sample.resources.mountain
 import org.jetbrains.compose.resources.painterResource

@@ -8,10 +8,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
-import dev.chat.core.*
-import dev.chat.ui.Conversation
-import dev.chat.ui.ConversationTheme
-import dev.chat.ui.LocalConversationSlots
+import com.forntoh.chat.core.*
+import com.forntoh.chat.ui.Conversation
+import com.forntoh.chat.ui.ConversationTheme
+import com.forntoh.chat.ui.LocalConversationSlots
 
 @Composable
 fun CustomConversation(state: ConversationState, onEvent: (ConversationEvent) -> Unit) {

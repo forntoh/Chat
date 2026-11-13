@@ -1,5 +1,5 @@
 plugins { `maven-publish` }
-group = "dev.chat.candidate"
+group = "com.forntoh.chat.candidate"
 version = "0.1.0-local"
 publishing {
     publications.withType<MavenPublication>().configureEach {

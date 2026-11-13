@@ -1,8 +1,8 @@
 package dev.chat.sample
 
-import dev.chat.actions.*
-import dev.chat.material3.ChatTheme
-import dev.chat.material3.chatColorScheme
+import com.forntoh.chat.actions.*
+import com.forntoh.chat.material3.ChatTheme
+import com.forntoh.chat.material3.chatColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme

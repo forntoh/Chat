@@ -14,13 +14,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import dev.chat.actions.*
-import dev.chat.core.Delivery
-import dev.chat.material3.MessageComposer
-import dev.chat.material3.ChatScaffold
-import dev.chat.material3.ChatIcons
-import dev.chat.ui.Conversation
-import dev.chat.ui.LocalConversationSlots
+import com.forntoh.chat.actions.*
+import com.forntoh.chat.core.Delivery
+import com.forntoh.chat.material3.MessageComposer
+import com.forntoh.chat.material3.ChatScaffold
+import com.forntoh.chat.material3.ChatIcons
+import com.forntoh.chat.ui.Conversation
+import com.forntoh.chat.ui.LocalConversationSlots
 
 /** In-memory chat. [manualService] lets focused journeys control fake acceptance/delivery. */
 @Composable
