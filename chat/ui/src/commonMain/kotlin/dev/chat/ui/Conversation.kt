@@ -32,7 +32,6 @@ class ComposerContent(
     val onTextChange: (String) -> Unit,
     val onSend: () -> Unit,
 ) {
-    /** Whether the rendered draft can be explicitly submitted now. */
     val canSend: Boolean get() = !pending && draft.text.isNotBlank()
 }
 
@@ -98,9 +97,24 @@ fun Conversation(
         composerContent, history, onLoadEarlier, historyContent, latestContent)
 }
 
-/** Explicit shared presentation bundle. Direct renderers override [slots], which replaces the
- * ambient theme for nested defaults. The same behavior component owns submission/history state;
- * keep this call mounted when replacing renderers. No optional module is required. */
+/**
+ * Shared timeline/composer behavior from `chat-ui`; requires Compose foundation, not Material3.
+ * Renders conversation messages, history loading status, and input composer using explicit [slots].
+ *
+ * Explicit renderers or [slots] override ambient [ConversationTheme]; absent themes use neutral defaults.
+ * Use optional JetchatTheme from chat-material3 to install Material3 presentation into these slots.
+ *
+ * @param state Authoritative host snapshot containing ordered messages and the retained draft.
+ * @param onEvent Synchronous user-intent handler; return promptly and resolve submissions through host state.
+ * @param slots [ConversationSlots] implementation supplying default rendering slots for the conversation.
+ * @param modifier Outer layout modifier, empty by default; provide bounded height and host window insets.
+ * @param messageContent Optional row renderer, overriding effective slots, receiving the message, current-participant flag and nullable retry callback.
+ * @param composerContent Optional composer renderer, overriding effective slots, receiving guarded input/send callbacks and pending state.
+ * @param history Host paging availability; exhausted by default, so no requests are emitted.
+ * @param onLoadEarlier Synchronous request handler; publish Loading before starting host async work.
+ * @param historyContent Optional status/retry override above the timeline; null uses effective slots.
+ * @param latestContent Optional latest-control override; null uses effective slots.
+ */
 @Composable
 fun Conversation(
     state: ConversationState,

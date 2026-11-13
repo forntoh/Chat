@@ -5,7 +5,6 @@ import androidx.compose.runtime.*
 import dev.chat.core.*
 import dev.chat.ui.ComposerContent
 
-/** Per-message capabilities enabled by the host; visibility does not enforce service authorization. */
 enum class MessageAction { Copy, Quote, Edit, Delete }
 
 /**
@@ -22,8 +21,6 @@ data class EditingMessage(val original: Message, val retainedDraft: Draft, val r
  * a newer menu or draft. [capabilities] keys are stable message IDs in that conversation.
  * [quoteTargetId] refers to the current draft's quote; [quotes] maps sent row IDs to targets.
  * Keep missing targets in these maps to render an unavailable fallback rather than lose context.
- * [editing] retains the pre-edit composer and original target; keep [quoteTargetId] null while
- * editing. [deleting] binds confirmation to the selected snapshot; do not combine it with editing.
  * [pending] locks actions during host work; [error] is operation feedback, separate from delivery.
  * The host retains this alongside its conversation and draft across unmount/navigation.
  */
@@ -39,10 +36,6 @@ data class ActionState(
     val error: String? = null,
 )
 
-/**
- * Explicit user operations. Open/close and cancel affect retained host UI state; copy delegates
- * to a host clipboard adapter; sends, edits and confirmed deletes request host validation/work.
- */
 enum class ActionCommand { OpenMenu, CloseMenu, Copy, Quote, CancelQuote, SendQuote, BeginEdit, CancelEdit, SubmitEdit, RequestDelete, CancelDelete, ConfirmDelete }
 
 /**
@@ -51,9 +44,6 @@ enum class ActionCommand { OpenMenu, CloseMenu, Copy, Quote, CancelQuote, SendQu
  * [targetId] identifies the message, including a possibly unavailable quote target on send.
  * [text] is exact rendered content for copy or send. [draftRevision] accompanies quoted sends;
  * validate it and [text] against the retained draft before accepting. Other commands omit them.
- * Edit submission also carries [text] and [draftRevision]; validate the original target and
- * current capability before dispatch and completion. Confirmed delete carries its target ID;
- * compare the current row with [ActionState.deleting] before dispatch and completion.
  * Copy requires an explicit host/platform clipboard adapter; the module accesses no resources.
  */
 data class ActionRequest(
@@ -65,19 +55,12 @@ data class ActionRequest(
     val draftRevision: Long? = null,
 )
 
-/**
- * Action snapshot and guarded callbacks for host slots, created by [rememberMessageActions].
- * Render [conversation] and [state] directly, without copying draft text into local state.
- * Call only from explicit activation; replaced snapshots and pending work are suppressed.
- * The host retains modes and resolves every request with a fresh action revision.
- */
 class ActionsContent internal constructor(
     val conversation: ConversationState,
     val state: ActionState,
     private val dispatch: (ActionRequest) -> Unit,
     private val conversationEvent: (ConversationEvent) -> Unit,
 ) {
-    /** False when no edit is active, its target changed/disappeared or capability was revoked. */
     val canEdit: Boolean get() = state.editing?.let { edit ->
         conversation.messages.find { it.id == edit.original.id } == edit.original &&
             MessageAction.Edit in state.capabilities[edit.original.id].orEmpty()
