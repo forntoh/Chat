@@ -45,6 +45,22 @@ class DefaultArtifactTest {
         capture("default-artifact-pending")
     }
 
+    @Test fun legacySlotLambdasStillRenderLatestLabelsAndCopiesRetainGroupingOverrides() {
+        val base = dev.chat.material3.chatConversationSlots().copy(
+            messageAvatar = { androidx.compose.material3.Text("Host avatar") },
+            messageSpacing = { 19.dp },
+        )
+        val bundles = legacySlotCalls(base)
+        compose.setContent { androidx.compose.foundation.layout.Column {
+            bundles.forEach { it.latestLabel(dev.chat.ui.LatestContent(false) {}) }
+            bundles[1].messageAvatar(Message("a", Participant("peer", "Avery"), 1, "Now", "Hi", Delivery.Sent))
+        } }
+        compose.onAllNodesWithText("Latest").assertCountEquals(5)
+        compose.onAllNodesWithText("Newest").assertCountEquals(3)
+        compose.onNodeWithText("Host avatar").assertExists()
+        assertEquals(19.dp, bundles[1].messageSpacing(dev.chat.ui.MessageGroupContext()))
+    }
+
     private fun capture(name: String) {
         val pixels = compose.onRoot().captureToImage().toPixelMap()
         val raw = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
