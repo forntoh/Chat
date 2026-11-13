@@ -45,3 +45,16 @@ See [host-supplied images](docs/media.md) for independently selectable `chat-med
 image drafts, host rendering/upload/viewer integration and the bundled **Image sample**.
 Stage `:chat:media:publishAllPublicationsToStagingRepository` alongside core/ui, then verify
 `:media-only:verifySelection :media-only:jvmTest` in the separate consumer build.
+
+See [support and versioning](docs/support.md), [changelog](CHANGELOG.md),
+[contributing](CONTRIBUTING.md), [Apache-2.0 license](LICENSE) for original library code and
+[dependency inventory](docs/dependencies.md). Public distribution remains unconfigured.
+
+For combined actions and media graph evidence, stage core/ui/actions/media and run:
+
+```sh
+./gradlew -p consumers -PchatRepository="$PWD/build/staging" :combined:verifySelection
+```
+
+The independent consumer checks JVM, Android and both arm64 iOS artifact graphs without running a
+module/runtime matrix. It selects both optional features without selecting Material3.
