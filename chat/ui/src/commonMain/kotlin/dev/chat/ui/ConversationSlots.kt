@@ -23,7 +23,10 @@ data class MessageGroupContext(val isFirst: Boolean = true, val isLast: Boolean 
 val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() }
 
 /**
- * Slot configuration defining composable components and behaviors for conversation UI rendering.
+ * Immutable slot value configuration for conversation UI rendering. Explicit copy, equality,
+ * hash and component functions retain the original data-class source behavior. Components 1–13
+ * keep their original order (latestLabel is 13); avatar and spacing are components 14 and 15.
+ * Constructor/copy place latestLabel last so trailing lambdas keep their original meaning.
  *
  * @property message Composable slot for rendering an individual message row.
  * @property composer Composable slot for rendering the message input composer area.
@@ -41,7 +44,7 @@ val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() 
  * @property messageAvatar Optional host avatar presentation; never fetches implicitly.
  * @property messageSpacing Gap before each row except the first loaded row; neutral default is 12dp.
  */
-data class ConversationSlots(
+class ConversationSlots(
     val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry -> DefaultMessage(row, retry) },
     val composer: @Composable (ComposerContent) -> Unit = { DefaultComposer(it) },
     val history: @Composable (HistoryFeedbackContent) -> Unit = { DefaultHistoryFeedback(it) },
@@ -104,6 +107,83 @@ data class ConversationSlots(
         messageDescription, retry, composerField, composerSend, historyFeedback,
         messageAvatar = messageAvatar, messageSpacing = messageSpacing, latestLabel = latestLabel,
     )
+    /** Copies this immutable bundle; trailing lambdas customize latestLabel. */
+    fun copy(
+        message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = this.message,
+        composer: @Composable (ComposerContent) -> Unit = this.composer,
+        history: @Composable (HistoryFeedbackContent) -> Unit = this.history,
+        latest: @Composable (LatestContent) -> Unit = this.latest,
+        messageMetadata: @Composable (Message) -> Unit = this.messageMetadata,
+        messageBody: @Composable (Message) -> Unit = this.messageBody,
+        messageDelivery: @Composable (Delivery) -> Unit = this.messageDelivery,
+        messageDescription: (Message) -> String = this.messageDescription,
+        retry: @Composable (RetryContent) -> Unit = this.retry,
+        composerField: @Composable (ComposerContent) -> Unit = this.composerField,
+        composerSend: @Composable (ComposerContent) -> Unit = this.composerSend,
+        historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = this.historyFeedback,
+        messageAvatar: @Composable (Message) -> Unit = this.messageAvatar,
+        messageSpacing: (MessageGroupContext) -> Dp = this.messageSpacing,
+        latestLabel: @Composable (LatestContent) -> Unit = this.latestLabel,
+    ): ConversationSlots = ConversationSlots(
+        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
+        messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar, messageSpacing, latestLabel,
+    )
+
+    // Keep the original data-class component order independently of constructor defaults.
+    operator fun component1(): @Composable (Message, Boolean, (() -> Unit)?) -> Unit = message
+    operator fun component2(): @Composable (ComposerContent) -> Unit = composer
+    operator fun component3(): @Composable (HistoryFeedbackContent) -> Unit = history
+    operator fun component4(): @Composable (LatestContent) -> Unit = latest
+    operator fun component5(): @Composable (Message) -> Unit = messageMetadata
+    operator fun component6(): @Composable (Message) -> Unit = messageBody
+    operator fun component7(): @Composable (Delivery) -> Unit = messageDelivery
+    operator fun component8(): (Message) -> String = messageDescription
+    operator fun component9(): @Composable (RetryContent) -> Unit = retry
+    operator fun component10(): @Composable (ComposerContent) -> Unit = composerField
+    operator fun component11(): @Composable (ComposerContent) -> Unit = composerSend
+    operator fun component12(): @Composable (HistoryFeedbackContent) -> Unit = historyFeedback
+    operator fun component13(): @Composable (LatestContent) -> Unit = latestLabel
+    operator fun component14(): @Composable (Message) -> Unit = messageAvatar
+    operator fun component15(): (MessageGroupContext) -> Dp = messageSpacing
+
+    override fun equals(other: Any?): Boolean = this === other || (other is ConversationSlots &&
+        message == other.message &&
+        composer == other.composer &&
+        history == other.history &&
+        latest == other.latest &&
+        messageMetadata == other.messageMetadata &&
+        messageBody == other.messageBody &&
+        messageDelivery == other.messageDelivery &&
+        messageDescription == other.messageDescription &&
+        retry == other.retry &&
+        composerField == other.composerField &&
+        composerSend == other.composerSend &&
+        historyFeedback == other.historyFeedback &&
+        latestLabel == other.latestLabel &&
+        messageAvatar == other.messageAvatar &&
+        messageSpacing == other.messageSpacing)
+
+    override fun hashCode(): Int {
+        var result = message.hashCode()
+        result = 31 * result + composer.hashCode()
+        result = 31 * result + history.hashCode()
+        result = 31 * result + latest.hashCode()
+        result = 31 * result + messageMetadata.hashCode()
+        result = 31 * result + messageBody.hashCode()
+        result = 31 * result + messageDelivery.hashCode()
+        result = 31 * result + messageDescription.hashCode()
+        result = 31 * result + retry.hashCode()
+        result = 31 * result + composerField.hashCode()
+        result = 31 * result + composerSend.hashCode()
+        result = 31 * result + historyFeedback.hashCode()
+        result = 31 * result + latestLabel.hashCode()
+        result = 31 * result + messageAvatar.hashCode()
+        result = 31 * result + messageSpacing.hashCode()
+        return result
+    }
+
+    override fun toString(): String = "ConversationSlots(message=$message, composer=$composer, history=$history, latest=$latest, messageMetadata=$messageMetadata, messageBody=$messageBody, messageDelivery=$messageDelivery, messageDescription=$messageDescription, retry=$retry, composerField=$composerField, composerSend=$composerSend, historyFeedback=$historyFeedback, latestLabel=$latestLabel, messageAvatar=$messageAvatar, messageSpacing=$messageSpacing)"
+
 }
 
 val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }

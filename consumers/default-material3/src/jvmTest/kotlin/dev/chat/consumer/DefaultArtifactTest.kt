@@ -61,6 +61,24 @@ class DefaultArtifactTest {
         assertEquals(19.dp, bundles[1].messageSpacing(dev.chat.ui.MessageGroupContext()))
     }
 
+    @Test fun legacyComponentAndDestructuringLabelsKeepTheirContentAndValueSemantics() {
+        val arrivals = mutableStateOf(false)
+        val base = dev.chat.ui.ConversationSlots(latestLabel = {
+            androidx.compose.material3.Text(if (it.hasNewMessages) "Read arrivals" else "Read latest")
+        })
+        val labels = legacyLatestLabelComponents(base)
+        compose.setContent { androidx.compose.foundation.layout.Column {
+            labels.forEach { it(dev.chat.ui.LatestContent(arrivals.value) {}) }
+        } }
+        compose.onAllNodesWithText("Read latest").assertCountEquals(2)
+        compose.runOnIdle { arrivals.value = true }
+        compose.onAllNodesWithText("Read arrivals").assertCountEquals(2)
+        val copy = base.copy()
+        assertEquals(base, copy)
+        assertEquals(base.hashCode(), copy.hashCode())
+        kotlin.test.assertNotEquals(base, base.copy(messageSpacing = { 19.dp }))
+    }
+
     private fun capture(name: String) {
         val pixels = compose.onRoot().captureToImage().toPixelMap()
         val raw = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)

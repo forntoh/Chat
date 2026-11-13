@@ -24,3 +24,9 @@ fun legacySlotCalls(base: ConversationSlots): List<ConversationSlots> = listOf(
         base.messageMetadata, base.messageBody, base.messageDelivery, base.messageDescription,
         base.retry, base.composerField, base.composerSend, base.historyFeedback) { BasicText("Newest") },
 )
+
+/** component13 and thirteen-position destructuring must still have LatestContent input. */
+fun legacyLatestLabelComponents(base: ConversationSlots): List<@androidx.compose.runtime.Composable (dev.chat.ui.LatestContent) -> Unit> {
+    val (_, _, _, _, _, _, _, _, _, _, _, _, latestLabel) = base
+    return listOf(base.component13(), latestLabel)
+}
