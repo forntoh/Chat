@@ -18,6 +18,29 @@ import kotlin.test.assertEquals
 class ConversationSlotTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun groupingFollowsAdjacentSenderIdentityAcrossPrependAndConversationChanges() {
+        val sender = Participant("avery", "Avery")
+        val a = Message("a", sender, 1, "Yesterday", "A", Delivery.Sent)
+        val b = a.copy(id = "b", text = "B", displayTime = "Today")
+        val c = a.copy(id = "c", sender = Participant("sam", "Avery"), text = "C")
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(a, b, c)))
+        compose.setContent {
+            Conversation(snapshot.value, {}, slots = ConversationSlots(message = { _, _, _ -> BasicText("bundle") }),
+                messageContent = { row, _, _ ->
+                    val group = LocalMessageGroupContext.current
+                    BasicText("${row.id}: ${group.isFirst}/${group.isLast}")
+                }, composerContent = {})
+        }
+        compose.onNodeWithText("a: true/false").assertExists()
+        compose.onNodeWithText("b: false/true").assertExists()
+        compose.onNodeWithText("c: true/true").assertExists()
+        compose.onNodeWithText("bundle").assertDoesNotExist()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(a.copy(id = "older"), a, b, c)) }
+        compose.onNodeWithText("a: false/false").assertExists()
+        compose.runOnIdle { snapshot.value = ConversationState("other", "me", messages = listOf(a)) }
+        compose.onNodeWithText("a: true/true").assertExists()
+    }
+
     @Test fun overlappingMessageIdsRetainSlotStateOnlyWithinTheirConversation() {
         val message = Message("shared", Participant("me", "You"), 1_000, "09:41", "Room A", Delivery.Sent)
         val snapshot = mutableStateOf(ConversationState("a", "me", messages = listOf(message)))

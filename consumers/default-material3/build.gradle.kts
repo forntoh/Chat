@@ -16,6 +16,11 @@ kotlin {
             // Host-authored slots use Material3 controls explicitly, as the sample does.
             implementation("org.jetbrains.compose.material3:material3:1.11.0-alpha07")
         }
+        jvmTest.dependencies {
+            implementation(kotlin("test-junit"))
+            implementation(compose.desktop.currentOs)
+            implementation("org.jetbrains.compose.ui:ui-test-junit4:1.11.1")
+        }
     }
 }
 tasks.register("verifySelection") {

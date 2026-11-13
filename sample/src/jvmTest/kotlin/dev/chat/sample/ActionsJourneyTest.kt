@@ -18,10 +18,15 @@ import java.io.File
 import javax.imageio.ImageIO
 
 class ActionsJourneyTest {
+    private fun demo(label: String) {
+        compose.onNodeWithTag("demo-menu").performClick()
+        compose.onNodeWithText(label).performClick()
+    }
+
     @get:Rule val compose = createComposeRule()
 
     private fun capture(name: String) {
-        val pixels = compose.onRoot().captureToImage().toPixelMap()
+        val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
         val raw = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until pixels.height) for (x in 0 until pixels.width) raw.setRGB(x, y, pixels[x, y].toArgb())
         val scaled = BufferedImage(320, (pixels.height * 320.0 / pixels.width).toInt(), BufferedImage.TYPE_INT_ARGB)
@@ -36,27 +41,27 @@ class ActionsJourneyTest {
 
     @Test fun quoteCancelRetainsDraftAndAcceptedReplyCarriesTarget() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("My reply")
-        compose.onNodeWithText("Actions").performClick()
+        compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()
         capture("01-copy-reply-menu")
         compose.onNodeWithText("Copy").performClick()
         compose.runOnIdle { assertEquals(host.state.messages.first().text, host.copiedText) }
-        compose.onNodeWithText("Actions").performClick()
+        compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()
         compose.onNodeWithText("Reply").performClick()
         capture("02-quoted-draft")
-        compose.onNodeWithText("Host theme").performClick()
+        demo("Host theme")
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         capture("05-host-theme-quoted-draft")
-        compose.onNodeWithText("Jetchat theme").performClick()
+        demo("Jetchat theme")
         compose.onNodeWithText("Cancel reply").performClick()
         compose.onNodeWithTag("composer").assertTextContains("My reply")
-        compose.onNodeWithText("Actions").performClick()
+        compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()
         compose.onNodeWithText("Reply").performClick()
-        compose.onNodeWithText("Send").performClick()
-        compose.onNodeWithText("Send").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         compose.runOnIdle { assertEquals("welcome", host.pendingQuoteTarget) }
-        compose.onNodeWithText("Accept").performClick()
+        demo("Accept")
         compose.runOnIdle { assertEquals("welcome", host.actions.quotes[host.state.messages.last().id]) }
         compose.onNodeWithTag("composer").assertTextContains("")
     }
@@ -67,26 +72,26 @@ class ActionsJourneyTest {
         host.accept()
         host.completeDelivery(Delivery.Sent)
         host.onEvent(ConversationEvent.DraftChanged("studio", "Unsent draft"))
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host) } }
-        compose.onAllNodesWithText("Actions").onFirst().performClick()
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
+        compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()
         compose.onNodeWithText("Reply").performClick()
-        compose.onAllNodesWithText("Actions").onLast().performScrollTo().performClick()
+        compose.onNodeWithTag("message-${host.state.messages.last().id}").performScrollTo().performClick()
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").assertTextContains("Original message")
         compose.onNodeWithText("Cancel edit").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithText("Cancel reply").assertExists()
-        compose.onAllNodesWithText("Actions").onLast().performScrollTo().performClick()
+        compose.onNodeWithTag("message-${host.state.messages.last().id}").performScrollTo().performClick()
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").performTextReplacement("Revised message")
         compose.onNodeWithText("Save edit").performClick()
         compose.onNodeWithText("Save edit").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals("Original message", host.state.messages.last().text) }
-        compose.onNodeWithText("Fail action").performClick()
+        demo("Fail action")
         compose.onNodeWithText("Couldn't change message. Try again or cancel.").assertExists()
         capture("03-edit-failure")
         compose.onNodeWithText("Save edit").performClick()
-        compose.onNodeWithText("Complete action").performClick()
+        demo("Complete action")
         compose.runOnIdle { assertEquals("Revised message", host.state.messages.last().text) }
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithText("Cancel reply").assertExists()
@@ -97,32 +102,32 @@ class ActionsJourneyTest {
         host.onEvent(ConversationEvent.SendDraft("studio", 0, "Disposable"))
         host.accept()
         host.completeDelivery(Delivery.Sent)
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host) } }
-        compose.onAllNodesWithText("Actions").onFirst().performClick()
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
+        compose.onNodeWithTag("message-${host.state.messages.first().id}").performClick()
         compose.onNodeWithText("Edit").assertDoesNotExist()
         compose.onNodeWithText("Delete").assertDoesNotExist()
         compose.onNodeWithText("Close actions").performClick()
-        compose.onAllNodesWithText("Actions").onLast().performScrollTo().performClick()
+        compose.onNodeWithTag("message-${host.state.messages.last().id}").performScrollTo().performClick()
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         capture("04-delete-confirmation")
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
-        compose.onAllNodesWithText("Actions").onLast().performScrollTo().performClick()
+        compose.onNodeWithTag("message-${host.state.messages.last().id}").performScrollTo().performClick()
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { host.revokeActions("studio-1") }
         compose.onNodeWithText("Confirm delete").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { host.allowActions("studio-1") }
-        compose.onAllNodesWithText("Actions").onLast().performScrollTo().performClick()
+        compose.onNodeWithTag("message-${host.state.messages.last().id}").performScrollTo().performClick()
         compose.onNodeWithText("Delete").performClick()
         compose.onNodeWithText("Confirm delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
-        compose.onNodeWithText("Fail action").performClick()
+        demo("Fail action")
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
         compose.onNodeWithText("Confirm delete").performClick()
-        compose.onNodeWithText("Complete action").performClick()
+        demo("Complete action")
         compose.runOnIdle { assertEquals(listOf("welcome"), host.state.messages.map { it.id }) }
     }
 

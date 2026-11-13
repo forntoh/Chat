@@ -72,8 +72,10 @@ to “Image attachment”. Custom controls must honor enabled, provide focus/but
 invoke the guarded callback only on user activation. Theme/renderer changes do not reset draft
 or submission state. No grouped-label model is added.
 
-The shared sample's **Image sample** opens a foundation-only media journey on all three configured
-targets. Its original bundled vector is a compiled resource; manual controls simulate selection,
+The toolbar's **Image sample** opens a media conversation using the default Material3 renderers;
+the independent media-only consumer retains the foundation-only integration. Its original bundled
+vector is a compiled resource. The integrated attachment control opens a sample chooser.
+Toolbar **Manual service** controls simulate selection,
 cancellation, denial, host acceptance/refusal, 25% upload, failure and stable-identity retry, plus a
 host viewer. Pending uploads are retained per exact target across subsequent text/image sends
 and retries; the manual completion/failure controls address the oldest unresolved upload.

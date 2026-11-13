@@ -2,7 +2,7 @@ package dev.chat.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -203,28 +203,34 @@ fun Conversation(
                     Modifier.weight(1f).fillMaxWidth().testTag("timeline"),
                     state = list,
                     contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.messages, key = { it.id }) { message ->
+                    itemsIndexed(state.messages, key = { _, row -> row.id }) { index, message ->
                         val isCurrent = message.sender.id == state.currentParticipantId
+                        val group = MessageGroupContext(
+                            isFirst = state.messages.getOrNull(index - 1)?.sender?.id != message.sender.id,
+                            isLast = state.messages.getOrNull(index + 1)?.sender?.id != message.sender.id,
+                        )
                         Column(
-                            Modifier.fillMaxWidth().testTag("message-${message.id}"),
+                            Modifier.fillMaxWidth().padding(top = if (index == 0) 0.dp else slots.messageSpacing(group))
+                                .testTag("message-${message.id}"),
                             horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start
                         ) {
-                            (messageContent ?: slots.message)(
-                                message,
-                                isCurrent,
-                                if (isCurrent && message.delivery == Delivery.Failed) {
-                                    {
-                                        onEvent(
-                                            ConversationEvent.RetryMessage(
-                                                conversationId = state.conversationId,
-                                                messageId = message.id
+                            CompositionLocalProvider(LocalMessageGroupContext provides group) {
+                                (messageContent ?: slots.message)(
+                                    message,
+                                    isCurrent,
+                                    if (isCurrent && message.delivery == Delivery.Failed) {
+                                        {
+                                            onEvent(
+                                                ConversationEvent.RetryMessage(
+                                                    conversationId = state.conversationId,
+                                                    messageId = message.id
+                                                )
                                             )
-                                        )
-                                    }
-                                } else null,
-                            )
+                                        }
+                                    } else null,
+                                )
+                            }
                         }
                     }
                 }

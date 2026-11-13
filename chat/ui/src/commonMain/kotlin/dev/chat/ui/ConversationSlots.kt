@@ -9,11 +9,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.chat.core.*
 
 data class RetryContent(val message: Message, val onRetry: () -> Unit)
 
 data class HistoryFeedbackContent(val history: HistoryContent, val empty: Boolean)
+
+data class MessageGroupContext(val isFirst: Boolean = true, val isLast: Boolean = true)
+
+/** Row-local presentation context, also available to explicit row overrides and wrappers.
+ * Standalone renderers default to a complete one-message group. */
+val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() }
 
 /**
  * Slot configuration defining composable components and behaviors for conversation UI rendering.
@@ -31,6 +38,8 @@ data class HistoryFeedbackContent(val history: HistoryContent, val empty: Boolea
  * @property composerSend Composable slot for the send action control within the composer.
  * @property historyFeedback Composable slot for history loading status and feedback.
  * @property latestLabel Composable slot for the label indicating new messages or latest state.
+ * @property messageAvatar Optional host avatar presentation; never fetches implicitly.
+ * @property messageSpacing Gap before each row except the first loaded row; neutral default is 12dp.
  */
 data class ConversationSlots(
     val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry -> DefaultMessage(row, retry) },
@@ -49,6 +58,8 @@ data class ConversationSlots(
     val composerSend: @Composable (ComposerContent) -> Unit = { NeutralControl(it.onSend, it.canSend) { BasicText("Send") } },
     val historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = { NeutralHistoryFeedback(it) },
     val latestLabel: @Composable (LatestContent) -> Unit = { BasicText(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
+    val messageAvatar: @Composable (Message) -> Unit = {},
+    val messageSpacing: (MessageGroupContext) -> Dp = { 12.dp },
 )
 
 val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
