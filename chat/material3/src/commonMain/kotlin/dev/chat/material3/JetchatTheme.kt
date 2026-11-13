@@ -16,6 +16,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import dev.chat.ui.*
 
 /**
@@ -32,14 +37,19 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
     latest = { LatestControl(it) },
     messageMetadata = {
         Text(
-            "${it.sender.displayName} · ${it.displayTime}", style = MaterialTheme.typography.labelMedium,
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp)) { append(it.sender.displayName) }
+                append(" · ${it.displayTime}")
+            }, style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
         )
     },
     messageBody = { Text(it.text, style = MaterialTheme.typography.bodyLarge) },
     messageDelivery = {
-        if (it != Delivery.Sent) Text(it.name, style = MaterialTheme.typography.labelSmall,
-            color = if (it == Delivery.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        if (it == Delivery.Failed) Surface(color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer) {
+            Text(it.name, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(4.dp))
+        } else if (it == Delivery.Sending) Text(it.name, style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 4.dp))
     },
     messageDescription = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${it.delivery.name}" },

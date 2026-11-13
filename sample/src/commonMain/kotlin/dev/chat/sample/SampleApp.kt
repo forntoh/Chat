@@ -26,10 +26,7 @@ fun SampleApp(host: FakeHost = remember { FakeHost().apply { useChatFixture() } 
     var mediaDemo by remember { mutableStateOf(false) }
     val mediaHost = remember { FakeMediaHost() }
     if (mediaDemo) {
-        Column {
-            TextButton(onClick = { mediaDemo = false }) { Text("Back to conversation") }
-            Box(Modifier.weight(1f)) { MediaSample(mediaHost) }
-        }
+        MediaSample(mediaHost, onBack = { mediaDemo = false })
         return
     }
     val clipboard = LocalClipboardManager.current
@@ -49,49 +46,58 @@ fun SampleApp(host: FakeHost = remember { FakeHost().apply { useChatFixture() } 
     var hostTheme by remember { mutableStateOf(false) }
     var demoMenu by remember { mutableStateOf(false) }
     SampleTheme(hostTheme) {
-        Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(if (host.state.conversationId == "studio") "# design-team" else "# project-room",
-                            style = MaterialTheme.typography.titleLarge)
-                        Text("Avery, Morgan and you", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    TextButton(onClick = { showConversation = !showConversation }) { Text(if (showConversation) "Leave" else "Open chat") }
-                    Box {
-                        IconButton(onClick = { demoMenu = true }, modifier = Modifier.testTag("demo-menu")
-                            .semantics { contentDescription = "Conversation options" }) { Text("⋮", style = MaterialTheme.typography.headlineSmall) }
-                        DropdownMenu(expanded = demoMenu, onDismissRequest = { demoMenu = false }) {
-                            @Composable fun entry(label: String, action: () -> Unit) {
-                                DropdownMenuItem(text = { Text(label) }, onClick = { demoMenu = false; action() })
+        Scaffold(
+            contentWindowInsets = WindowInsets.safeDrawing,
+            topBar = {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = { Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(if (host.state.conversationId == "studio") "# design-team" else "# project-room",
+                                style = MaterialTheme.typography.titleLarge)
+                            Text("Avery, Morgan and you", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } },
+                        navigationIcon = {
+                            IconButton(onClick = { showConversation = !showConversation }, modifier = Modifier.semantics {
+                                contentDescription = if (showConversation) "Leave" else "Open chat"
+                            }) { Text(if (showConversation) "‹" else "→", style = MaterialTheme.typography.headlineMedium) }
+                        },
+                        actions = { Box {
+                            IconButton(onClick = { demoMenu = true }, modifier = Modifier.testTag("demo-menu")
+                                .semantics { contentDescription = "Conversation options" }) { Text("⋮", style = MaterialTheme.typography.headlineSmall) }
+                            DropdownMenu(expanded = demoMenu, onDismissRequest = { demoMenu = false }) {
+                                @Composable fun entry(label: String, action: () -> Unit) {
+                                    DropdownMenuItem(text = { Text(label) }, onClick = { demoMenu = false; action() })
+                                }
+                                entry("Image sample") { mediaDemo = true }
+                                entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
+                                entry("History fixture", host::useHistoryFixture)
+                                entry("Switch room", host::switchRoom)
+                                entry(if (hostTheme) "Jetchat theme" else "Host theme") { hostTheme = !hostTheme }
+                                entry(if (custom) "Material3 UI" else "Custom UI") { custom = !custom }
+                                entry("New arrival", host::receiveMessage)
+                                if (host.pendingHistory != null) {
+                                    entry("Complete page") { host.completeHistory() }; entry("Fail page", host::failHistory)
+                                }
+                                if (host.pendingAction != null) {
+                                    entry("Complete action") { host.completeAction(true) }; entry("Fail action") { host.completeAction(false) }
+                                }
+                                if (host.pendingDraft != null) {
+                                    entry("Accept", host::accept); entry("Keep draft", host::refuse)
+                                }
+                                if (host.state.messages.any { it.delivery == Delivery.Sending }) {
+                                    entry("Deliver") { host.completeDelivery(Delivery.Sent) }
+                                    entry("Fail delivery") { host.completeDelivery(Delivery.Failed) }
+                                }
+                                entry("About this sample") { showConversation = false }
                             }
-                            entry("Image sample") { mediaDemo = true }
-                            entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
-                            entry("History fixture", host::useHistoryFixture)
-                            entry("Switch room", host::switchRoom)
-                            entry(if (hostTheme) "Jetchat theme" else "Host theme") { hostTheme = !hostTheme }
-                            entry(if (custom) "Material3 UI" else "Custom UI") { custom = !custom }
-                            entry("New arrival", host::receiveMessage)
-                            if (host.pendingHistory != null) {
-                                entry("Complete page") { host.completeHistory() }; entry("Fail page", host::failHistory)
-                            }
-                            if (host.pendingAction != null) {
-                                entry("Complete action") { host.completeAction(true) }; entry("Fail action") { host.completeAction(false) }
-                            }
-                            if (host.pendingDraft != null) {
-                                entry("Accept", host::accept); entry("Keep draft", host::refuse)
-                            }
-                            if (host.state.messages.any { it.delivery == Delivery.Sending }) {
-                                entry("Deliver") { host.completeDelivery(Delivery.Sent) }
-                                entry("Fail delivery") { host.completeDelivery(Delivery.Failed) }
-                            }
-                            entry("About this sample") { showConversation = false }
-                        }
-                    }
+                        } }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            },
+        ) { innerPadding ->
+            Column(Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding)) {
                 if (showConversation) {
                     val base = LocalConversationSlots.current
                     // Wrappers add supported optional actions; default message/composer presentation comes from the artifact.

@@ -17,7 +17,7 @@ import dev.chat.ui.*
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
  * independently actionable. Reads [LocalMessageGroupContext] from the shared timeline and
- * [ConversationTheme] subslots. [isCurrentParticipant] selects colors/corners, not permission.
+ * [ConversationTheme] subslots. [isCurrentParticipant] selects bubble contrast, not permission.
  * A standalone caller validates [onRetry] eligibility and identity; Conversation supplies it only
  * for an outgoing failed row. Callback activation is repeatable; the host owns deduplication.
  */
@@ -40,31 +40,30 @@ fun MessageBubble(
 ) {
     val group = LocalMessageGroupContext.current
     ConversationTheme(slots) {
-        Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!isCurrentParticipant) AvatarGutter(message, group.isFirst, slots)
-            Column(Modifier.weight(1f),
-                horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
-                Column(Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
-                    horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
-                    if (group.isFirst) slots.messageMetadata(message)
-                    Surface(
-                        color = if (isCurrentParticipant) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        shape = RoundedCornerShape(
-                            topStart = if (!isCurrentParticipant && group.isFirst) 4.dp else 20.dp,
-                            topEnd = if (isCurrentParticipant && group.isFirst) 4.dp else 20.dp,
-                            bottomStart = 20.dp, bottomEnd = 20.dp,
-                        ),
-                    ) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                            slots.messageBody(message)
-                            slots.messageDelivery(message.delivery)
+        Box(Modifier.fillMaxWidth()) {
+            Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AvatarGutter(message, group.isFirst, slots)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                    Column(Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) }) {
+                        if (group.isFirst) slots.messageMetadata(message)
+                        Surface(
+                            color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            shape = RoundedCornerShape(
+                                topStart = if (group.isFirst) 4.dp else 20.dp,
+                                topEnd = 20.dp,
+                                bottomStart = 20.dp, bottomEnd = 20.dp,
+                            ),
+                        ) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                                slots.messageBody(message)
+                                slots.messageDelivery(message.delivery)
+                            }
                         }
                     }
+                    if (onRetry != null) slots.retry(RetryContent(message, onRetry))
                 }
-                if (onRetry != null) slots.retry(RetryContent(message, onRetry))
             }
-            if (isCurrentParticipant) AvatarGutter(message, group.isFirst, slots)
         }
     }
 }
