@@ -18,13 +18,15 @@ fun LegacySlots(state: ConversationState, onEvent: (ConversationEvent) -> Unit) 
         { dev.chat.material3.HistoryStatusContent(it, state.messages.isEmpty()) }) { }
 }
 
-/** Host strings flow through defaults and independently delegated standalone renderers. */
+/** Host wording is authored directly in composable subslots. */
 @Composable
-fun HostWording(state: ConversationState, onEvent: (ConversationEvent) -> Unit, strings: dev.chat.material3.ConversationStrings) {
-    Conversation(state, onEvent, strings = strings,
-        messageContent = { row, outgoing, retry -> dev.chat.material3.MessageBubble(row, outgoing, retry, strings) },
-        composerContent = { dev.chat.material3.MessageComposer(it, strings) },
-        historyContent = { dev.chat.material3.HistoryStatusContent(it, state.messages.isEmpty(), strings) })
+fun HostWording(state: ConversationState, onEvent: (ConversationEvent) -> Unit) {
+    Conversation(state, onEvent, slots = dev.chat.material3.LocalConversationSlots.current.copy(
+        composerSend = { composer ->
+            androidx.compose.material3.Button(onClick = composer.onSend, enabled = composer.canSend) {
+                androidx.compose.material3.Text("Post")
+            }
+        }))
 }
 
 /** Existing standalone nullable retry callback remains callable as a trailing lambda. */

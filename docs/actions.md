@@ -10,16 +10,16 @@ val actions = rememberMessageActions(hostConversation, hostActions, ::handleActi
 Conversation(hostConversation, actions::onConversationEvent,
     messageContent = { message, outgoing, retry ->
         Column {
-            hostActions.quotes[message.id]?.let { QuotedMessage(actions, it, labels) }
+            hostActions.quotes[message.id]?.let { QuotedMessage(actions, it) }
             HostMessage(message, outgoing, retry)
-            MessageActions(actions, message.id, labels)
+            MessageActions(actions, message.id)
         }
     },
     composerContent = { composer ->
         Column {
-            ActionComposerStatus(actions, labels)
+            ActionComposerStatus(actions)
             HostComposer(actions.composer(composer),
-                if (hostActions.editing == null) sendLabel else labels.saveEdit)
+                if (hostActions.editing == null) sendLabel else editLabel)
         }
     })
 ```
@@ -27,8 +27,7 @@ Conversation(hostConversation, actions::onConversationEvent,
 `HostMessage` and `HostComposer` are consumer renderers, not library APIs. They own their text,
 focus and semantics. Pass the adapted composer so pending action work and stale edits lock the
 input along with the existing draft-submission latch. The foundation action controls support
-pointer/touch and keyboard activation with button semantics and minimum 48 dp targets. All action
-labels, quote fallback and confirmation copy are replaceable through `ActionLabels`; host errors
+pointer/touch and keyboard activation with button semantics and minimum 48 dp targets. Action control wording, quote fallback and confirmation content are authored in `ActionSlots`; host errors
 are already localized strings supplied in `ActionState.error`. Custom surfaces can invoke
 `ActionsContent.request` instead. Call callbacks only from user activation.
 
@@ -77,7 +76,7 @@ keyboard/device/configuration and every-module-combination runtime campaigns rem
 ## Slots and themes
 
 Every action surface inherits `ActionTheme`. Existing calls keep foundation defaults. Replace
-individual slots for controls, status/prompt/error text, quote excerpts, and the menu, composer
+individual slots for controls, typed status/prompt/error content, quote excerpts, and the menu, composer
 status and confirmation containers. Containers receive their children as composable content;
 render it once, or provide an equivalent complete host surface. Custom controls must honor
 `enabled`, invoke the supplied guarded callback only on activation, and provide keyboard/focus
@@ -87,8 +86,8 @@ and accessibility semantics. Host state remains authoritative when renderers or 
 ActionTheme(
     style = ActionStyle(textStyle = hostTextStyle),
     slots = LocalActionSlots.current.copy(
-        control = { button -> HostButton(button.label, button.enabled, button.onClick) },
-        quote = { quote -> HostQuote(quote.message, quote.text) },
+        control = { button -> HostActionButton(button.command, button.enabled, button.onClick) },
+        quote = { quote -> HostQuote(quote.targetId, quote.message) },
     ),
 ) {
     MessageActions(actions, message.id)
@@ -101,10 +100,11 @@ ActionTheme(
 recursing into their own slot. For a local override, pass `slots = LocalActionSlots.current.copy(...)`
 to `MessageActions`, `QuotedMessage`, `ActionComposerStatus` or `DeleteConfirmation`; this set
 also reaches nested quotes and confirmation. `ActionQuoteContent` retains the requested target
-ID even when `message` is null, with localized unavailable text already resolved.
+ID even when `message` is null; the quote renderer authors its unavailable fallback.
 
 For Material3, keep the bridge in the host (as in `SampleTheme`): wrap the conversation in
 `MaterialTheme`, map its typography/colors to `ActionStyle`, and supply `TextButton`/`Text`
-slots. The actions artifact itself has no Material3 dependency. English `ActionLabels` defaults
-and explicit labels continue to work with either renderer set. Theme changes do not authorize
+slots. The actions artifact itself has no Material3 dependency. English default composables remain available for delegation. The unshipped `ActionLabels`
+type was removed; controls now receive `ActionCommand`, and status slots receive
+`ActionStatusContent` with a distinct kind and optional host error. Theme changes do not authorize
 requests, clear drafts, or report persisted results.

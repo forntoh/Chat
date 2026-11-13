@@ -19,7 +19,7 @@ fun ActionsConversation(state: ConversationState, actions: ActionState, onEvent:
         messageContent = { message, _, retry ->
             Column {
                 BasicText("${message.sender.displayName} · ${message.displayTime}")
-                actions.quotes[message.id]?.let { QuotedMessage(content, it, ActionLabels(unavailable = "Quoted message was removed")) }
+                actions.quotes[message.id]?.let { QuotedMessage(content, it, LocalActionSlots.current.copy(quote = { BasicText(it.message?.let { message -> "${message.sender.displayName}: ${message.text}" } ?: "Quoted message was removed") })) }
                 BasicText(message.text)
                 BasicText(message.delivery.name)
                 MessageActions(content, message.id)
@@ -29,7 +29,7 @@ fun ActionsConversation(state: ConversationState, actions: ActionState, onEvent:
         composerContent = { composer ->
             val guarded = content.composer(composer)
             Column {
-            ActionComposerStatus(content, ActionLabels(unavailable = "Quoted message was removed"))
+            ActionComposerStatus(content, LocalActionSlots.current.copy(quote = { BasicText(it.message?.let { message -> "${message.sender.displayName}: ${message.text}" } ?: "Quoted message was removed") }))
             Row {
                 BasicTextField(guarded.draft.text, guarded.onTextChange, enabled = !guarded.pending,
                     modifier = Modifier.weight(1f).semantics { contentDescription = "Message" })
