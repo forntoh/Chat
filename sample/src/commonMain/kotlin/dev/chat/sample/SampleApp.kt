@@ -5,7 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.chat.material3.Conversation
+import dev.chat.ui.Conversation
 import dev.chat.core.Delivery
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,7 +14,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import dev.chat.material3.MessageBubble
 import dev.chat.material3.MessageComposer
-import dev.chat.material3.LocalConversationSlots
+import dev.chat.ui.LocalConversationSlots
 import dev.chat.ui.*
 import dev.chat.actions.*
 import androidx.compose.ui.platform.LocalClipboardManager

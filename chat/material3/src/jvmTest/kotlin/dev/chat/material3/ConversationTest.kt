@@ -1,6 +1,7 @@
 package dev.chat.material3
 
 import dev.chat.core.*
+import dev.chat.ui.*
 
 import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
@@ -49,7 +50,7 @@ class ConversationTest {
             },
         )
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { MaterialTheme {
+        compose.setContent { JetchatTheme {
             Conversation(snapshot.value, events::add, history = history.value, slots = slots)
         } }
         compose.onNodeWithContentDescription("Draft input").assertExists()
@@ -80,7 +81,7 @@ class ConversationTest {
     @Test fun latestAndArrivalActionsUseHostLabelsAndKeepReaderControlExplicit() {
         val rows = (0..39).map { Message("m$it", Participant("other", "Avery"), it.toLong(), "09:41", "Message $it", Delivery.Sent) }
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = rows))
-        compose.setContent { MaterialTheme {
+        compose.setContent { JetchatTheme {
             Conversation(snapshot.value, {}, slots = ConversationSlots(latestLabel = {
                 Text(if (it.hasNewMessages) "Arrivals" else "Return", modifier = Modifier.semantics {
                     contentDescription = if (it.hasNewMessages) "Read arrivals" else "Return to newest"
@@ -100,7 +101,7 @@ class ConversationTest {
     @Test fun multilineSendIsExplicitAndEmittedOnceUntilHostResolvesDraft() {
         val snapshot = mutableStateOf(ConversationState("room", "me", draft = Draft(" \n\t", 1)))
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { MaterialTheme { Conversation(snapshot.value, events::add) } }
+        compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
         compose.onNodeWithText("Send").assertIsNotEnabled()
         compose.runOnIdle { snapshot.value = snapshot.value.copy(draft = Draft("Hello\n🌍", 2)) }
         compose.onNodeWithText("Send").performClick()
@@ -122,7 +123,7 @@ class ConversationTest {
             Message("m1", other, 1_000, "09:41", "Welcome", Delivery.Sent), outgoing,
         )))
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { MaterialTheme { Conversation(snapshot.value, events::add) } }
+        compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
         compose.onNodeWithText("Avery · 09:41", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("You · 09:41", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Sending", useUnmergedTree = true).assertExists()
@@ -145,7 +146,7 @@ class ConversationTest {
     @Test fun switchingConversationsDoesNotReuseAnotherConversationsSubmissionLatch() {
         val snapshot = mutableStateOf(ConversationState("a", "me", draft = Draft("Room A", 1)))
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { MaterialTheme { Conversation(snapshot.value, events::add) } }
+        compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
         compose.onNodeWithText("Send").performClick()
         compose.runOnIdle { snapshot.value = ConversationState("b", "me", draft = Draft("Room B", 1, submitting = true)) }
         compose.onNodeWithTag("composer").assertTextContains("Room B")

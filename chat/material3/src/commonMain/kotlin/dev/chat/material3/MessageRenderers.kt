@@ -11,74 +11,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import dev.chat.core.*
 import dev.chat.ui.*
-import dev.chat.ui.Conversation as BaseConversation
-
-/**
- * Material3 conversation using [ConversationTheme] defaults. The host owns ordered messages,
- * retained draft, history and service results. Direct non-null renderers override theme slots;
- * custom content owns labels/semantics and uses the supplied guarded callbacks. English defaults
- * are usable without a theme. See [dev.chat.ui.Conversation] for identity, pending and paging
- * contracts. [modifier] requires bounded host space and receives the shared IME-aware layout.
- * [history] defaults to exhausted; [onLoadEarlier] must publish Loading and reject stale results.
- * Theme/renderer replacement at this call site never accepts a draft or emits an intent.
- * Existing direct positional/trailing-lambda slot calls remain available. Grouped-label APIs
- * were deliberately removed before release; author wording in [ConversationSlots] instead.
- */
-@Composable
-fun Conversation(
-    state: ConversationState,
-    onEvent: (ConversationEvent) -> Unit,
-    modifier: Modifier = Modifier,
-    messageContent: (@Composable (Message, Boolean, (() -> Unit)?) -> Unit)? = null,
-    composerContent: (@Composable (ComposerContent) -> Unit)? = null,
-    history: HistoryState = HistoryState(),
-    onLoadEarlier: (HistoryRequest) -> Unit = {},
-    historyContent: (@Composable (HistoryContent) -> Unit)? = null,
-    latestContent: (@Composable (LatestContent) -> Unit)? = null,
-) {
-    Conversation(state, onEvent, LocalConversationSlots.current, modifier, messageContent,
-        composerContent, history, onLoadEarlier, historyContent, latestContent)
-}
-
-/**
- * Explicit bundle variant. [slots] replaces the ambient bundle for this subtree; derive a copy
- * of [LocalConversationSlots] to retain selected host defaults. Explicit [messageContent],
- * [composerContent], [historyContent] and [latestContent] override their bundle renderers.
- * Standalone defaults delegated inside a slot inherit the effective bundle's subslots.
- * No slot runs host work during composition. State/events/history follow the shared UI contract;
- * custom renderers cannot reset its send latch or own a second draft. MaterialTheme owns visuals.
- */
-@Composable
-fun Conversation(
-    state: ConversationState,
-    onEvent: (ConversationEvent) -> Unit,
-    slots: ConversationSlots,
-    modifier: Modifier = Modifier,
-    messageContent: (@Composable (Message, Boolean, (() -> Unit)?) -> Unit)? = null,
-    composerContent: (@Composable (ComposerContent) -> Unit)? = null,
-    history: HistoryState = HistoryState(),
-    onLoadEarlier: (HistoryRequest) -> Unit = {},
-    historyContent: (@Composable (HistoryContent) -> Unit)? = null,
-    latestContent: (@Composable (LatestContent) -> Unit)? = null,
-) {
-    ConversationTheme(slots) {
-        BaseConversation(
-            state = state,
-            onEvent = onEvent,
-            modifier = modifier,
-            messageContent = messageContent ?: slots.message,
-            composerContent = composerContent ?: slots.composer,
-            history = history,
-            onLoadEarlier = onLoadEarlier,
-            historyContent = historyContent ?: { slots.history(HistoryFeedbackContent(it, state.messages.isEmpty())) },
-            latestContent = latestContent ?: slots.latest
-        )
-    }
-}
 
 /**
  * Default sender/time, bubble and delivery group, with Retry independently actionable. Reads
- * [ConversationTheme] subslots. [isCurrentParticipant] selects colors/corners, not permission.
+ * [ConversationTheme] subslots; use [JetchatTheme] or an explicit Jetchat bundle for Material3 defaults. [isCurrentParticipant] selects colors/corners, not permission.
  * A standalone caller validates [onRetry] eligibility and identity; Conversation supplies it only
  * for an outgoing failed row. Callback activation is repeatable; the host owns deduplication.
  */

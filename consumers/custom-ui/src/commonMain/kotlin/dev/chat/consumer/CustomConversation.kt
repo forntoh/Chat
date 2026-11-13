@@ -10,11 +10,13 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.chat.core.*
 import dev.chat.ui.Conversation
+import dev.chat.ui.ConversationTheme
+import dev.chat.ui.LocalConversationSlots
 
 @Composable
 fun CustomConversation(state: ConversationState, onEvent: (ConversationEvent) -> Unit) {
-    Conversation(state, onEvent,
-        messageContent = { message, _, retry ->
+    ConversationTheme(slots = LocalConversationSlots.current.copy(
+        message = { message, _, retry ->
             Column {
                 BasicText("${message.sender.displayName} · ${message.displayTime}")
                 BasicText(message.text)
@@ -22,14 +24,14 @@ fun CustomConversation(state: ConversationState, onEvent: (ConversationEvent) ->
                 if (retry != null) Control("Retry", true, retry)
             }
         },
-        composerContent = { content ->
+        composer = { content ->
             Row {
                 BasicTextField(content.draft.text, content.onTextChange, enabled = !content.pending,
                     modifier = Modifier.weight(1f).semantics { contentDescription = "Message" })
                 Control("Send", content.canSend, content.onSend)
             }
         },
-    )
+    )) { Conversation(state, onEvent) }
 }
 
 @Composable
