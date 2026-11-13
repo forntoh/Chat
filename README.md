@@ -18,6 +18,8 @@ The iOS project is reproducibly generated from `iosApp/project.yml` with XcodeGe
 
 See [contract and architecture](docs/implementation.md) for public state/events and dependency decisions. Native evidence and limitations are recorded in the handoff document; target declarations alone are not verified platform support. This candidate has only local verification coordinates; public distribution is not configured.
 
+See [earlier history](docs/history.md) for host paging, reader anchoring, retry and the custom/Material3 sample controls.
+
 Verify selectable artifacts locally (no network publication):
 
 ```sh
@@ -25,4 +27,21 @@ Verify selectable artifacts locally (no network publication):
 ./gradlew -p consumers -PchatRepository="$PWD/build/staging" verifySelection jvmJar compileAndroidMain compileKotlinIosArm64 compileKotlinIosSimulatorArm64 :custom-ui:jvmTest
 ```
 
-Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All three artifacts use the same configured platform/toolchain floors.
+Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
+
+See [customization](docs/customization.md) for host strings, ordered semantics, mixed renderers
+and the default chat theme and customizable scaffold.
+
+See [message actions](docs/actions.md) for independently selectable `chat-actions`, quote/edit/delete
+state, explicit host clipboard integration and a Material3-free outside consumer.
+
+`ConversationTheme` and `ConversationSlots` live in `dev.chat.ui`. For optional Material3 presentation,
+wrap the same `dev.chat.ui.Conversation` in `dev.chat.material3.ChatTheme { ... }`.
+Use `ChatScaffold(title = { Text("Design team") }) { Conversation(state, ::handleEvent) }`
+inside that theme for the full customizable screen shell.
+The Material3 module supplies slot renderers and has no separate Conversation component.
+
+See [host-supplied images](docs/media.md) for independently selectable `chat-media`, guarded
+image drafts, host rendering/upload/viewer integration and the bundled **Image sample**.
+Stage `:chat:media:publishAllPublicationsToStagingRepository` alongside core/ui, then verify
+`:media-only:verifySelection :media-only:jvmTest` in the separate consumer build.
