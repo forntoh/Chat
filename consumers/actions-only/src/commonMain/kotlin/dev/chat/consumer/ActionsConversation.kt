@@ -8,9 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
-import com.forntoh.chat.core.*
-import com.forntoh.chat.ui.Conversation
-import com.forntoh.chat.actions.*
+import dev.forntoh.chat.core.*
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.actions.*
 
 @Composable
 fun ActionsConversation(state: ConversationState, actions: ActionState, onEvent: (ConversationEvent) -> Unit, onAction: (ActionRequest) -> Unit) {

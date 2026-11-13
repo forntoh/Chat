@@ -4,9 +4,9 @@ Use `chat-ui` for host-rendered content without Material3. Optional `chat-materi
 English default message, composer, history and latest controls. Core state and service results
 stay host-owned. Neither integration persists drafts or installs services.
 
-`ConversationSlots`, `LocalConversationSlots` and `ConversationTheme` live in `com.forntoh.chat.ui`
-and configure presentation for the one shared `com.forntoh.chat.ui.Conversation`. The neutral defaults
-work without Material3. Optional `com.forntoh.chat.material3.ChatTheme` installs Material3 renderers
+`ConversationSlots`, `LocalConversationSlots` and `ConversationTheme` live in `dev.forntoh.chat.ui`
+and configure presentation for the one shared `dev.forntoh.chat.ui.Conversation`. The neutral defaults
+work without Material3. Optional `dev.forntoh.chat.material3.ChatTheme` installs Material3 renderers
 through that same provider; it supplies no second Conversation implementation.
 
 For the Material3 path, wrap the shared Conversation in `ChatTheme { ... }`.
@@ -49,7 +49,7 @@ acceptance. The default Material3 composer places a circular Tabler Send beside 
 
 This is a deliberate prerelease API migration: `ConversationStrings`, `ActionLabels` and their
 label-dependent overloads were removed without adapters. The unshipped Material3-specific Conversation entry points are also removed: import
-`com.forntoh.chat.ui.Conversation` and install `ChatTheme` instead. Compatible shared direct slots and
+`dev.forntoh.chat.ui.Conversation` and install `ChatTheme` instead. Compatible shared direct slots and
 standalone renderer/retry calls remain available; no published binary compatibility is claimed.
 
 The sample uses the library's reference palette, directional pills and scaffold. Host theme and

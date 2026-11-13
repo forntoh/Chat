@@ -1,8 +1,8 @@
 package dev.chat.sample
 
 import androidx.compose.runtime.*
-import com.forntoh.chat.core.*
-import com.forntoh.chat.media.*
+import dev.forntoh.chat.core.*
+import dev.forntoh.chat.media.*
 
 /**
  * Shared deterministic fake media service. Bundled lookup only; no permission, storage, network,

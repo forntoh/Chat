@@ -12,7 +12,7 @@ kotlin {
     iosSimulatorArm64()
     sourceSets {
         commonMain.dependencies {
-            implementation("com.forntoh.chat.candidate:chat-material3:0.1.0-local")
+            implementation("dev.forntoh.chat.candidate:chat-material3:0.1.0-local")
             // Host-authored slots use Material3 controls explicitly, as the sample does.
             implementation("org.jetbrains.compose.material3:material3:1.11.0-alpha07")
         }

@@ -1,7 +1,7 @@
 pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement {
     repositories {
-        maven { url = uri(providers.gradleProperty("chatRepository").get()); content { includeGroup("com.forntoh.chat.candidate") } }
+        maven { url = uri(providers.gradleProperty("chatRepository").get()); content { includeGroup("dev.forntoh.chat.candidate") } }
         google(); mavenCentral()
     }
 }

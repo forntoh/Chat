@@ -7,8 +7,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import com.forntoh.chat.actions.*
-import com.forntoh.chat.core.*
+import dev.forntoh.chat.actions.*
+import dev.forntoh.chat.core.*
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals

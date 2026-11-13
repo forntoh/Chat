@@ -27,10 +27,10 @@ Verify selectable artifacts locally (no network publication):
 ./gradlew -p consumers -PchatRepository="$PWD/build/staging" verifySelection jvmJar compileAndroidMain compileKotlinIosArm64 compileKotlinIosSimulatorArm64 :custom-ui:jvmTest
 ```
 
-Library packages use the `com.forntoh.chat` root (`core`, `ui`, `material3`, `actions`, `media`).
+Library packages use the `dev.forntoh.chat` root (`core`, `ui`, `material3`, `actions`, `media`).
 Sample and consumer harness packages remain separate.
 
-Choose `com.forntoh.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
+Choose `dev.forntoh.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
 
 See [customization](docs/customization.md) for host strings, ordered semantics, mixed renderers
 and the default chat theme and customizable scaffold.
@@ -38,8 +38,8 @@ and the default chat theme and customizable scaffold.
 See [message actions](docs/actions.md) for independently selectable `chat-actions`, quote/edit/delete
 state, explicit host clipboard integration and a Material3-free outside consumer.
 
-`ConversationTheme` and `ConversationSlots` live in `com.forntoh.chat.ui`. For optional Material3 presentation,
-wrap the same `com.forntoh.chat.ui.Conversation` in `com.forntoh.chat.material3.ChatTheme { ... }`.
+`ConversationTheme` and `ConversationSlots` live in `dev.forntoh.chat.ui`. For optional Material3 presentation,
+wrap the same `dev.forntoh.chat.ui.Conversation` in `dev.forntoh.chat.material3.ChatTheme { ... }`.
 Use `ChatScaffold(title = { Text("Design team") }) { Conversation(state, ::handleEvent) }`
 inside that theme for the full customizable screen shell.
 The Material3 module supplies slot renderers and has no separate Conversation component.

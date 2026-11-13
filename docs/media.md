@@ -1,6 +1,6 @@
 # Host-supplied images
 
-Select `com.forntoh.chat.candidate:chat-media:0.1.0-local`. Media depends on core/ui and Compose
+Select `dev.forntoh.chat.candidate:chat-media:0.1.0-local`. Media depends on core/ui and Compose
 foundation; it adds no actions, Material3, picker, permissions, loader, network or upload SDK.
 Core descriptors have no Compose or platform handles. Existing text-only source callers keep
 empty attachment defaults. `consumers/media-only` is an independent staged-artifact integration.
