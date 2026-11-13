@@ -23,17 +23,35 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
     composer = { MessageComposer(it) },
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
-    messageMetadata = { Text("${it.sender.displayName} · ${it.displayTime}", style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) },
+    messageMetadata = {
+        Text(
+            "${it.sender.displayName} · ${it.displayTime}", style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+    },
     messageBody = { Text(it.text, style = MaterialTheme.typography.bodyLarge) },
     messageDelivery = { Text(it.name, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp)) },
     messageDescription = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${it.delivery.name}" },
     retry = { TextButton(onClick = it.onRetry) { Text("Retry") } },
-    composerField = { OutlinedTextField(value = it.draft.text, onValueChange = it.onTextChange,
-        label = { Text("Message") }, enabled = !it.pending, minLines = 1, maxLines = 5,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth().testTag("composer").semantics { contentDescription = "Message" }) },
-    composerSend = { Button(enabled = it.canSend, onClick = it.onSend, modifier = Modifier.heightIn(min = 48.dp)) { Text("Send") } },
+    composerField = {
+        OutlinedTextField(
+            value = it.draft.text,
+            onValueChange = it.onTextChange,
+            label = { Text("Message") },
+            enabled = !it.pending,
+            minLines = 1,
+            maxLines = 5,
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth().testTag("composer")
+                .semantics { contentDescription = "Message" }
+        ) },
+    composerSend = {
+        Button(
+            enabled = it.canSend,
+            onClick = it.onSend,
+            modifier = Modifier.heightIn(min = 48.dp)
+        ) { Text("Send") }
+    },
     historyFeedback = { DefaultHistoryFeedback(it) },
     latestLabel = { Text(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
 )
@@ -47,7 +65,7 @@ fun jetchatConversationSlots(): ConversationSlots = ConversationSlots(
  *
  * ```kotlin
  * MaterialTheme {
- *     JetchatTheme { dev.chat.ui.Conversation(hostState, ::handleEvent) }
+ *     JetchatTheme { Conversation(hostState, ::handleEvent) }
  * }
  * ```
  * No alternate Conversation, host state, actions/media dependency or service is installed.
@@ -57,8 +75,6 @@ fun JetchatTheme(slots: ConversationSlots = jetchatConversationSlots(), content:
     ConversationTheme(slots, content)
 }
 
-/** Separately callable Material3 history feedback default. Honors the shared request guard;
- * exhausted/empty and error/loading states have distinct English content. No fetch runs here. */
 @Composable
 fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
     val history = content.history

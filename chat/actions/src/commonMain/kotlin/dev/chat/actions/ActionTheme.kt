@@ -64,10 +64,8 @@ data class ActionSlots(
     val confirmation: @Composable (@Composable () -> Unit) -> Unit = { Column { it() } },
 )
 
-/** Foundation style read by default controls/text; nearest [ActionTheme] wins. */
 val LocalActionStyle = staticCompositionLocalOf { ActionStyle() }
 
-/** Default renderers inherited by all nested action surfaces, including quotes/confirmation. */
 val LocalActionSlots = staticCompositionLocalOf { ActionSlots() }
 
 /**
@@ -87,7 +85,11 @@ fun ActionTheme(
     slots: ActionSlots = LocalActionSlots.current,
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalActionStyle provides style, LocalActionSlots provides slots, content = content)
+    CompositionLocalProvider(
+        LocalActionStyle provides style,
+        LocalActionSlots provides slots,
+        content = content
+    )
 }
 
 /**
@@ -105,8 +107,6 @@ fun ActionControl(label: String, enabled: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** English command content, separately callable from host control slots. Hosts may replace it
- * with text/icons from their resource system; it performs no action and owns no state. */
 @Composable
 fun ActionLabel(command: ActionCommand) {
     BasicText(when (command) {
@@ -125,8 +125,6 @@ fun ActionLabel(command: ActionCommand) {
     }, style = LocalActionStyle.current.textStyle)
 }
 
-/** Default typed control with replaceable composable label. Reads the surrounding foundation
- * style; calling this from a custom control slot does not recurse into that slot. */
 @Composable
 fun ActionControl(content: ActionControlContent, label: @Composable () -> Unit = { ActionLabel(content.command) }) {
     val style = LocalActionStyle.current
@@ -135,7 +133,6 @@ fun ActionControl(content: ActionControlContent, label: @Composable () -> Unit =
         .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick).padding(style.controlPadding)) { label() }
 }
 
-/** English feedback default. Host errors are already localized; no persisted success is inferred. */
 @Composable
 fun DefaultActionStatus(content: ActionStatusContent) {
     BasicText(when (content.kind) {
@@ -148,8 +145,6 @@ fun DefaultActionStatus(content: ActionStatusContent) {
     }, style = LocalActionStyle.current.textStyle)
 }
 
-/** English quote default with explicit unavailable-message fallback. Delegating here avoids
- * recursion into the quote slot; hosts replacing it own localized fallback and semantics. */
 @Composable
 fun DefaultActionQuote(content: ActionQuoteContent) {
     BasicText(content.message?.let { "${it.sender.displayName}: ${it.text}" } ?: "Message unavailable",

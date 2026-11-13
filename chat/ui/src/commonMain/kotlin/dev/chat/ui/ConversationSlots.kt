@@ -11,29 +11,26 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.chat.core.*
 
-/** Retry for the rendered host row. The host validates identity/eligibility and deduplicates
- * repeated activation; Conversation supplies this only for an outgoing failed message. */
 data class RetryContent(val message: Message, val onRetry: () -> Unit)
 
-/** Guarded host history state plus authoritative timeline emptiness. Renderers request pages
- * only on explicit activation; no slot owns transport or fetches during composition. */
 data class HistoryFeedbackContent(val history: HistoryContent, val empty: Boolean)
 
 /**
- * Presentation-neutral conversation renderers with usable English foundation defaults. The
- * optional Material3 module supplies a Jetchat theme by replacing these slots, without another
- * Conversation component. Hosts author wording directly in content; no label DTO is required.
+ * Slot configuration defining composable components and behaviors for conversation UI rendering.
  *
- * Direct per-call renderers win over the effective bundle. An explicit bundle replaces ambient
- * slots; derive LocalConversationSlots.current.copy(...) for a partial override. Otherwise the
- * nearest ConversationTheme applies, then these neutral defaults. Standalone defaults read the
- * effective subslots without recursively calling their own top-level renderer.
- *
- * Custom content owns semantics/focus and must honor pending/canSend/canLoadEarlier. Use guarded
- * callbacks only on activation; never retain a second draft or dispatch while composing.
- * Localize both messageDelivery and messageDescription together to keep visible/accessible
- * delivery wording aligned. The description announces sender, content, host time and delivery
- * once; retry remains independently actionable. Themes own no host or behavior state.
+ * @property message Composable slot for rendering an individual message row.
+ * @property composer Composable slot for rendering the message input composer area.
+ * @property history Composable slot for rendering conversation history and pagination feedback.
+ * @property latest Composable slot for returning to the latest messages.
+ * @property messageMetadata Composable slot for rendering message sender and timestamp metadata.
+ * @property messageBody Composable slot for rendering the main text content of a message.
+ * @property messageDelivery Composable slot for rendering message delivery status.
+ * @property messageDescription Function providing accessibility content description for a message.
+ * @property retry Composable slot for rendering retry action controls.
+ * @property composerField Composable slot for the text input field within the composer.
+ * @property composerSend Composable slot for the send action control within the composer.
+ * @property historyFeedback Composable slot for history loading status and feedback.
+ * @property latestLabel Composable slot for the label indicating new messages or latest state.
  */
 data class ConversationSlots(
     val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry -> DefaultMessage(row, retry) },
@@ -54,7 +51,6 @@ data class ConversationSlots(
     val latestLabel: @Composable (LatestContent) -> Unit = { BasicText(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
 )
 
-/** Effective shared presentation; no optional-feature or Material3 dependency is introduced. */
 val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
 
 /**
@@ -73,8 +69,6 @@ fun ConversationTheme(slots: ConversationSlots = LocalConversationSlots.current,
     CompositionLocalProvider(LocalConversationSlots provides slots, content = content)
 }
 
-/** Neutral row default, separately callable without recursively invoking the message slot.
- * Standalone callers validate retry eligibility; subslots own wording and presentation. */
 @Composable
 fun DefaultMessage(message: Message, onRetry: (() -> Unit)?) {
     val slots = LocalConversationSlots.current
@@ -86,8 +80,6 @@ fun DefaultMessage(message: Message, onRetry: (() -> Unit)?) {
     }
 }
 
-/** Neutral composer, using the host draft and guarded callbacks. A standalone caller supplies
- * equivalent guards. Custom field/send slots must honor pending/canSend and provide semantics. */
 @Composable
 fun DefaultComposer(content: ComposerContent) {
     val slots = LocalConversationSlots.current
@@ -97,7 +89,6 @@ fun DefaultComposer(content: ComposerContent) {
     }
 }
 
-/** Delegatable neutral history container; the effective historyFeedback subslot owns copy. */
 @Composable
 fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
     LocalConversationSlots.current.historyFeedback(content)
@@ -105,17 +96,40 @@ fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
 
 @Composable
 private fun NeutralControl(onClick: () -> Unit, enabled: Boolean = true, content: @Composable () -> Unit) {
-    Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-        .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(8.dp)) { content() }
+    Box(
+        Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            ).padding(8.dp),
+    ) {
+        content()
+    }
 }
 
 @Composable
 private fun NeutralHistoryFeedback(content: HistoryFeedbackContent) {
     val history = content.history
     when (history.state.status) {
-        HistoryStatus.Idle -> NeutralControl(history.onLoadEarlier, history.canLoadEarlier) { BasicText("Load earlier") }
-        HistoryStatus.Error -> NeutralControl(history.onLoadEarlier, history.canLoadEarlier) { BasicText("Couldn't load messages · Retry") }
-        HistoryStatus.Loading -> BasicText("Loading messages…")
-        HistoryStatus.Exhausted -> BasicText(if (content.empty) "No messages yet" else "Start of conversation")
+        HistoryStatus.Idle -> {
+            NeutralControl(
+                onClick = history.onLoadEarlier,
+                enabled = history.canLoadEarlier
+            ) { BasicText("Load earlier") }
+        }
+        HistoryStatus.Error -> {
+            NeutralControl(
+                onClick = history.onLoadEarlier,
+                enabled = history.canLoadEarlier
+            ) { BasicText("Couldn't load messages · Retry") }
+        }
+        HistoryStatus.Loading -> {
+            BasicText("Loading messages…")
+        }
+        HistoryStatus.Exhausted -> {
+            BasicText(if (content.empty) "No messages yet" else "Start of conversation")
+        }
     }
 }

@@ -15,7 +15,6 @@ import androidx.compose.ui.semantics.contentDescription
 import dev.chat.material3.MessageBubble
 import dev.chat.material3.MessageComposer
 import dev.chat.ui.LocalConversationSlots
-import dev.chat.ui.*
 import dev.chat.actions.*
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
