@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import dev.chat.core.*
+import dev.chat.ui.*
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -19,19 +20,16 @@ import kotlin.test.assertEquals
 class ConversationSlotsTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun composerSlotOwnsItsWordingAndThemeReplacementRetainsPendingDraft() {
+    @Test fun slotWordingAndNeutralToJetchatThemeChangesRetainPendingDraft() {
         val snapshot = mutableStateOf(ConversationState("room", "me", Draft("Retained text", 7)))
         val alternate = mutableStateOf(false)
         val events = mutableListOf<ConversationEvent>()
         compose.setContent {
             MaterialTheme {
-                ConversationTheme(slots = ConversationSlots(composer = { content ->
-                    Row {
-                        BasicTextField(content.draft.text, content.onTextChange,
-                            enabled = !content.pending, modifier = Modifier.testTag("host-draft"))
-                        Button(onClick = content.onSend, enabled = content.canSend) {
-                            Text(if (alternate.value) "Submit" else "Post")
-                        }
+                val base = if (alternate.value) jetchatConversationSlots() else ConversationSlots()
+                ConversationTheme(slots = base.copy(composerSend = { content ->
+                    Button(onClick = content.onSend, enabled = content.canSend) {
+                        Text(if (alternate.value) "Submit" else "Post")
                     }
                 })) { Conversation(snapshot.value, events::add) }
             }
@@ -39,7 +37,7 @@ class ConversationSlotsTest {
         compose.onNodeWithText("Post").performClick()
         compose.runOnIdle { alternate.value = true }
         compose.onNodeWithText("Submit").assertIsNotEnabled().performClick()
-        compose.onNodeWithTag("host-draft").assertTextEquals("Retained text")
+        compose.onNodeWithTag("composer").assertTextContains("Retained text")
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.SendDraft("room", 7, "Retained text")), events)
             snapshot.value = snapshot.value.copy(draft = Draft("Retained text", 8))

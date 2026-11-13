@@ -34,3 +34,7 @@ and the Jetchat-referenced sample themes.
 
 See [message actions](docs/actions.md) for independently selectable `chat-actions`, quote/edit/delete
 state, explicit host clipboard integration and a Material3-free outside consumer.
+
+`ConversationTheme` and `ConversationSlots` live in `dev.chat.ui`. For optional Material3 presentation,
+wrap the same `dev.chat.ui.Conversation` in `MaterialTheme { dev.chat.material3.JetchatTheme { ... } }`.
+The Material3 module supplies slot renderers and has no separate Conversation component.

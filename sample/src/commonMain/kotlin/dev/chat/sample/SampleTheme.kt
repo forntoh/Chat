@@ -1,6 +1,7 @@
 package dev.chat.sample
 
 import dev.chat.actions.*
+import dev.chat.material3.JetchatTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +51,7 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
                     )) { ActionLabel(button.command) }
                 } },
             ),
-            content = content,
+            content = { JetchatTheme(content = content) },
         )
     }
 }

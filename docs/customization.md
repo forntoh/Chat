@@ -4,7 +4,14 @@ Use `chat-ui` for host-rendered content without Material3. Optional `chat-materi
 English default message, composer, history and latest controls. Core state and service results
 stay host-owned. Neither integration persists drafts or installs services.
 
-`ConversationSlots` and `ConversationTheme` configure renderers and their subslots. Hosts author
+`ConversationSlots`, `LocalConversationSlots` and `ConversationTheme` live in `dev.chat.ui`
+and configure presentation for the one shared `dev.chat.ui.Conversation`. The neutral defaults
+work without Material3. Optional `dev.chat.material3.JetchatTheme` installs Material3 renderers
+through that same provider; it supplies no second Conversation implementation.
+
+For the Material3 path, wrap the shared Conversation in `MaterialTheme { JetchatTheme { ... } }`.
+Derive `jetchatConversationSlots().copy(...)` for customized Jetchat defaults. Shared themes and
+foundation-only hosts derive `LocalConversationSlots.current.copy(...)`. Hosts author
 wording directly with composables, using their own resources and semantics. When slot code
 uses Material3 controls, declare Material3 in the host too (see the standalone default consumer):
 
@@ -41,8 +48,9 @@ the host resolves submissions with fresh draft revisions. Delivery remains indep
 acceptance. The default composer reserves a separate Send control and scrolls after five lines.
 
 This is a deliberate prerelease API migration: `ConversationStrings`, `ActionLabels` and their
-label-dependent overloads were removed without adapters. Existing compatible direct slots and
-standalone retry calls remain available; no published binary compatibility is claimed.
+label-dependent overloads were removed without adapters. The unshipped Material3-specific Conversation entry points are also removed: import
+`dev.chat.ui.Conversation` and install `JetchatTheme` instead. Compatible shared direct slots and
+standalone renderer/retry calls remain available; no published binary compatibility is claimed.
 
 The sample follows [Jetchat](https://github.com/android/compose-samples/tree/main/Jetchat)'s message
 hierarchy and rounded presentation using original CMP code and system fonts. Host theme and
