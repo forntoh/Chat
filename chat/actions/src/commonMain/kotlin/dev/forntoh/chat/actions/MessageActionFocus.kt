@@ -17,9 +17,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.graphicsLayer
@@ -33,7 +34,7 @@ import kotlin.math.roundToInt
 /**
  * Long-press presentation around an existing message renderer. Apply the supplied modifier only
  * to its bubble surface, excluding sender/avatar/retry. The row is recorded once; the overlay
- * draws that exact bubble without composing the host's content or callbacks a second time.
+ * takes over drawing its bubble region without composing host content or callbacks a second time.
  * [above] and [below] can independently replace/add consumer content. Defaults show only the
  * existing capability-filtered actions below. Slots receive guarded [ActionsContent] via capture.
  *
@@ -41,7 +42,8 @@ import kotlin.math.roundToInt
  * and Close emit CloseMenu; changed/removed targets, lost capabilities, pending work and a changed
  * conversation immediately remove the presentation. No animation completion emits an intent.
  * [motionEnabled] is a host override; Compose's platform duration scale also controls animations.
- * Entrance/exit use a 180ms eased fade and a 1% bubble lift, with no retained bitmap or resource IO.
+ * Entrance/exit use a 180ms eased fade, a 1% bubble lift and continuous travel to/from its action
+ * layout, with no retained bitmap or resource IO.
  */
 @Composable
 fun MessageActionFocus(
@@ -67,18 +69,30 @@ fun MessageActionFocus(
         label = "Bubble lift and scrim",
     ) { if (it) 1f else 0f }
     val layer = rememberGraphicsLayer()
-    var rowBounds by remember { mutableStateOf(Rect.Zero) }
+    val presentation = remember(content.conversation.conversationId, messageId) { FocusPresentation(above, below) }
+    SideEffect {
+        if (visible) { presentation.above = above; presentation.below = below }
+    }
     var anchor by remember { mutableStateOf(Rect.Zero) }
-    Box(
-        modifier
-            .onGloballyPositioned {
-                rowBounds = Rect(it.localToWindow(Offset.Zero), it.size.toSize())
-            }
-            .drawWithContent {
-                layer.record { this@drawWithContent.drawContent() }
+    var rowBounds by remember { mutableStateOf(Rect.Zero) }
+    val safeTarget = allowed && target == openedTarget
+    val presenting = safeTarget && (transition.currentState || transition.targetState)
+    Box(modifier.onGloballyPositioned {
+        rowBounds = Rect(it.localToWindow(Offset.Zero), it.size.toSize())
+    }.drawWithContent {
+        layer.record { this@drawWithContent.drawContent() }
+        if (presenting) {
+            clipRect(
+                left = anchor.left - rowBounds.left,
+                top = anchor.top - rowBounds.top,
+                right = anchor.right - rowBounds.left,
+                bottom = anchor.bottom - rowBounds.top,
+                clipOp = ClipOp.Difference
+            ) {
                 drawLayer(layer)
             }
-    ) {
+        } else drawLayer(layer)
+    }) {
         bubble(
             Modifier
                 .onGloballyPositioned { anchor = Rect(it.localToWindow(Offset.Zero), it.size.toSize()) }
@@ -90,8 +104,7 @@ fun MessageActionFocus(
                 )
         )
     }
-    val safe = allowed && target == openedTarget
-    if (safe && (transition.currentState || transition.targetState) && anchor.width > 0 && anchor.height > 0) {
+    if (presenting && anchor.width > 0 && anchor.height > 0) {
         val dismiss = { content.request(ActionCommand.CloseMenu) }
         Popup(
             popupPositionProvider = object : PopupPositionProvider {
@@ -110,20 +123,23 @@ fun MessageActionFocus(
                     .clickable(interactionSource = null, indication = null, onClick = dismiss)
                     .semantics { contentDescription = "Dismiss message actions" })
                 Layout(content = {
-                    Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) { above() }
+                    Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) { if (visible) above() else presentation.above() }
                     Box(Modifier.graphicsLayer {
                         scaleX = 1f + .01f * progress
                         scaleY = 1f + .01f * progress
                     }.verticalScroll(rememberScrollState())) {
                         val density = androidx.compose.ui.platform.LocalDensity.current
-                        Canvas(Modifier.size(with(density) { anchor.width.toDp() }, with(density) { anchor.height.toDp() })
-                            .semantics { contentDescription = "${target.sender.displayName}, ${target.text}, ${target.displayTime}" }) {
+                        Canvas(
+                            Modifier
+                                .size(with(density) { anchor.width.toDp() }, with(density) { anchor.height.toDp() })
+                                .semantics { contentDescription = "${target.sender.displayName}, ${target.text}, ${target.displayTime}" }
+                        ) {
                             clipRect {
                                 translate(rowBounds.left - anchor.left, rowBounds.top - anchor.top) { drawLayer(layer) }
                             }
                         }
                     }
-                    Box(Modifier.graphicsLayer { alpha = progress; translationY = 8.dp.toPx() * (1f - progress) }.verticalScroll(rememberScrollState())) { below() }
+                    Box(Modifier.graphicsLayer { alpha = progress; translationY = 8.dp.toPx() * (1f - progress) }.verticalScroll(rememberScrollState())) { if (visible) below() else presentation.below() }
                 }, modifier = Modifier.fillMaxSize()) { children, constraints ->
                     val margin = 16.dp.roundToPx()
                     val gap = 12.dp.roundToPx()
@@ -143,15 +159,24 @@ fun MessageActionFocus(
                         .coerceIn(margin, maxOf(margin, constraints.maxHeight - margin - groupHeight))
                     val x = anchor.left.roundToInt().coerceIn(margin, maxOf(margin, constraints.maxWidth - margin - selectedBubble.width))
                     fun menuX(width: Int) = x.coerceAtMost(constraints.maxWidth - margin - width).coerceAtLeast(margin)
+                    if (visible) presentation.position = IntOffset(x, y + top.height + topGap)
                     layout(constraints.maxWidth, constraints.maxHeight) {
-                        top.place(menuX(top.width), y)
-                        selectedBubble.place(x, y + top.height + topGap)
-                        bottom.place(menuX(bottom.width), y + top.height + topGap + selectedBubble.height + bottomGap)
+                        val destination = presentation.position
+                        val bubbleX = (anchor.left + (destination.x - anchor.left) * progress).roundToInt()
+                        val bubbleY = (anchor.top + (destination.y - anchor.top) * progress).roundToInt()
+                        top.place(menuX(top.width), bubbleY - topGap - top.height)
+                        selectedBubble.place(bubbleX, bubbleY)
+                        bottom.place(menuX(bottom.width), bubbleY + selectedBubble.height + bottomGap)
                     }
                 }
             }
         }
     }
+}
+
+// Presentation-only exit cache. Old slot callbacks remain subject to ActionsContent's live guards.
+private class FocusPresentation(var above: @Composable () -> Unit, var below: @Composable () -> Unit) {
+    var position = IntOffset.Zero
 }
 
 /** Vertical, capability-filtered menu with no tap-to-open control. Existing explicit
