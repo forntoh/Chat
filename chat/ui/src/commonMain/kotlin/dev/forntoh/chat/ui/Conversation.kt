@@ -54,14 +54,12 @@ class ComposerContent(
     val onSend: () -> Unit,
     val onDraftAction: (() -> Unit) -> Unit,
 ) {
-    /** Retains the original text-composer constructor, including trailing-lambda callers. */
     constructor(
         draft: Draft,
         pending: Boolean,
         onTextChange: (String) -> Unit,
         onSend: () -> Unit
-    ) :
-            this(draft, pending, onTextChange, onSend, { action -> if (!pending) action() })
+    ) : this(draft, pending, onTextChange, onSend, { action -> if (!pending) action() })
 
     val canSend: Boolean get() = !pending && draft.hasContent
 }
@@ -275,7 +273,6 @@ fun Conversation(
                     newMessages = false
                     navigation = scope.launch {
                         if (latestState.messages.isNotEmpty()) list.animateToLatest()
-                        // Cancellation preserves the reader intent set by drag/navigation.
                         followingLatest = !list.canScrollForward
                     }
                 }

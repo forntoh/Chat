@@ -152,9 +152,6 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     messageSpacing = { if (it.isFirst) ChatGeometry.GroupGap else ChatGeometry.RowGap },
 )
 
-/** Legacy factory name. Prefer [chatConversationSlots] for the current reference design. */
-fun jetchatConversationSlots(): ConversationSlots = chatConversationSlots()
-
 /**
  * Legacy slots-only provider, retaining host MaterialTheme ownership and existing signatures.
  * Prefer [ChatTheme] for the reference palette and [ChatScaffold] for customizable screen chrome.
@@ -162,7 +159,7 @@ fun jetchatConversationSlots(): ConversationSlots = chatConversationSlots()
  */
 @Composable
 fun JetchatTheme(
-    slots: ConversationSlots = jetchatConversationSlots(),
+    slots: ConversationSlots = chatConversationSlots(),
     content: @Composable () -> Unit
 ) {
     ConversationTheme(slots, content)

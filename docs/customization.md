@@ -141,9 +141,7 @@ inherits ambient theme/slots and owns no navigation, chat state or services. Hos
 identity content and optional controls; empty navigation/actions add no placeholder buttons.
 
 `ChatTheme` installs `chatColorScheme()` and the default slot bundle. Pass your own ColorScheme,
-Typography or `chatConversationSlots().copy(...)` to customize. Legacy `JetchatTheme` and
-`jetchatConversationSlots` retain their signatures; the legacy theme remains a slots-only
-provider using the host MaterialTheme. Prefer the new names for current integrations.
+Typography or `chatConversationSlots().copy(...)` to customize.
 
 `ChatIcons` delegates to the requested `com.composables:icons-tabler-outline-cmp:2.2.1` library.
 The version-catalog alias is `libs.tabler.icons`; the dependency stays inside chat-material3.

@@ -34,7 +34,7 @@ class ConversationSlotsTest {
             a.copy(id = "c", sender = Participant("me", "You"), text = "Third"))
         compose.setContent { MaterialTheme { JetchatTheme {
             Conversation(ConversationState("room", "me", messages = rows), {},
-                slots = jetchatConversationSlots().copy(messageAvatar = { Text("Host avatar ${it.sender.id}") }))
+                slots = chatConversationSlots().copy(messageAvatar = { Text("Host avatar ${it.sender.id}") }))
         } } }
         compose.onAllNodesWithText("Host avatar avery", useUnmergedTree = true).assertCountEquals(1)
         compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(3)
@@ -51,7 +51,7 @@ class ConversationSlotsTest {
         )
         compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { MaterialTheme { JetchatTheme {
             Conversation(ConversationState("room", "me", messages = rows), {},
-                slots = jetchatConversationSlots().copy(messageAvatar = { Text("Avatar ${it.id}") }))
+                slots = chatConversationSlots().copy(messageAvatar = { Text("Avatar ${it.id}") }))
         } } } }
         compose.onNodeWithText("Avatar first", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithText("Avatar last", useUnmergedTree = true).assertExists()
@@ -100,7 +100,7 @@ class ConversationSlotsTest {
         val events = mutableListOf<ConversationEvent>()
         compose.setContent {
             MaterialTheme {
-                val base = if (alternate.value) jetchatConversationSlots() else ConversationSlots()
+                val base = if (alternate.value) chatConversationSlots() else ConversationSlots()
                 ConversationTheme(slots = base.copy(composerSend = { content ->
                     Button(onClick = content.onSend, enabled = content.canSend) {
                         Text(if (alternate.value) "Submit" else "Post")
