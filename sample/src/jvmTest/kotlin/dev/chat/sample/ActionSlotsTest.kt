@@ -121,6 +121,48 @@ class ActionSlotsTest {
     @Test fun bothActionSlotsKeepIncomingBubbleInPlace() = focusKeepsSenderEdge(false, true)
     @Test fun bothActionSlotsKeepOutgoingBubbleInPlace() = focusKeepsSenderEdge(true, true)
 
+    @Test fun fullWidthIncomingFocusKeepsBothContentEdgesVisible() = fullWidthFocus(false)
+    @Test fun fullWidthOutgoingFocusKeepsBothContentEdgesVisible() = fullWidthFocus(true)
+
+    private fun fullWidthFocus(outgoing: Boolean) {
+        val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
+        val state = mutableStateOf(ActionState(capabilities = mapOf("m" to setOf(MessageAction.Copy))))
+        compose.setContent {
+            val actions = rememberMessageActions(
+                ConversationState("room", if (outgoing) "me" else "other", messages = listOf(target)),
+                state.value, {}, {})
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                Box(Modifier.offset(y = 120.dp)) {
+                    MessageActionFocus(actions, "m", below = { Box(Modifier.size(160.dp, 80.dp)) }) { interaction ->
+                        Box(interaction.fillMaxWidth().height(40.dp).background(Color.Magenta)) {
+                            Box(Modifier.align(androidx.compose.ui.Alignment.CenterStart).size(8.dp, 40.dp).background(Color.Red))
+                            Box(Modifier.align(androidx.compose.ui.Alignment.CenterEnd).size(8.dp, 40.dp).background(Color.Cyan))
+                        }
+                    }
+                }
+            }
+        }
+        fun contentRow(): List<Color> {
+            val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
+            val y = with(compose.density) { 140.dp.roundToPx() }
+            return (0 until pixels.width).map { pixels[it, y] }
+        }
+        val original = contentRow()
+        assertEquals(Color.Red, original.first())
+        assertEquals(Color.Cyan, original.last())
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { state.value = state.value.copy(revision = 1, menuTargetId = "m") }
+        repeat(16) {
+            compose.mainClock.advanceTimeByFrame()
+            assertEquals(original, contentRow(), "Full-width content and both sender edges must remain visible during opening")
+        }
+        compose.runOnIdle { state.value = state.value.copy(revision = 2, menuTargetId = null) }
+        repeat(16) {
+            compose.mainClock.advanceTimeByFrame()
+            assertEquals(original, contentRow(), "Full-width content must return continuously without clipping during closing")
+        }
+    }
+
     private fun focusKeepsSenderEdge(outgoing: Boolean, withTop: Boolean = false) {
         val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
         val state = mutableStateOf(ActionState(capabilities = mapOf("m" to setOf(MessageAction.Copy))))

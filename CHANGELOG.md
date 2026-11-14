@@ -4,7 +4,7 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
-- Optional actions add long-press bubble focus with a 5% sender-edge anchored lift, 40% black scrim, 8dp action gaps, bounded vertical
+- Optional actions add long-press bubble focus with a up to 5% sender-edge anchored lift (capped to keep wide custom content within safe bounds), 40% black scrim, 8dp action gaps, bounded vertical
   menu and independent consumer content above/below. Tap leaves actions closed; dismissal and
   stale-target guards preserve host state. The live bubble layer moves continuously to and from
   the action layout, with no duplicate left in the timeline. Native travel starts after popup

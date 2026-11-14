@@ -44,7 +44,8 @@ import kotlin.math.roundToInt
  * conversation immediately remove the presentation. No animation completion emits an intent.
  * [motionEnabled] is a host override; Compose's platform duration scale also controls animations.
  * Entrance/exit use a 180ms eased fade, a 5% bubble lift anchored to the sender edge and continuous travel to/from its action
- * layout, with no retained bitmap or resource IO.
+ * layout, with no retained bitmap or resource IO. Growth is capped uniformly by the safe window
+ * width; a full-width custom bubble keeps its original size so neither content edge is clipped.
  */
 @Composable
 fun MessageActionFocus(
@@ -119,6 +120,7 @@ fun MessageActionFocus(
         ) {
             DisposableEffect(Unit) { onDispose { popupReady = false } }
             val focus = remember { FocusRequester() }
+            var focusScale by remember { mutableFloatStateOf(1f) }
             LaunchedEffect(Unit) { focus.requestFocus() }
             var popupOrigin by remember { mutableStateOf(Offset.Zero) }
             Box(Modifier.fillMaxSize().onGloballyPositioned {
@@ -135,8 +137,8 @@ fun MessageActionFocus(
                 Layout(content = {
                     FocusActionSlot(progress) { if (visible) above() else presentation.above() }
                     Box(Modifier.graphicsLayer {
-                        scaleX = 1f + .05f * progress
-                        scaleY = 1f + .05f * progress
+                        scaleX = 1f + (focusScale - 1f) * progress
+                        scaleY = scaleX
                         transformOrigin = TransformOrigin(if (outgoing) 1f else 0f, .5f)
                     }.verticalScroll(rememberScrollState())) {
                         val density = androidx.compose.ui.platform.LocalDensity.current
@@ -159,6 +161,10 @@ fun MessageActionFocus(
                     val rightInset = safeInsets.getRight(this, layoutDirection)
                     val safeHeight = (constraints.maxHeight - topMargin - bottomMargin).coerceAtLeast(0)
                     val availableWidth = (constraints.maxWidth - leftInset - rightInset).coerceAtLeast(0)
+                    // Preserve the recorded content width; cap growth instead of cropping/reflowing it.
+                    val bubbleWidth = anchor.width.roundToInt().coerceAtLeast(1)
+                    val fittedScale = minOf(1.05f, availableWidth.toFloat() / bubbleWidth)
+                    focusScale = fittedScale
                     val menuConstraints = Constraints(maxWidth = availableWidth,
                         maxHeight = safeHeight / 2)
                     val top = children[0].measure(menuConstraints.copy(maxHeight = safeHeight / 4))
@@ -166,14 +172,14 @@ fun MessageActionFocus(
                     val topGap = if (top.height > 0) 8.dp.roundToPx() else 0
                     val bottomGap = if (bottom.height > 0) 8.dp.roundToPx() else 0
                     val bubbleHeight = anchor.height.roundToInt().coerceAtMost(
-                        ((safeHeight - top.height - bottom.height - topGap - bottomGap) / 1.05f).roundToInt().coerceAtLeast(0))
+                        ((safeHeight - top.height - bottom.height - topGap - bottomGap) / fittedScale.coerceAtLeast(.001f)).roundToInt().coerceAtLeast(0))
                     val selectedBubble = children[1].measure(Constraints.fixed(
-                        anchor.width.roundToInt().coerceAtMost(availableWidth), bubbleHeight))
-                    val growthY = selectedBubble.height * .025f
+                        bubbleWidth, bubbleHeight))
+                    val growthY = selectedBubble.height * (fittedScale - 1f) / 2f
                     val minimumY = topMargin + top.height + topGap + kotlin.math.ceil(growthY).toInt()
                     val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - bottomGap - selectedBubble.height - kotlin.math.ceil(growthY).toInt())
                     val y = localAnchor.top.roundToInt().coerceIn(minimumY, maximumY)
-                    val growthX = kotlin.math.ceil(selectedBubble.width * .05f).toInt()
+                    val growthX = kotlin.math.ceil(selectedBubble.width * (fittedScale - 1f)).toInt()
                     val minimumX = leftInset + if (outgoing) growthX else 0
                     val maximumX = maxOf(minimumX, constraints.maxWidth - rightInset - selectedBubble.width - if (outgoing) 0 else growthX)
                     val x = localAnchor.left.roundToInt().coerceIn(minimumX, maximumX)

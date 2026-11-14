@@ -144,7 +144,10 @@ shadows fade before clipping. This overflow adds no visible horizontal inset. Oc
 slots keep an 8dp gap from the scaled bubble edge and align with its sender edge. On iOS the
 popup opts out of platform inset clipping: the scrim covers the complete window, while menu
 placement still observes native safe drawing insets. It enlarges the bubble to 1.05x,
-anchored on the right for outgoing messages and on the left for incoming messages,
+anchored on the right for outgoing messages and on the left for incoming messages. Uniform
+growth is capped by the safe window width; full-width custom bubbles keep their original size
+and content instead of clipping or reflowing. The same fitted scale applies throughout opening
+and closing. The presentation
 fades a 40% black scrim and fades the surrounding content. Dismissal reverses the same
 travel before drawing returns to the timeline. Exit converges on the latest host state. Set
 `motionEnabled = false` for immediate transitions; Compose's duration scale is also respected.
