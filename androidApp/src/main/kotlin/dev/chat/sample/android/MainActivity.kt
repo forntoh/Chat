@@ -8,7 +8,7 @@ import dev.chat.sample.FakeHost
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
-class RetainedHost : ViewModel() { val host = FakeHost() }
+class RetainedHost : ViewModel() { val host = FakeHost().apply { startSimulation() } }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

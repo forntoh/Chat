@@ -8,8 +8,8 @@ import dev.forntoh.chat.ui.*
 import dev.forntoh.chat.actions.*
 
 /**
- * In-memory sample adapter, called on the UI thread. Manual acceptance and delivery controls
- * demonstrate separate submission/delivery decisions. Retention lasts only as long as this
+ * In-memory sample adapter, called on the UI thread. A seeded logical clock schedules
+ * separate submission, delivery and incoming-reply snapshots; manual mode remains available. Retention lasts only as long as this
  * instance; there is no network, persistence or production authorization implementation.
  */
 class FakeHost {
@@ -125,6 +125,115 @@ class FakeHost {
         actionState = actionState.copy(pending = false, revision = actionState.revision + 1)
     }
 
+    var simulationEnabled by mutableStateOf(false)
+        private set
+    var paused by mutableStateOf(false)
+        private set
+    var clockMillis by mutableStateOf(0L)
+        private set
+    var trace by mutableStateOf<List<String>>(emptyList())
+        private set
+    var acknowledgementMillis by mutableStateOf(400L)
+        private set
+    var deliveryMillis by mutableStateOf(900L)
+        private set
+
+    /** Applies to newly scheduled work; already queued deadlines remain reproducible. */
+    fun configureDelays(acknowledgement: Long, delivery: Long) {
+        require(acknowledgement in 0..5_000 && delivery in 0..5_000)
+        acknowledgementMillis = acknowledgement
+        deliveryMillis = delivery
+        record("delays ack=$acknowledgement delivery=$delivery")
+    }
+
+    var selectedScenario by mutableStateOf(Scenario.Exchange)
+        private set
+    var selectedSeed by mutableStateOf(42)
+        private set
+    private var failNext = false
+    private var refuseNext = false
+    private var sequence = 0L
+    private var generation = 0L
+    private var random = kotlin.random.Random(42)
+    private data class Scheduled(val due: Long, val order: Long, val generation: Long,
+        val room: String, val label: String, val apply: () -> Unit)
+    private val scheduled = mutableListOf<Scheduled>()
+
+    /** Restart from fixture data. Clock steps are deterministic; no wall clock enters snapshots. */
+    fun startSimulation(scenario: Scenario = Scenario.Exchange, seed: Int = 42) {
+        selectedScenario = scenario
+        selectedSeed = seed
+        paused = false
+        val revision = state.draft.revision + 1
+        pendingDraft = null
+        pendingHistory = null
+        pendingAction = null
+        pendingQuoteTarget = null
+        actionState = ActionState(revision = actionState.revision + 1)
+        revoked = emptyMap()
+        rooms.clear()
+        roomSubmissions.clear()
+        roomActions.clear()
+        roomPendingActions.clear()
+        failNext = scenario == Scenario.Failure
+        refuseNext = scenario == Scenario.Refusal
+        simulationEnabled = true
+        generation++
+        scheduled.clear()
+        sequence = 0
+        clockMillis = 0
+        random = kotlin.random.Random(seed)
+        trace = emptyList()
+        state = initialState("studio").copy(draft = Draft(revision = revision))
+        nextMessage = 1
+        useChatFixture()
+        record("start seed=$seed scenario=${scenario.name} ack=$acknowledgementMillis delivery=$deliveryMillis")
+    }
+
+    /** Cancel prior-session work and restore the selected seed and scenario. */
+    fun resetSimulation() = startSimulation(selectedScenario, selectedSeed)
+
+    private fun record(label: String) {
+        trace = (trace + "$clockMillis #$sequence ${state.conversationId} $label").takeLast(80)
+    }
+
+    private fun schedule(delay: Long, label: String, apply: () -> Unit) {
+        scheduled += Scheduled(clockMillis + delay, sequence++, generation, state.conversationId, label, apply)
+        record("scheduled $label")
+    }
+
+    /** Advance one event even while paused, ordering equal deadlines by insertion sequence. */
+    fun step() {
+        val next = scheduled.minWithOrNull(compareBy<Scheduled> { it.due }.thenBy { it.order }) ?: return
+        clockMillis = maxOf(clockMillis, next.due)
+        scheduled.remove(next)
+        if (next.generation == generation && next.room == state.conversationId) {
+            next.apply()
+            record("applied ${next.label} rows=${state.messages.size} draft=${state.draft.revision}")
+        }
+    }
+
+    /** Interactive pacing calls this with elapsed ticks; checks advance directly without sleeps. */
+    fun advanceBy(millis: Long) {
+        require(millis >= 0)
+        if (paused) return
+        val target = clockMillis + millis
+        while (scheduled.any { it.due <= target }) step()
+        clockMillis = target
+    }
+
+    fun pause(value: Boolean) { paused = value }
+
+    private fun scheduleDelivery(id: String) {
+        schedule(deliveryMillis, "delivery id=$id") {
+            if (state.messages.none { it.id == id && it.delivery == Delivery.Sending }) return@schedule
+            val failed = failNext
+            failNext = false
+            completeDelivery(if (failed) Delivery.Failed else Delivery.Sent, id)
+            if (!failed) schedule(700 + random.nextLong(400), "reply to=$id") { receiveMessage() }
+        }
+    }
+
     private var nextMessage = 1
     var history by mutableStateOf(HistoryState())
         private set
@@ -177,6 +286,15 @@ class FakeHost {
 
     /** Switching invalidates in-flight work even when returning to the same room later. */
     fun switchRoom() {
+        if (simulationEnabled) {
+            generation++
+            scheduled.clear()
+            if (pendingDraft != null) refuse()
+            state = state.copy(messages = state.messages.map {
+                if (it.delivery == Delivery.Sending) it.copy(delivery = Delivery.Failed) else it
+            })
+            record("cancel on switch")
+        }
         pendingHistory = null
         history = HistoryState(if (history.status == HistoryStatus.Loading) HistoryStatus.Idle else history.status, history.revision + 1)
         actionState = actionState.copy(revision = actionState.revision + 1, menuTargetId = null)
@@ -209,20 +327,38 @@ class FakeHost {
             is ConversationEvent.SendDraft -> {
                 if (pendingDraft != null || event.revision != state.draft.revision ||
                     event.text != state.draft.text || event.attachments != state.draft.attachments || !state.draft.hasContent) return
+                record("intent send revision=${event.revision}")
                 pendingDraft = event
                 state = state.copy(draft = state.draft.copy(submitting = true))
+                if (simulationEnabled) schedule(acknowledgementMillis, "ack revision=${event.revision}") {
+                    if (pendingDraft == event) {
+                        if (refuseNext) {
+                            refuseNext = false
+                            refuse()
+                        } else {
+                            accept()
+                            scheduleDelivery(state.messages.last().id)
+                        }
+                    }
+                }
             }
             is ConversationEvent.RetryMessage -> {
+                val eligible = state.messages.any { it.id == event.messageId &&
+                    it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed }
+                if (!eligible) return
+                record("intent retry id=${event.messageId}")
                 state = state.copy(messages = state.messages.map {
                     if (it.id == event.messageId && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed)
                         it.copy(delivery = Delivery.Sending) else it
                 })
+                if (simulationEnabled) scheduleDelivery(event.messageId)
             }
         }
     }
 
-    fun accept() {
+    fun accept(expected: ConversationEvent.SendDraft? = pendingDraft) {
         val pending = pendingDraft ?: return
+        if (expected != pending || pending.revision != state.draft.revision) return
         val id = "${state.conversationId}-${nextMessage++}"
         state = state.copy(
             draft = Draft(revision = pending.revision + 1),
@@ -234,10 +370,10 @@ class FakeHost {
         pendingDraft = null
     }
 
-    fun completeDelivery(delivery: Delivery) {
+    fun completeDelivery(delivery: Delivery, messageId: String? = null) {
         require(delivery != Delivery.Sending)
         state = state.copy(messages = state.messages.map {
-            if (it.sender.id == state.currentParticipantId && it.delivery == Delivery.Sending) it.copy(delivery = delivery) else it
+            if ((messageId == null || it.id == messageId) && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Sending) it.copy(delivery = delivery) else it
         })
     }
 
@@ -262,10 +398,27 @@ class FakeHost {
     }
 
     companion object {
-        private fun historyMessage(n: Int) = Message("history-$n", Participant("avery", "Avery"),
-            n.toLong(), "09:41", "Message $n", Delivery.Sent)
-        private fun initialState(id: String) = ConversationState(id, "me", messages = listOf(
-            Message("welcome", Participant("avery", "Avery"), 1_000, "09:41", "Welcome! Send a message, then choose its delivery outcome.", Delivery.Sent),
-        ))
+        private fun historyMessage(n: Int) = Message(
+            id = "history-$n",
+            sender = Participant("avery", "Avery"),
+            timestampEpochMillis = n.toLong(),
+            displayTime = "09:41",
+            text = "Message $n",
+            delivery = Delivery.Sent
+        )
+        private fun initialState(id: String) = ConversationState(
+            conversationId = id,
+            currentParticipantId = "me",
+            messages = listOf(
+                Message(
+                    id = "welcome",
+                    sender = Participant("avery", "Avery"),
+                    timestampEpochMillis = 1_000,
+                    displayTime = "09:41",
+                    text = "Welcome! Send a message to start a simulated exchange.",
+                    delivery = Delivery.Sent
+                ),
+            )
+        )
     }
 }
