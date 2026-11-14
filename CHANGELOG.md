@@ -4,6 +4,10 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
+- Material3 bubbles keep time/status beside the final text line when measured space permits,
+  wrapping only to avoid overlap. Bubbles stay content-sized with bounded gutters. The optional
+  `MessageMetadata` helper places sender headings outside and time inside the bubble through
+  the existing metadata slot; plain and empty overrides remain supported.
 - Library namespace/root package is `dev.forntoh.chat`; update prior `dev.chat.*` library imports
   and local staging group to `dev.forntoh.chat.candidate`. Sample/consumer packages are unchanged.
 - Host-owned conversation state/events and shared Compose UI for Android, arm64 iOS and desktop JVM.

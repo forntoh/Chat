@@ -7,7 +7,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import dev.forntoh.chat.core.Delivery
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.TextLayoutResult
+import kotlin.math.ceil
+import kotlin.math.floor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -42,9 +46,24 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
         )
     },
     messageBody = {
+        val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
         Text(
             text = it.text.ifBlank { "Message unavailable" },
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            onTextLayout = { result -> textLayout[0] = result },
+            modifier = Modifier.layout { measurable, constraints ->
+                val text = measurable.measure(constraints)
+                val result = textLayout[0]
+                val lines = if (result == null) emptyMap() else {
+                    val last = result.lineCount - 1
+                    mapOf(
+                        LastTextRight to ceil(result.getLineRight(last)).toInt(),
+                        LastTextTop to floor(result.getLineTop(last)).toInt(),
+                        LastTextBottom to text.height,
+                    )
+                }
+                layout(text.width, text.height, lines) { text.placeRelative(0, 0) }
+            },
         )
     },
     messageDelivery = {

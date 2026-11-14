@@ -15,7 +15,7 @@ import dev.forntoh.chat.ui.*
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
  * independently actionable. Sender and time come entirely from the metadata slot; body and metadata subslots
- * occupy separate measured regions. The metadata slot can place a heading outside the bubble and
+ * use measured, non-overlapping placement. The metadata slot can place a heading outside the bubble and
  * time inside it through [MessageMetadata], alongside delivery. Avatar
  * space remains reserved when a host supplies no avatar. Reads [LocalMessageGroupContext] from the shared timeline and
  * [ConversationTheme] subslots. [isCurrentParticipant] selects directional presentation, not permission.

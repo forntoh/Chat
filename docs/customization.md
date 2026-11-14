@@ -36,7 +36,9 @@ customize their subslots locally. MaterialTheme continues to supply colors, typo
 
 Sender and time both belong to `messageMetadata`; the default bubble inserts no sender text outside that slot.
 The default Material3 sender heading sits above and outside the first incoming bubble of each
-sender group. Host-formatted time and delivery sit together in a reserved footer inside the bubble.
+sender group. Host-formatted time and delivery sit together at the bottom trailing edge inside the bubble.
+Short text shares its line with them; multiline default text uses measured final-line space,
+falling back to a separate row when that space is insufficient.
 Use the optional Material3 `MessageMetadata` helper directly in the existing slot to customize
 both placements:
 
@@ -48,7 +50,8 @@ messageMetadata = { message ->
 
 Do not wrap this helper in another layout. A plain existing metadata override remains footer
 content. Replace or empty `messageMetadata` to control its visible content; change
-`messageDescription` separately for announced content. The bubble measures its body/footer
+`messageDescription` separately for announced content. Custom body slots use their full measured bounds for a safe fit decision; no text geometry is guessed.
+The bubble measures its body/footer
 independently of the heading, so a long sender name cannot stretch a short colored bubble.
 
 Message metadata, body, delivery and the ordered semantics description can be customized
@@ -93,7 +96,7 @@ The immutable bundle explicitly preserves copy/equality/hash/component semantics
 thirteen-position destructuring still yield latestLabel; avatar/spacing remain components 14/15.
 These mappings are independent of constructor order, so new defaults cannot shift legacy components.
 
-Host-formatted time appears in the reserved footer inside each bubble; each message still has its full host-authored ordered semantics.
+Host-formatted time uses measured trailing placement inside each bubble; each message still has its full host-authored ordered semantics.
 Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
 Host delivery subslots are still invoked on every row. Explicit/bundle/ambient precedence is
 unchanged. `ChatTheme { Conversation(...) }` supplies these defaults without sample renderers,

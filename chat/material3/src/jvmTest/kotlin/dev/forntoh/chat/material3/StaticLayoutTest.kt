@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -19,7 +21,7 @@ import kotlin.test.assertTrue
 class StaticLayoutTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun timeIsBelowBodyAndDeliverySharesItsFooter() {
+    @Test fun shortTextKeepsTimeBesideBodyAndDeliverySharesItsBaseline() {
         val row = Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sending)
         compose.setContent {
             ChatTheme {
@@ -35,9 +37,45 @@ class StaticLayoutTest {
         val body = compose.onNodeWithTag("body", true).fetchSemanticsNode().boundsInRoot
         val time = compose.onNodeWithTag("time", true).fetchSemanticsNode().boundsInRoot
         val delivery = compose.onNodeWithTag("delivery", true).fetchSemanticsNode().boundsInRoot
-        assertTrue(time.top >= body.bottom, "Time must stay below the body inside the bubble")
+        assertTrue(time.left >= body.right && time.top < body.bottom, "Short text must keep time beside it")
         assertTrue(kotlin.math.abs(time.bottom - delivery.bottom) <= 1f, "Time and delivery must align")
     }
+    @Test fun defaultTextUsesFinalLineSpaceAndFallsBackAtConstrainedWidth() {
+        val text = mutableStateOf("A reasonably wide first line\nAnother full line\nHi")
+        val outgoing = mutableStateOf(false)
+        val viewport = mutableStateOf(360.dp)
+        val delivery = mutableStateOf(Delivery.Sent)
+        compose.setContent {
+            ChatTheme {
+                Box(Modifier.width(viewport.value)) {
+                    MessageBubble(Message("one", Participant("other", "Avery"), 0, "09:41", text.value, delivery.value), outgoing.value, null)
+                }
+            }
+        }
+        fun body() = compose.onNodeWithText(text.value, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        fun time() = compose.onNodeWithText("09:41", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val multiline = body()
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(text.value, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        val layout = layouts.single()
+        val lastLine = layout.lineCount - 1
+        assertTrue(time().top >= multiline.top + layout.getLineTop(lastLine) && time().top < multiline.bottom,
+            "Time should share the short final line of multiline text")
+        assertTrue(time().left >= multiline.left + layout.getLineRight(lastLine),
+            "Time must clear the actual final text line, not the full multiline text bounds")
+        compose.runOnIdle { outgoing.value = true; text.value = "Hi"; delivery.value = Delivery.Sending }
+        assertTrue(time().left >= body().right && time().top < body().bottom,
+            "Outgoing short text should fit beside time and pending status")
+        val origin = body().topLeft
+        compose.runOnIdle { delivery.value = Delivery.Failed }
+        assertTrue(time().left >= body().right && body().topLeft == origin,
+            "Delivery changes must preserve the text origin and avoid overlap")
+        compose.runOnIdle { viewport.value = 220.dp; text.value = "WWWWWWWW"; delivery.value = Delivery.Sent }
+        assertTrue(time().top >= body().bottom,
+            "A full final line at constrained width needs a separate metadata row")
+    }
+
     @Test fun absentAvatarAndDeliveryChangesKeepTextGeometryStableAndLongContentFits() {
         val row = mutableStateOf(Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sending))
         val avatar = mutableStateOf(true)
@@ -124,7 +162,7 @@ class StaticLayoutTest {
         val time = compose.onNodeWithText("09:41", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val body = compose.onNodeWithText("OK", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertTrue(sender.bottom <= short.top, "The sender must be above and outside the colored bubble")
-        assertTrue(time.top >= body.bottom && time.bottom <= short.bottom, "Time must be inside the bubble below its text")
+        assertTrue(time.left >= body.right && time.top < body.bottom && time.bottom <= short.bottom, "Time must fit beside short text inside the bubble")
         compose.runOnIdle { senderName.value = "Participant with a very long display name" }
         val longName = bubbleBounds()
         assertTrue(longName.right - longName.left < 180, "A long external sender name cannot stretch a short bubble")
