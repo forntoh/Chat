@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 class StaticLayoutTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun metadataIsBelowBodyAndDeliverySharesItsFooter() {
+    @Test fun metadataIsAboveBubbleBodyAndDeliverySharesItsRegion() {
         val row = Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sending)
         compose.setContent {
             ChatTheme {
@@ -32,7 +32,7 @@ class StaticLayoutTest {
         val body = compose.onNodeWithTag("body", true).fetchSemanticsNode().boundsInRoot
         val time = compose.onNodeWithTag("time", true).fetchSemanticsNode().boundsInRoot
         val delivery = compose.onNodeWithTag("delivery", true).fetchSemanticsNode().boundsInRoot
-        assertTrue(time.top >= body.bottom, "Metadata must reserve a region below the text")
+        assertTrue(time.bottom <= body.top, "Metadata must reserve a region above the bubble body")
         assertTrue(kotlin.math.abs(time.bottom - delivery.bottom) <= 1f, "Time and delivery must align")
     }
     @Test fun absentAvatarAndDeliveryChangesKeepTextGeometryStableAndLongContentFits() {
@@ -58,7 +58,7 @@ class StaticLayoutTest {
         val long = body()
         val time = compose.onNodeWithTag("time", true).fetchSemanticsNode().boundsInRoot
         assertTrue(long.right < 320f && long.height > initial.height, "Long text must wrap with an opposite gutter")
-        assertTrue(time.top >= long.bottom, "Long text cannot overlap metadata")
+        assertTrue(time.bottom <= long.top, "Long text cannot overlap metadata")
     }
 
     @Test fun blankContentAndSenderHaveReadableDefaultFallbacks() {

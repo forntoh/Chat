@@ -17,7 +17,8 @@ import dev.forntoh.chat.ui.*
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
  * independently actionable. Sender and time come entirely from the metadata slot; body and metadata subslots
- * occupy separate measured regions. Time and delivery share a bottom-aligned footer; avatar
+ * occupy separate measured regions. Metadata sits above and outside the bubble, with delivery
+ * aligned alongside it. Avatar
  * space remains reserved when a host supplies no avatar. Reads [LocalMessageGroupContext] from the shared timeline and
  * [ConversationTheme] subslots. [isCurrentParticipant] selects bubble contrast, not permission.
  * A standalone caller validates [onRetry] eligibility and identity; Conversation supplies it only
@@ -53,41 +54,40 @@ fun MessageBubble(
             ) {
                 if (!isCurrentParticipant) AvatarGutter(message, group.isLast, slots)
                 Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
-                    val outer = ChatGeometry.BubbleRadius
-                    val joined = ChatGeometry.JoinedRadius
-                    Surface(
-                        color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                        shape = RoundedCornerShape(
-                            topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
-                            topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
-                            bottomEnd = if (isCurrentParticipant) joined else outer,
-                            bottomStart = if (!isCurrentParticipant) joined else outer,
-                        ),
-                        modifier = Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
+                    Column(
+                        Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
+                        horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
                     ) {
-                        Column(
-                            Modifier.padding(horizontal = ChatGeometry.BubbleHorizontalPadding, vertical = ChatGeometry.BubbleVerticalPadding),
-                            verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
+                        Row(
+                            Modifier
+                                .heightIn(min = ChatGeometry.MetadataMinHeight)
+                                .widthIn(min = if (isCurrentParticipant) ChatGeometry.OutgoingMetadataMinWidth else 0.dp),
+                            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.MetadataGap, Alignment.End),
+                            verticalAlignment = Alignment.Bottom,
                         ) {
-                            slots.messageBody(message)
-                            Row(
-                                Modifier
-                                    .align(Alignment.End).heightIn(min = ChatGeometry.FooterMinHeight)
-                                    .widthIn(
-                                        min = if (isCurrentParticipant) {
-                                            ChatGeometry.OutgoingFooterMinWidth
-                                        } else {
-                                            0.dp
-                                        }
-                                    ),
-                                horizontalArrangement = Arrangement.spacedBy(ChatGeometry.FooterGap, Alignment.End),
-                                verticalAlignment = Alignment.Bottom,
+                            Box(Modifier.weight(1f, fill = false)) { slots.messageMetadata(message) }
+                            Box(if (isCurrentParticipant) Modifier.widthIn(min = ChatGeometry.DeliveryMinWidth) else Modifier) {
+                                slots.messageDelivery(message.delivery)
+                            }
+                        }
+                        val outer = ChatGeometry.BubbleRadius
+                        val joined = ChatGeometry.JoinedRadius
+                        Surface(
+                            color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            shape = RoundedCornerShape(
+                                topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
+                                topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
+                                bottomEnd = if (isCurrentParticipant) joined else outer,
+                                bottomStart = if (!isCurrentParticipant) joined else outer,
+                            ),
+                        ) {
+                            Column(
+                                Modifier.padding(horizontal = ChatGeometry.BubbleHorizontalPadding, vertical = ChatGeometry.BubbleVerticalPadding),
+                                verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
                             ) {
-                                Box(Modifier.weight(1f, fill = false)) { slots.messageMetadata(message) }
-                                Box(if (isCurrentParticipant) Modifier.widthIn(min = ChatGeometry.DeliveryMinWidth) else Modifier) {
-                                    slots.messageDelivery(message.delivery)
-                                }
+                                slots.messageBody(message)
                             }
                         }
                     }

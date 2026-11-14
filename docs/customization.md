@@ -34,6 +34,11 @@ theme applies, with usable built-in defaults when none is supplied. `MessageBubb
 delegate to them without recursively invoking their top-level slot. Pass a bundle explicitly to
 customize their subslots locally. MaterialTheme continues to supply colors, typography and shapes.
 
+Sender and time both belong to `messageMetadata`; the default bubble inserts no sender text outside that slot.
+The default Material3 metadata region sits above and outside the bubble, with the sender name
+on the first row of each sender group and time/status aligned together. Replace or empty
+`messageMetadata` to control its visible content; change `messageDescription` separately for announced content.
+
 Message metadata, body, delivery and the ordered semantics description can be customized
 independently. When localizing delivery, change both `messageDelivery` and `messageDescription`.
 The default text group announces sender, content, host time and delivery once; retry stays a
@@ -76,7 +81,7 @@ The immutable bundle explicitly preserves copy/equality/hash/component semantics
 thirteen-position destructuring still yield latestLabel; avatar/spacing remain components 14/15.
 These mappings are independent of constructor order, so new defaults cannot shift legacy components.
 
-Host-formatted time appears inside each bubble; each message still has its full host-authored ordered semantics.
+Host-formatted time appears in the reserved metadata region above each bubble; each message still has its full host-authored ordered semantics.
 Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
 Host delivery subslots are still invoked on every row. Explicit/bundle/ambient precedence is
 unchanged. `ChatTheme { Conversation(...) }` supplies these defaults without sample renderers,

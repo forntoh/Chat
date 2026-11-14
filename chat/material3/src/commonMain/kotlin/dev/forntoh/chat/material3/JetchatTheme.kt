@@ -29,7 +29,10 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
     messageMetadata = { message ->
-        Column(horizontalAlignment = Alignment.End) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.MetadataGap),
+            itemVerticalAlignment = Alignment.Bottom,
+        ) {
             if (LocalMessageGroupContext.current.isFirst) {
                 Text(
                     message.sender.displayName.ifBlank { "Unknown sender" },

@@ -13,9 +13,9 @@ internal object ChatGeometry {
     val BubbleHorizontalPadding = 12.dp
     val BubbleVerticalPadding = 8.dp
     val ContentGap = 4.dp
-    val FooterGap = 8.dp
-    val OutgoingFooterMinWidth = 88.dp
-    val FooterMinHeight = 16.dp
+    val MetadataGap = 8.dp
+    val OutgoingMetadataMinWidth = 88.dp
+    val MetadataMinHeight = 16.dp
     val DeliveryMinWidth = 48.dp
     val GroupGap = 8.dp
     val RowGap = 4.dp
