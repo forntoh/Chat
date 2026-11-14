@@ -2,6 +2,8 @@ package dev.forntoh.chat.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.compose.animation.core.tween
@@ -10,6 +12,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyLayoutScrollScope
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -74,7 +79,9 @@ class ComposerContent(
  * [composerContent] receives guarded composer callbacks and pending state via [ComposerContent].
  *
  * A send latches synchronously before invoking [onEvent]. Changing conversation or draft
- * revision resets that latch; unmounting also discards it. Retain drafts and pending state in
+ * revision resets that latch; unmounting also discards it. An allowed Send activation also
+ * returns to latest, including from history, without accepting the draft or inferring delivery.
+ * Retain drafts and pending state in
  * the host across navigation. The UI does not persist data or reject stale service results.
  * [modifier] applies to a full-size layout with IME padding; the host must provide window
  * insets and bounded height. Callback exceptions propagate; the host must resolve the draft
@@ -88,8 +95,11 @@ class ComposerContent(
  * return control while away from the bottom. Requests can originate from a boundary effect;
  * no transport runs inside this component. Stable row keys preserve position on prepend;
  * a removed anchor uses the nearest survivor in prior host order (later row wins ties),
- * retaining its scroll offset. Appended rows
- * follow the bottom only if the reader was already there. Switching conversation resets
+ * retaining its scroll offset. Incoming rows follow only an existing bottom reader; Send and
+ * return-to-latest explicitly resume following. Keyboard/composer resizing retains that mode,
+ * keeping the final row's trailing content visible even when the row exceeds the viewport.
+ * Latest travel uses a cancellable 360ms eased scroll without jumping over unmeasured history.
+ * Switching conversation resets
  * these UI latches; the host must isolate drafts and reject obsolete asynchronous results.
  *
  * @param state Authoritative host snapshot containing ordered messages and the retained draft.
@@ -155,6 +165,7 @@ fun Conversation(
 ) {
     val latestState by rememberUpdatedState(state)
     var submitted by remember(state.conversationId, state.draft.revision) { mutableStateOf(false) }
+    var sendScrollRequest by remember(state.conversationId) { mutableIntStateOf(0) }
     val pending = state.draft.submitting || submitted
     ConversationTheme(slots) {
         Column(modifier.fillMaxSize().imePadding()) {
@@ -198,6 +209,7 @@ fun Conversation(
                 val navigate: (String) -> Unit = { targetId ->
                     if (latestState.conversationId == state.conversationId && latestState.messages.any { it.id == targetId }) {
                         navigation?.cancel()
+                        followingLatest = false
                         highlightedId = null
                         navigation = scope.launch {
                             val index = latestState.messages.indexOfFirst { it.id == targetId }
@@ -232,6 +244,21 @@ fun Conversation(
                     }
                 }
                 val ids = state.messages.map { it.id }
+                val returnToLatest = {
+                    navigation?.cancel()
+                    followingLatest = true
+                    newMessages = false
+                    navigation = scope.launch {
+                        try {
+                            if (latestState.messages.isNotEmpty()) list.animateToLatest()
+                        } finally {
+                            if (navigation == currentCoroutineContext()[Job]) followingLatest = !list.canScrollForward
+                        }
+                    }
+                }
+                LaunchedEffect(sendScrollRequest) {
+                    if (sendScrollRequest > 0) returnToLatest()
+                }
                 LaunchedEffect(ids) {
                     val oldLayout = list.layoutInfo
                     val wasAtBottom = followingLatest
@@ -243,9 +270,11 @@ fun Conversation(
                         index >= 0 && index < ids.lastIndex
                     } == true
                     if (ids.isNotEmpty()) {
-                        if (wasAtBottom && (appended || previousIds.isEmpty())) {
-                            list.scrollToItem(ids.size)
-                        } else if (anchor != null && previousIds.isNotEmpty()) {
+                        if (previousIds.isEmpty()) {
+                            list.scrollToLatest(ids.size)
+                        } else if (wasAtBottom && appended) {
+                            if (navigation?.isActive != true) returnToLatest()
+                        } else if (!wasAtBottom && navigation?.isActive != true && anchor != null && previousIds.isNotEmpty()) {
                             val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
                                 ?: (1..previousIds.size).firstNotNullOfOrNull { distance ->
                                     val later = previousIds.getOrNull(anchor.index - 1 + distance)
@@ -274,18 +303,16 @@ fun Conversation(
                         previousViewport = observed.layout.viewportSize
                         previousIndex = observed.firstIndex
                         previousOffset = observed.firstOffset
-                        // A larger bubble, status or composer can overflow the viewport without
-                        // the reader moving. Only a backward reader/navigation movement leaves
-                        // following mode. New row snapshots use their own identity effect first.
+                        if (navigation?.isActive == true) return@collect
                         if (observed.layout.totalItemsCount == observed.ids.size + 1) {
                             if (followingLatest && observed.canScrollForward && observed.ids.isNotEmpty() &&
-                                (!movedBackward || (viewportChanged && !list.isScrollInProgress))) {
+                                (!movedBackward || viewportChanged)) {
                                 // Never force a remeasure from a snapshot callback during layout.
                                 withFrameNanos { }
                                 if (!list.isScrollInProgress && observed.ids == previousIds &&
                                     list.firstVisibleItemIndex == observed.firstIndex &&
                                     list.firstVisibleItemScrollOffset == observed.firstOffset)
-                                    list.scrollToItem(observed.ids.size)
+                                    list.scrollToLatest(observed.ids.size)
                             } else followingLatest = !observed.canScrollForward
                             if (followingLatest) newMessages = false
                         }
@@ -372,11 +399,7 @@ fun Conversation(
                     ) {
                         (latestContent ?: slots.latest)(
                             LatestContent(newMessages) {
-                                navigation?.cancel()
-                                navigation = scope.launch {
-                                    if (ids.isNotEmpty()) list.animateScrollToItem(ids.size)
-                                    newMessages = false
-                                }
+                                returnToLatest()
                             },
                         )
                     }
@@ -398,6 +421,7 @@ fun Conversation(
                     onSend = {
                         if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
                             submitted = true
+                            sendScrollRequest++
                             onEvent(
                                 ConversationEvent.SendDraft(
                                     conversationId = state.conversationId,
@@ -433,3 +457,38 @@ private data class TimelineObservation(
     val ids: List<String>, val layout: LazyListLayoutInfo,
     val firstIndex: Int, val firstOffset: Int, val canScrollForward: Boolean,
 )
+
+/** One uninterrupted scroll session; unlike animateScrollToItem this never teleports past history.
+ * Re-estimate unmeasured rows each frame, then use the actual trailing edge once it is visible.
+ * Scroll priority and the caller's conversation scope preserve user interruption/cancellation.
+ */
+private suspend fun LazyListState.animateToLatest() {
+    scroll {
+        val lazyScope = LazyLayoutScrollScope(this@animateToLatest, this)
+        var previous = 0f
+        animate(0f, 1f, animationSpec = tween(360)) { fraction, _ ->
+            val layout = layoutInfo
+            val lastIndex = layout.totalItemsCount - 1
+            val last = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex }
+            val remaining = if (last != null) {
+                (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).toFloat()
+            } else {
+                lazyScope.calculateDistanceTo(lastIndex).toFloat()
+            }
+            if (canScrollForward && lastIndex >= 0) {
+                val share = ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
+                scrollBy(remaining.coerceAtLeast(0f) * share)
+            }
+            previous = fraction
+        }
+    }
+}
+
+/** Align the trailing edge too when the last row is taller than the timeline. */
+private suspend fun LazyListState.scrollToLatest(lastIndex: Int) {
+    scrollToItem(lastIndex)
+    layoutInfo.visibleItemsInfo.lastOrNull { it.index == lastIndex }?.let { last ->
+        scrollBy((last.offset + last.size + layoutInfo.afterContentPadding - layoutInfo.viewportEndOffset)
+            .coerceAtLeast(0).toFloat())
+    }
+}

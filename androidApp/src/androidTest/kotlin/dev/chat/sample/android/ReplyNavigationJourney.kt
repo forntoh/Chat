@@ -19,6 +19,46 @@ class ReplyNavigationJourney {
         }
     }
 
+    @Test fun keyboardKeepsLatestVisibleAndSendingLeavesHistory() {
+        val field = compose.onNodeWithTag("composer")
+        for (n in 1..8) {
+            field.performTextInput("Keyboard journey message $n. Building enough history to check bottom following.")
+            compose.onNodeWithContentDescription("Send").performClick()
+            compose.waitUntil(10000) {
+                field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+            }
+        }
+        field.performClick()
+        compose.waitUntil(5000) {
+            compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        val newest = compose.onNodeWithText("Keyboard journey message 8. Building enough history to check bottom following.")
+        newest.assertIsDisplayed()
+        var viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= viewport.bottom + 1)
+        capture("keyboard-open-latest")
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntil(5000) {
+            !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        newest.assertIsDisplayed()
+        field.performClick()
+        compose.waitUntil(5000) {
+            compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        newest.assertIsDisplayed()
+        viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= viewport.bottom + 1)
+        compose.onNodeWithTag("timeline").performScrollToIndex(1)
+        field.performTextInput("Sent while viewing history")
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.waitUntil(10000) {
+            field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+        }
+        compose.onNodeWithText("Sent while viewing history").assertIsDisplayed()
+        capture("send-from-history")
+    }
+
     @Test fun embeddedReplyAndAnimatedLatest() {
         compose.onNodeWithTag("bubble-morgan", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()

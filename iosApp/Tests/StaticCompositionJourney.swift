@@ -96,6 +96,42 @@ final class StaticCompositionJourney: XCTestCase {
         capture("reply-custom-latest")
     }
 
+    func testKeyboardKeepsLatestAndSendReturnsFromHistory() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let composer = app.textViews.firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15))
+        for n in 1...8 {
+            composer.tap()
+            composer.typeText("Keyboard journey message \(n). Building enough history for bottom following.")
+            app.buttons["Send"].tap()
+            let accepted = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Keyboard journey message \(n)")).firstMatch
+            XCTAssertTrue(accepted.waitForExistence(timeout: 10))
+        }
+        let latest = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Keyboard journey message 8")).firstMatch
+        try XCTSkipUnless(app.keyboards.firstMatch.waitForExistence(timeout: 5), "This simulator does not expose a software keyboard; keyboard overlap is unverified")
+        XCTAssertLessThanOrEqual(latest.frame.maxY, composer.frame.minY + 1)
+        XCTAssertLessThanOrEqual(composer.frame.maxY, app.keyboards.firstMatch.frame.minY + 1)
+        capture("keyboard-open-latest")
+        // Dismiss and reopen without leaving the conversation.
+        app.swipeDown()
+        composer.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        let options = app.buttons["Conversation options"]
+        options.tap()
+        app.buttons["Custom UI"].tap()
+        // Scroll backward within the timeline while the composer remains editable.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).press(forDuration: 0.05,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)))
+        composer.tap()
+        composer.typeText("Sent while viewing history")
+        app.buttons["Send"].tap()
+        let sent = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Sent while viewing history")).firstMatch
+        XCTAssertTrue(sent.waitForExistence(timeout: 10))
+        XCTAssertLessThanOrEqual(sent.frame.maxY, composer.frame.minY + 1)
+        capture("send-from-history-custom")
+    }
+
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "pat267-\(name)"
