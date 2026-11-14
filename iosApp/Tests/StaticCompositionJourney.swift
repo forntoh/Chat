@@ -33,8 +33,14 @@ final class StaticCompositionJourney: XCTestCase {
         XCTAssertTrue(bubble.waitForExistence(timeout: 15))
         bubble.tap()
         XCTAssertFalse(app.buttons["Copy"].exists)
+        let originalFrame = bubble.frame
         bubble.press(forDuration: 0.7)
         XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5))
+        let liftedBubble = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@",
+            "Avery Chen, Morning! I’ve added the latest sketches for the shared space., 09:41")).firstMatch
+        XCTAssertTrue(liftedBubble.waitForExistence(timeout: 5))
+        XCTAssertEqual(liftedBubble.frame.midX, originalFrame.midX, accuracy: 3, "Popup and timeline must share a coordinate space")
+        XCTAssertEqual(liftedBubble.frame.midY, originalFrame.midY, accuracy: 3, "A bubble with room for its menu must stay anchored")
         capture("default-action-focus")
         app.buttons["Close actions"].tap()
         XCTAssertTrue(bubble.waitForExistence(timeout: 5))

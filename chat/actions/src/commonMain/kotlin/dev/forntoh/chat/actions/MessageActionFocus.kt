@@ -78,7 +78,7 @@ fun MessageActionFocus(
     val safeTarget = allowed && target == openedTarget
     val presenting = safeTarget && (transition.currentState || transition.targetState)
     Box(modifier.onGloballyPositioned {
-        rowBounds = Rect(it.localToWindow(Offset.Zero), it.size.toSize())
+        rowBounds = Rect(it.localToScreen(Offset.Zero), it.size.toSize())
     }.drawWithContent {
         layer.record { this@drawWithContent.drawContent() }
         if (presenting) {
@@ -95,7 +95,7 @@ fun MessageActionFocus(
     }) {
         bubble(
             Modifier
-                .onGloballyPositioned { anchor = Rect(it.localToWindow(Offset.Zero), it.size.toSize()) }
+                .onGloballyPositioned { anchor = Rect(it.localToScreen(Offset.Zero), it.size.toSize()) }
                 .combinedClickable(
                     enabled = allowed,
                     onClick = {},
@@ -116,7 +116,10 @@ fun MessageActionFocus(
         ) {
             val focus = remember { FocusRequester() }
             LaunchedEffect(Unit) { focus.requestFocus() }
-            Box(Modifier.fillMaxSize().onPreviewKeyEvent {
+            var popupOrigin by remember { mutableStateOf(Offset.Zero) }
+            Box(Modifier.fillMaxSize().onGloballyPositioned {
+                popupOrigin = it.localToScreen(Offset.Zero)
+            }.onPreviewKeyEvent {
                 if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { dismiss(); true } else false
             }.focusRequester(focus).focusable()) {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f * progress))
@@ -141,6 +144,7 @@ fun MessageActionFocus(
                     }
                     Box(Modifier.graphicsLayer { alpha = progress; translationY = 8.dp.toPx() * (1f - progress) }.verticalScroll(rememberScrollState())) { if (visible) below() else presentation.below() }
                 }, modifier = Modifier.fillMaxSize()) { children, constraints ->
+                    val localAnchor = anchor.translate(-popupOrigin)
                     val margin = 16.dp.roundToPx()
                     val gap = 12.dp.roundToPx()
                     val availableWidth = (constraints.maxWidth - margin * 2).coerceAtLeast(0)
@@ -155,15 +159,15 @@ fun MessageActionFocus(
                     val selectedBubble = children[1].measure(Constraints.fixed(
                         anchor.width.roundToInt().coerceAtMost(availableWidth), bubbleHeight))
                     val groupHeight = top.height + topGap + selectedBubble.height + bottomGap + bottom.height
-                    val y = (anchor.top.roundToInt() - top.height - topGap)
+                    val y = (localAnchor.top.roundToInt() - top.height - topGap)
                         .coerceIn(margin, maxOf(margin, constraints.maxHeight - margin - groupHeight))
-                    val x = anchor.left.roundToInt().coerceIn(margin, maxOf(margin, constraints.maxWidth - margin - selectedBubble.width))
+                    val x = localAnchor.left.roundToInt().coerceIn(margin, maxOf(margin, constraints.maxWidth - margin - selectedBubble.width))
                     fun menuX(width: Int) = x.coerceAtMost(constraints.maxWidth - margin - width).coerceAtLeast(margin)
                     if (visible) presentation.position = IntOffset(x, y + top.height + topGap)
                     layout(constraints.maxWidth, constraints.maxHeight) {
                         val destination = presentation.position
-                        val bubbleX = (anchor.left + (destination.x - anchor.left) * progress).roundToInt()
-                        val bubbleY = (anchor.top + (destination.y - anchor.top) * progress).roundToInt()
+                        val bubbleX = (localAnchor.left + (destination.x - localAnchor.left) * progress).roundToInt()
+                        val bubbleY = (localAnchor.top + (destination.y - localAnchor.top) * progress).roundToInt()
                         top.place(menuX(top.width), bubbleY - topGap - top.height)
                         selectedBubble.place(bubbleX, bubbleY)
                         bottom.place(menuX(bottom.width), bubbleY + selectedBubble.height + bottomGap)
