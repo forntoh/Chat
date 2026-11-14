@@ -199,6 +199,29 @@ class HistoryJourneyTest {
         compose.onNodeWithText("Trailing content").assertIsDisplayed()
     }
 
+    @Test fun historyScrollInterruptsAnInFlightArrivalWithoutResumingBottomFollow() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..39).map(::message)))
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {},
+                    messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
+                    composerContent = {})
+            }
+        }
+        compose.onNodeWithTag("message-m39").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(40)) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithTag("timeline").performScrollToKey("m10")
+        compose.mainClock.advanceTimeByFrame()
+        val top = compose.onNodeWithTag("message-m10").fetchSemanticsNode().boundsInRoot.top
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(41)) }
+        compose.mainClock.advanceTimeBy(600)
+        compose.mainClock.autoAdvance = true
+        assertEquals(top, compose.onNodeWithTag("message-m10").fetchSemanticsNode().boundsInRoot.top, 1f)
+    }
+
     @Test fun boundaryRequestsOnceAndFailureRequiresExplicitRetry() {
         val history = mutableStateOf(HistoryState(HistoryStatus.Idle))
         val requests = mutableListOf<HistoryRequest>()

@@ -3,7 +3,7 @@ package dev.forntoh.chat.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
-import kotlinx.coroutines.currentCoroutineContext
+import androidx.compose.foundation.interaction.DragInteraction
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.compose.animation.core.tween
@@ -206,6 +206,18 @@ fun Conversation(
                 var followingLatest by remember { mutableStateOf(true) }
                 var highlightedId by remember { mutableStateOf<String?>(null) }
                 var navigation by remember { mutableStateOf<Job?>(null) }
+                // Reader intent wins even when a native viewport resize and an arrival share a frame.
+                LaunchedEffect(list) {
+                    list.interactionSource.interactions.collect { interaction ->
+                        when (interaction) {
+                            is DragInteraction.Start -> {
+                                followingLatest = false
+                                navigation?.cancel()
+                            }
+                            is DragInteraction.Stop, is DragInteraction.Cancel -> followingLatest = !list.canScrollForward
+                        }
+                    }
+                }
                 val navigate: (String) -> Unit = { targetId ->
                     if (latestState.conversationId == state.conversationId && latestState.messages.any { it.id == targetId }) {
                         navigation?.cancel()
@@ -249,11 +261,9 @@ fun Conversation(
                     followingLatest = true
                     newMessages = false
                     navigation = scope.launch {
-                        try {
-                            if (latestState.messages.isNotEmpty()) list.animateToLatest()
-                        } finally {
-                            if (navigation == currentCoroutineContext()[Job]) followingLatest = !list.canScrollForward
-                        }
+                        if (latestState.messages.isNotEmpty()) list.animateToLatest()
+                        // Cancellation preserves the reader intent set by drag/navigation.
+                        followingLatest = !list.canScrollForward
                     }
                 }
                 LaunchedEffect(sendScrollRequest) {
@@ -303,7 +313,13 @@ fun Conversation(
                         previousViewport = observed.layout.viewportSize
                         previousIndex = observed.firstIndex
                         previousOffset = observed.firstOffset
-                        if (navigation?.isActive == true) return@collect
+                        if (navigation?.isActive == true) {
+                            if (followingLatest && movedBackward && !viewportChanged) {
+                                followingLatest = false
+                                navigation?.cancel()
+                            }
+                            return@collect
+                        }
                         if (observed.layout.totalItemsCount == observed.ids.size + 1) {
                             if (followingLatest && observed.canScrollForward && observed.ids.isNotEmpty() &&
                                 (!movedBackward || viewportChanged)) {

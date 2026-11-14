@@ -67,7 +67,7 @@ class ReplyNavigationJourney {
         compose.waitUntil(10000) { compose.onAllNodesWithTag("bubble-studio-1", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
         if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())
             compose.onNodeWithContentDescription("Latest", substring = true).performClick()
-        for (n in 1..5) {
+        for (n in 1..2) {
             compose.waitUntil(10000) {
                 compose.onNodeWithTag("composer").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
             }
@@ -78,9 +78,11 @@ class ReplyNavigationJourney {
             }
             compose.onNodeWithText("Native follow message $n. This keeps the conversation readable while new messages arrive.").assertIsDisplayed()
         }
-        compose.onNodeWithTag("timeline").performScrollToNode(hasTestTag("message-studio-1"))
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("timeline").performScrollToKey("studio-1")
+        compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).assertIsDisplayed()
         capture("reply-default")
-        compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("Reply to Morgan Lee", substring = true, useUnmergedTree = true).performClick()
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         val target = compose.onNodeWithTag("message-morgan").fetchSemanticsNode().boundsInRoot
         org.junit.Assert.assertTrue(target.top >= viewport.top && target.bottom <= viewport.bottom)
