@@ -174,6 +174,9 @@ fun Conversation(
     val pending = state.draft.submitting || submitted
     var composerHeight by remember { mutableIntStateOf(0) }
     val composerInset = with(LocalDensity.current) { composerHeight.toDp() }
+    val viewportPadding = LocalConversationViewportPadding.current
+    val headerInset = viewportPadding.calculateTopPadding()
+    val headerHeight = with(LocalDensity.current) { headerInset.toPx() }
     ConversationTheme(slots) {
         Box(modifier.fillMaxSize().imePadding()) {
             key(state.conversationId) {
@@ -250,7 +253,7 @@ fun Conversation(
                                     }
                                     list.animateScrollBy(
                                         target.offset + (target.size + gap) / 2f -
-                                                (layout.viewportStartOffset + layout.viewportEndOffset - composerHeight) / 2f
+                                                (layout.viewportStartOffset + layout.viewportEndOffset - composerHeight + headerHeight) / 2f
                                     )
                                     list.layoutInfo.visibleItemsInfo.any { it.key == targetId } &&
                                             latestState.messages.map { it.id } == currentIds
@@ -348,7 +351,7 @@ fun Conversation(
                     LazyColumn(
                         Modifier.fillMaxSize().testTag("timeline"),
                         state = list,
-                        contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = composerInset + 12.dp),
+                        contentPadding = PaddingValues(start = 12.dp, top = headerInset + 12.dp, end = 12.dp, bottom = composerInset + 12.dp),
                     ) {
                         item(key = HistoryMarker) {
                             (historyContent ?: {
@@ -431,7 +434,7 @@ fun Conversation(
                     }
                 }
             }
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }.testTag("composer-area")) {
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }.testTag("composer-area").padding(bottom = viewportPadding.calculateBottomPadding())) {
                 (composerContent ?: slots.composer)(
                     ComposerContent(
                         state.draft, pending,

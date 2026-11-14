@@ -135,8 +135,9 @@ ChatTheme { // default blue/white/gray palette; pass colorScheme/typography to c
 
 ChatScaffold is optional. Override `topBar` to replace the full default header, or supply
 `bottomBar`, `snackbarHost`, `floatingActionButton`, container/content colors and
-`contentWindowInsets`. Its content is a bounded Column with Scaffold padding already applied
-and consumed; do not apply it again. Conversation handles remaining IME insets. The shell
+`contentWindowInsets`. Its bounded content Column applies horizontal padding and consumes native
+insets; vertical chrome clearance is passed to Conversation as described below. Conversation
+handles remaining IME insets. The shell
 inherits ambient theme/slots and owns no navigation, chat state or services. Hosts retain all
 identity content and optional controls; empty navigation/actions add no placeholder buttons.
 
@@ -173,3 +174,16 @@ The default floating surface has no outline. Placeholder and editable text share
 centered decoration area; multiline content retains bottom-aligned Send. Optional actions render
 reply/edit cancellation as an accessible X with the existing guarded command and replaceable
 control slot. Cancelling reply leaves the draft untouched.
+
+`ChatScaffold` overlays its transparent default navigation header. It consumes native safe insets
+once and supplies the occupied top/bottom area through `LocalConversationViewportPadding` in
+chat-ui. `Conversation` uses top padding inside its scrollable timeline, includes bottom clearance
+in the measured composer area, and centers replies between the header and composer. Standalone
+Conversation defaults to zero chrome padding. Custom composers should avoid adding a second
+bottom margin when the supplied safe-area spacing is already sufficient; Material3 uses the
+larger of its 8dp outer margin and the supplied bottom spacing.
+
+The scaffold's content Column now applies horizontal padding only. Call Conversation directly.
+For non-conversation content (for example a host's empty navigation page), apply
+`Modifier.padding(LocalConversationViewportPadding.current)` yourself. Custom top/bottom bars
+still own their backgrounds and behavior; no host navigation or state ownership changes.

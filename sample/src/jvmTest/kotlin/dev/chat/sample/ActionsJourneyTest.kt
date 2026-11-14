@@ -111,10 +111,10 @@ class ActionsJourneyTest {
         kotlin.test.assertTrue(previewBounds.width >= bubbleBounds.width * 0.75f, "The inset preview should span its parent bubble content")
         capture("reply-embedded")
         preview.performClick()
-        val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         val row = compose.onNodeWithTag("message-${target.id}").fetchSemanticsNode().boundsInRoot
         val composer = compose.onNodeWithTag("composer-area").fetchSemanticsNode().boundsInRoot
-        assertEquals((viewport.top + composer.top) / 2f, row.center.y, 2f)
+        val header = compose.onNodeWithTag("conversation-header").fetchSemanticsNode().boundsInRoot
+        assertEquals((header.bottom + composer.top) / 2f, row.center.y, 2f)
         capture("reply-target-centered")
         demo("Custom UI")
         capture("reply-custom-target-centered")

@@ -131,8 +131,10 @@ fun MessageComposer(
     ConversationTheme(slots) {
         Row(
             Modifier.fillMaxWidth().padding(
-                horizontal = ChatGeometry.Gutter,
-                vertical = ChatGeometry.ComposerVerticalPadding
+                start = ChatGeometry.Gutter,
+                end = ChatGeometry.Gutter,
+                top = ChatGeometry.ComposerVerticalPadding,
+                bottom = (ChatGeometry.ComposerVerticalPadding - LocalConversationViewportPadding.current.calculateBottomPadding()).coerceAtLeast(0.dp)
             ),
             verticalAlignment = Alignment.Bottom,
         ) {

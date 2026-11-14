@@ -8,6 +8,7 @@ final class StaticCompositionJourney: XCTestCase {
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
         XCTAssertLessThan(app.buttons["Leave"].frame.minY, 100, "The host must not reserve the top safe area twice")
         let closedBottom = composer.frame.maxY
+        XCTAssertLessThanOrEqual(app.frame.maxY - closedBottom, 39, "The bottom safe area replaces the extra composer margin")
         capture("default-conversation")
         composer.tap()
         composer.typeText("First line\nSecond line\nThird line\nFourth line\nFifth line\nSixth line")
