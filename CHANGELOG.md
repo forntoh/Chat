@@ -6,7 +6,8 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
 
 - The default navigation header is transparent with timeline content scrolling behind it.
   Shared viewport padding keeps initial content, reply centering and bottom safe areas clear;
-  system bottom spacing replaces the extra decorative composer margin.
+  system bottom spacing replaces the extra decorative composer margin when the keyboard is
+  closed, while an explicit 8dp gap remains above the visible keyboard.
 - The composer floats over the timeline with scrollable bottom clearance. Material3 keeps Send
   inside its borderless rounded field and centers placeholder/text vertically. Optional actions use
   an icon-only reply/edit dismiss control beside the preview. Header/leading slots accept host content. History

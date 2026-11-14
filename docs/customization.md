@@ -181,7 +181,9 @@ chat-ui. `Conversation` uses top padding inside its scrollable timeline, include
 in the measured composer area, and centers replies between the header and composer. Standalone
 Conversation defaults to zero chrome padding. Custom composers should avoid adding a second
 bottom margin when the supplied safe-area spacing is already sufficient; Material3 uses the
-larger of its 8dp outer margin and the supplied bottom spacing.
+larger of its 8dp outer margin and the supplied bottom spacing when the keyboard is closed.
+When the IME is visible, Material3 retains an explicit 8dp gap above it (12dp to the inset
+editable field). Raw IME visibility selects this decorative gap; inset ownership stays unchanged.
 
 The scaffold's content Column now applies horizontal padding only. Call Conversation directly.
 For non-conversation content (for example a host's empty navigation page), apply

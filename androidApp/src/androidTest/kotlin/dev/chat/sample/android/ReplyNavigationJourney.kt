@@ -51,6 +51,22 @@ class ReplyNavigationJourney {
         capture("composer-custom-multiline")
     }
 
+    @Test fun composerKeepsGapAboveVisibleKeyboard() {
+        val field = compose.onNodeWithTag("composer")
+        field.performTouchInput { click() }
+        compose.waitUntil(5000) {
+            compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        val density = compose.activity.resources.displayMetrics.density
+        compose.waitUntil(5000) {
+            val decor = compose.activity.window.decorView
+            val keyboardTop = decor.height - decor.rootWindowInsets.getInsets(android.view.WindowInsets.Type.ime()).bottom
+            keyboardTop - field.fetchSemanticsNode().boundsInRoot.bottom >= 12f * density - 1f
+        }
+        // 8dp outside the surface plus its 4dp inner field inset.
+        capture("composer-keyboard-gap")
+    }
+
     @Test fun keyboardKeepsLatestVisibleAndSendingLeavesHistory() {
         val field = compose.onNodeWithTag("composer")
         for (n in 1..8) {

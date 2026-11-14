@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.*
 import dev.forntoh.chat.ui.*
@@ -128,13 +129,15 @@ fun MessageComposer(
     headerContent: @Composable () -> Unit,
     leadingContent: @Composable () -> Unit,
 ) {
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     ConversationTheme(slots) {
         Row(
             Modifier.fillMaxWidth().padding(
                 start = ChatGeometry.Gutter,
                 end = ChatGeometry.Gutter,
                 top = ChatGeometry.ComposerVerticalPadding,
-                bottom = (ChatGeometry.ComposerVerticalPadding - LocalConversationViewportPadding.current.calculateBottomPadding()).coerceAtLeast(0.dp)
+                bottom = if (keyboardVisible) ChatGeometry.ComposerVerticalPadding else
+                    (ChatGeometry.ComposerVerticalPadding - LocalConversationViewportPadding.current.calculateBottomPadding()).coerceAtLeast(0.dp)
             ),
             verticalAlignment = Alignment.Bottom,
         ) {
