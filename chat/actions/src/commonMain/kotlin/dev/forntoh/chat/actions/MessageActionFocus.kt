@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -42,7 +43,7 @@ import kotlin.math.roundToInt
  * and Close emit CloseMenu; changed/removed targets, lost capabilities, pending work and a changed
  * conversation immediately remove the presentation. No animation completion emits an intent.
  * [motionEnabled] is a host override; Compose's platform duration scale also controls animations.
- * Entrance/exit use a 180ms eased fade, a 1% bubble lift and continuous travel to/from its action
+ * Entrance/exit use a 180ms eased fade, a 5% bubble lift anchored to the sender edge and continuous travel to/from its action
  * layout, with no retained bitmap or resource IO.
  */
 @Composable
@@ -58,6 +59,7 @@ fun MessageActionFocus(
     val target = content.conversation.messages.find { it.id == messageId }
     val allowed = target != null && content.state.capabilities[messageId].orEmpty().isNotEmpty() &&
         !content.state.pending && content.state.editing == null && content.state.deleting == null
+    val outgoing = target?.sender?.id == content.conversation.currentParticipantId
     val selected = allowed && content.state.menuTargetId == messageId
     var openedTarget by remember(content.conversation.conversationId, messageId) { mutableStateOf(target) }
     LaunchedEffect(selected) { if (!selected) openedTarget = target }
@@ -133,8 +135,9 @@ fun MessageActionFocus(
                 Layout(content = {
                     FocusActionSlot(progress) { if (visible) above() else presentation.above() }
                     Box(Modifier.graphicsLayer {
-                        scaleX = 1f + .01f * progress
-                        scaleY = 1f + .01f * progress
+                        scaleX = 1f + .05f * progress
+                        scaleY = 1f + .05f * progress
+                        transformOrigin = TransformOrigin(if (outgoing) 1f else 0f, .5f)
                     }.verticalScroll(rememberScrollState())) {
                         val density = androidx.compose.ui.platform.LocalDensity.current
                         Canvas(
@@ -150,32 +153,39 @@ fun MessageActionFocus(
                     FocusActionSlot(progress) { if (visible) below() else presentation.below() }
                 }, modifier = Modifier.fillMaxSize()) { children, constraints ->
                     val localAnchor = anchor.translate(-popupOrigin)
-                    val margin = 16.dp.roundToPx()
-                    val topMargin = margin + safeInsets.getTop(this)
-                    val bottomMargin = margin + safeInsets.getBottom(this)
+                    val topMargin = 16.dp.roundToPx() + safeInsets.getTop(this)
+                    val bottomMargin = 16.dp.roundToPx() + safeInsets.getBottom(this)
+                    val leftInset = safeInsets.getLeft(this, layoutDirection)
+                    val rightInset = safeInsets.getRight(this, layoutDirection)
                     val safeHeight = (constraints.maxHeight - topMargin - bottomMargin).coerceAtLeast(0)
-                    val availableWidth = (constraints.maxWidth - margin * 2).coerceAtLeast(0)
+                    val availableWidth = (constraints.maxWidth - leftInset - rightInset).coerceAtLeast(0)
                     val menuConstraints = Constraints(maxWidth = availableWidth,
                         maxHeight = safeHeight / 2)
                     val top = children[0].measure(menuConstraints.copy(maxHeight = safeHeight / 4))
                     val bottom = children[2].measure(menuConstraints)
                     val bubbleHeight = anchor.height.roundToInt().coerceAtMost(
-                        (safeHeight - top.height - bottom.height).coerceAtLeast(0))
+                        ((safeHeight - top.height - bottom.height) / 1.05f).roundToInt().coerceAtLeast(0))
                     val selectedBubble = children[1].measure(Constraints.fixed(
-                        anchor.width.roundToInt().coerceAtMost(constraints.maxWidth), bubbleHeight))
-                    val minimumY = topMargin + top.height
-                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - selectedBubble.height)
+                        anchor.width.roundToInt().coerceAtMost(availableWidth), bubbleHeight))
+                    val growthY = selectedBubble.height * .025f
+                    val minimumY = topMargin + top.height + kotlin.math.ceil(growthY).toInt()
+                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - selectedBubble.height - kotlin.math.ceil(growthY).toInt())
                     val y = localAnchor.top.roundToInt().coerceIn(minimumY, maximumY)
-                    val x = localAnchor.left.roundToInt().coerceIn(0, maxOf(0, constraints.maxWidth - selectedBubble.width))
-                    fun menuX(width: Int) = x.coerceAtMost(constraints.maxWidth - margin - width).coerceAtLeast(margin)
+                    val growthX = kotlin.math.ceil(selectedBubble.width * .05f).toInt()
+                    val minimumX = leftInset + if (outgoing) growthX else 0
+                    val maximumX = maxOf(minimumX, constraints.maxWidth - rightInset - selectedBubble.width - if (outgoing) 0 else growthX)
+                    val x = localAnchor.left.roundToInt().coerceIn(minimumX, maximumX)
+                    fun menuX(width: Int, bubbleX: Int) =
+                        (if (outgoing) bubbleX + selectedBubble.width - width else bubbleX)
+                            .coerceIn(leftInset, maxOf(leftInset, constraints.maxWidth - rightInset - width))
                     if (visible) presentation.position = IntOffset(x, y)
                     layout(constraints.maxWidth, constraints.maxHeight) {
                         val destination = presentation.position
                         val bubbleX = (localAnchor.left + (destination.x - localAnchor.left) * progress).roundToInt()
                         val bubbleY = (localAnchor.top + (destination.y - localAnchor.top) * progress).roundToInt()
-                        top.place(menuX(top.width), bubbleY - top.height)
+                        top.place(menuX(top.width, bubbleX), (bubbleY - growthY * progress).roundToInt() - top.height)
                         selectedBubble.place(bubbleX, bubbleY)
-                        bottom.place(menuX(bottom.width), bubbleY + selectedBubble.height)
+                        bottom.place(menuX(bottom.width, bubbleX), (bubbleY + selectedBubble.height + growthY * progress).roundToInt())
                     }
                 }
             }
@@ -185,21 +195,28 @@ fun MessageActionFocus(
 
 @Composable
 private fun FocusActionSlot(progress: Float, content: @Composable () -> Unit) {
-    Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) {
-        Layout(content = content) { children, constraints ->
-            val inset = 24.dp.roundToPx()
-            val items = children.map { it.measure(constraints.offset(-2 * inset, -2 * inset)) }
-            val width = items.maxOfOrNull { it.width } ?: 0
-            val height = items.maxOfOrNull { it.height } ?: 0
-            if (width == 0 || height == 0) layout(0, 0) {}
-            else layout(constraints.constrainWidth(width + 2 * inset), constraints.constrainHeight(height + 2 * inset)) {
-                items.forEach { it.place(inset, inset) }
+    Layout(content = {
+        Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) {
+            Layout(content = content) { children, constraints ->
+                val clearance = 24.dp.roundToPx()
+                val items = children.map { it.measure(constraints.offset(-2 * clearance, -2 * clearance)) }
+                val width = items.maxOfOrNull { it.width } ?: 0
+                val height = items.maxOfOrNull { it.height } ?: 0
+                if (width == 0 || height == 0) layout(0, 0) {}
+                else layout(width + 2 * clearance, height + 2 * clearance) {
+                    items.forEach { it.place(clearance, clearance) }
+                }
             }
         }
+    }) { children, constraints ->
+        val clearance = 24.dp.roundToPx()
+        val viewport = children.single().measure(constraints.offset(2 * clearance, 2 * clearance))
+        val width = (viewport.width - 2 * clearance).coerceAtLeast(0)
+        val height = (viewport.height - 2 * clearance).coerceAtLeast(0)
+        layout(width, height) { viewport.place(-clearance, -clearance) }
     }
 }
 
-// Presentation-only exit cache. Old slot callbacks remain subject to ActionsContent's live guards.
 private class FocusPresentation(var above: @Composable () -> Unit, var below: @Composable () -> Unit) {
     var position = IntOffset.Zero
 }

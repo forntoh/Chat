@@ -115,22 +115,30 @@ class ActionSlotsTest {
         assertEquals(originalTop, magentaRows(compose.onAllNodes(isRoot()).onFirst()).first())
     }
 
-    @Test fun bottomOnlyActionsKeepBubbleInPlaceAndLeaveRoomForTheirShadow() {
+    @Test fun outgoingFocusGrowsFromRightWithoutActionPadding() = focusKeepsSenderEdge(true)
+    @Test fun incomingFocusGrowsFromLeftWithoutActionPadding() = focusKeepsSenderEdge(false)
+
+    @Test fun bothActionSlotsKeepIncomingBubbleInPlace() = focusKeepsSenderEdge(false, true)
+    @Test fun bothActionSlotsKeepOutgoingBubbleInPlace() = focusKeepsSenderEdge(true, true)
+
+    private fun focusKeepsSenderEdge(outgoing: Boolean, withTop: Boolean = false) {
         val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
         val state = mutableStateOf(ActionState(capabilities = mapOf("m" to setOf(MessageAction.Copy))))
         compose.setContent {
-            val actions = rememberMessageActions(ConversationState("room", "me", messages = listOf(target)), state.value, {
+            val actions = rememberMessageActions(ConversationState("room", if (outgoing) "me" else "other", messages = listOf(target)), state.value, {
                 state.value = state.value.copy(revision = state.value.revision + 1,
                     menuTargetId = if (it.command == ActionCommand.OpenMenu) "m" else null)
             }, {})
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                Box(Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(horizontal = 12.dp).offset(y = 120.dp)) {
-                    MessageActionFocus(actions, "m", below = {
+                Box(Modifier.align(if (outgoing) androidx.compose.ui.Alignment.TopEnd else androidx.compose.ui.Alignment.TopStart).padding(horizontal = 12.dp).offset(y = 120.dp)) {
+                    MessageActionFocus(actions, "m", above = {
+                        if (withTop) Box(Modifier.size(160.dp, 30.dp).background(Color.White).testTag("upper action"))
+                    }, below = {
                         Box(Modifier.size(160.dp, 80.dp)
                             .shadow(16.dp, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                             .background(Color.White).testTag("lower action"))
                     }) { interaction ->
-                        BasicText("Original", interaction.fillMaxWidth().height(40.dp).background(Color.Magenta))
+                        BasicText("Original", interaction.width(200.dp).height(40.dp).background(Color.Magenta))
                     }
                 }
             }
@@ -138,7 +146,7 @@ class ActionSlotsTest {
         fun coloredRows(): List<Int> {
             val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
             return (0 until pixels.height).filter { y ->
-                val c = pixels[pixels.width / 2, y]
+                val c = pixels[if (outgoing) pixels.width - 60 else 60, y]
                 c.red > .95f && c.blue > .95f && c.green < .05f
             }
         }
@@ -155,24 +163,46 @@ class ActionSlotsTest {
         compose.runOnIdle { state.value = state.value.copy(revision = 1, menuTargetId = "m") }
         repeat(16) {
             compose.mainClock.advanceTimeByFrame()
-            assertTrue(kotlin.math.abs(coloredRows().first() - originalTop) <= 1,
+            assertTrue(kotlin.math.abs(coloredRows().first() - originalTop) <= 2,
                 "Bottom-only actions that fit must not displace or flash the bubble")
             val columns = coloredColumns()
             assertTrue(columns.size >= originalColumns.size - 1, "Focusing must not narrow a wide custom bubble")
-            assertTrue(kotlin.math.abs((columns.first() + columns.last()) -
-                (originalColumns.first() + originalColumns.last())) <= 2,
-                "The bubble's center must stay anchored while it grows by 1%")
+            assertTrue(kotlin.math.abs((if (outgoing) columns.last() else columns.first()) -
+                (if (outgoing) originalColumns.last() else originalColumns.first())) <= 1,
+                "The sender edge must stay anchored throughout opening")
         }
+        val expandedColumns = coloredColumns()
+        assertTrue(kotlin.math.abs(expandedColumns.size - originalColumns.size * 1.05f) <= 2,
+            "Focused bubble must grow by 5%")
         val menu = compose.onNodeWithTag("lower action").fetchSemanticsNode().boundsInRoot
+        val density = compose.density.density
+        assertTrue(kotlin.math.abs(menu.top - (originalTop + 41 * density)) <= 2,
+            "Bottom content starts at the scaled bubble edge without a 24dp gap")
+        val expectedLeft = if (outgoing) originalColumns.last() + 1 - menu.width else originalColumns.first().toFloat()
+        assertTrue(kotlin.math.abs(menu.left - expectedLeft) <= 2, "Consumer content aligns to the sender edge without horizontal padding")
+        if (withTop) {
+            val upper = compose.onNodeWithTag("upper action").fetchSemanticsNode().boundsInRoot
+            assertTrue(kotlin.math.abs(upper.bottom - (originalTop - density)) <= 2,
+                "Top content ends at the scaled bubble edge without padding")
+            assertTrue(kotlin.math.abs(upper.left - expectedLeft) <= 2, "Top content shares the sender edge")
+        }
         val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
         val x = ((menu.left + menu.right) / 2).toInt()
         // White menu casts a visible shadow below its bottom, over the uniform scrim.
         val scrim = pixels[x, (menu.bottom + 36).toInt()].red
         assertTrue((1..6).any { pixels[x, menu.bottom.toInt() + it].red < scrim - .015f },
             "Action shadow must survive its scroll viewport")
-        val density = compose.density.density
         val tail = pixels[x, (menu.bottom + 13 * density).toInt()].red
         assertTrue(tail < scrim - .002f, "The lower shadow must extend beyond 12dp without a hard cutoff: tail=$tail background=$scrim")
+        compose.runOnIdle { state.value = state.value.copy(revision = 2, menuTargetId = null) }
+        repeat(10) {
+            compose.mainClock.advanceTimeByFrame()
+            val columns = coloredColumns()
+            assertTrue(kotlin.math.abs((if (outgoing) columns.last() else columns.first()) -
+                (if (outgoing) originalColumns.last() else originalColumns.first())) <= 1,
+                "The sender edge must stay anchored throughout closing")
+        }
+        compose.mainClock.advanceTimeBy(80)
     }
 
     @Test fun themeSlotsReachNestedSurfacesAndExplicitSlotsOverrideThemWithoutLosingGuards() {
