@@ -19,6 +19,17 @@ class ReplyNavigationJourney {
         }
     }
 
+    private fun waitForClosedKeyboardComposer() {
+        val field = compose.onNodeWithTag("composer")
+        val density = compose.activity.resources.displayMetrics.density
+        compose.waitUntil(5000) {
+            val decor = compose.activity.window.decorView
+            val systemBottom = decor.rootWindowInsets.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+            val expectedBottom = decor.height - maxOf(systemBottom.toFloat(), 8f * density) - 4f * density
+            kotlin.math.abs(field.fetchSemanticsNode().boundsInRoot.bottom - expectedBottom) <= 1f
+        }
+    }
+
     @Test fun floatingComposerShowsHistoryBehindItAndRetainsMultilineDraft() {
         val field = compose.onNodeWithTag("composer")
         for (n in 1..6) {
@@ -52,6 +63,7 @@ class ReplyNavigationJourney {
     }
 
     @Test fun composerKeepsGapAboveVisibleKeyboard() {
+        capture("composer-default")
         val field = compose.onNodeWithTag("composer")
         field.performTouchInput { click() }
         compose.waitUntil(5000) {
@@ -89,6 +101,7 @@ class ReplyNavigationJourney {
             !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         newest.assertIsDisplayed()
+        waitForClosedKeyboardComposer()
         field.performTouchInput { click() }
         compose.waitUntil(5000) {
             compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())

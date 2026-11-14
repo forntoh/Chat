@@ -189,3 +189,14 @@ The scaffold's content Column now applies horizontal padding only. Call Conversa
 For non-conversation content (for example a host's empty navigation page), apply
 `Modifier.padding(LocalConversationViewportPadding.current)` yourself. Custom top/bottom bars
 still own their backgrounds and behavior; no host navigation or state ownership changes.
+
+The iOS default scaffold uses a 12pt bottom gutter for the floating surface, matching its side
+gutters, while retaining top/horizontal safe insets and the full IME inset. Android keeps native
+navigation-bar clearance. Explicit `contentWindowInsets` overrides remain host-owned. The field's
+4dp inner inset makes its editable bounds equally inset at the sides and bottom (16pt on iOS).
+The visible keyboard still gets the explicit 8dp gap.
+
+Reply context omits the redundant “Replying to” label. `ActionStyle.composerPadding` defaults to
+16dp start, 8dp top and 4dp end, aligning the dismiss control's center with Send while centering
+it vertically on the quote preview. Hosts can replace the quote/control slots or adjust that
+padding without affecting cancel guards or draft retention.

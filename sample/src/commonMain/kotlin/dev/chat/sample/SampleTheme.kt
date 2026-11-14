@@ -71,7 +71,6 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
                 menuBackground = MaterialTheme.colorScheme.surfaceContainerHigh
             ),
             slots = LocalActionSlots.current.copy(
-                composerStatus = { Column(Modifier.padding(horizontal = 16.dp)) { it() } },
                 quote = { ReplyPreview(it.message, it.onClick) },
                 confirmation = {
                     Surface(

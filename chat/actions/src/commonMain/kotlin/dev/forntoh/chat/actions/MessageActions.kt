@@ -230,14 +230,13 @@ fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActi
     ActionTheme(slots = slots) {
         slots.composerStatus {
             if (content.state.editing != null || content.state.quoteTargetId != null) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(LocalActionStyle.current.composerPadding), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         content.state.editing?.let {
                             slots.status(ActionStatusContent(ActionStatusKind.Editing))
                             if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
                         }
                         content.state.quoteTargetId?.let {
-                            slots.status(ActionStatusContent(ActionStatusKind.Replying))
                             QuotedMessage(content, it)
                         }
                     }

@@ -31,6 +31,7 @@ import dev.forntoh.chat.core.Message
  * control background/shape and spacing, or replace renderers in [ActionSlots]. Material3 hosts
  * can map their MaterialTheme values here without adding Material3 to the actions dependency.
  * [minimumControlSize] defaults to a 48 dp target; custom controls own equivalent semantics.
+ * [composerPadding] places reply/edit context inside an input header, independently of menu spacing.
  */
 data class ActionStyle(
     val textStyle: TextStyle = TextStyle.Default,
@@ -42,6 +43,7 @@ data class ActionStyle(
     val menuShape: Shape = RoundedCornerShape(20.dp),
     val quoteBackground: Color = Color(0x14000000),
     val quoteAccent: Color = Color(0xFF53A6DF),
+    val composerPadding: PaddingValues = PaddingValues(start = 16.dp, top = 8.dp, end = 4.dp),
 )
 
 /** Guarded explicit action. Custom controls author their label from [command], honor [enabled],

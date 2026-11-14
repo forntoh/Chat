@@ -38,7 +38,7 @@ fun ChatScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     containerColor: Color = MaterialTheme.colorScheme.surface,
     contentColor: Color = contentColorFor(containerColor),
-    contentWindowInsets: WindowInsets = WindowInsets.safeDrawing,
+    contentWindowInsets: WindowInsets = defaultChatWindowInsets(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(

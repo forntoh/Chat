@@ -88,8 +88,10 @@ class ActionsJourneyTest {
         compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
         val quote = compose.onNodeWithContentDescription("Reply to Avery", substring = true, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithContentDescription("Cancel reply").fetchSemanticsNode().boundsInRoot
-        kotlin.test.assertTrue(cancel.center.y <= quote.bottom && cancel.center.y >= quote.top,
-            "Dismiss belongs beside the quoted context, leaving the field directly below")
+        compose.onNodeWithText("Replying to").assertDoesNotExist()
+        assertEquals(quote.center.y, cancel.center.y, 1f, "Dismiss must be vertically centered on the preview")
+        val send = compose.onNodeWithContentDescription("Send").fetchSemanticsNode().boundsInRoot
+        assertEquals(send.center.x, cancel.center.x, 1f, "Dismiss and Send must share the trailing alignment")
     }
 
     @Test fun embeddedReplyIsInsideBubbleAndTappingCentersItsTarget() {
