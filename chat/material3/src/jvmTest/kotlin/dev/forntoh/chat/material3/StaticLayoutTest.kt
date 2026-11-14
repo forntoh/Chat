@@ -1,6 +1,7 @@
 package dev.forntoh.chat.material3
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -13,6 +14,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.forntoh.chat.core.*
 import org.junit.Rule
 import org.junit.Test
@@ -20,6 +22,45 @@ import kotlin.test.assertTrue
 
 class StaticLayoutTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun emptyComposerCentersPlaceholderVerticallyWithSend() {
+        compose.setContent {
+            val typography = androidx.compose.material3.Typography()
+            ChatTheme(typography = typography.copy(bodyLarge = typography.bodyLarge.copy(lineHeight = 20.sp))) {
+                Box(Modifier.width(360.dp)) {
+                    MessageComposer(dev.forntoh.chat.ui.ComposerContent(Draft(""), false, {}, {}))
+                }
+            }
+        }
+        val hint = compose.onNodeWithText("Type a message…", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val send = compose.onNodeWithContentDescription("Send").fetchSemanticsNode().boundsInRoot
+        assertTrue(kotlin.math.abs(hint.center.y - send.center.y) <= 1f,
+            "Placeholder must be vertically centered with Send: hint=$hint, send=$send")
+    }
+
+    @Test fun composerKeepsSendInsideRoundedFieldAndBottomAlignedAsDraftGrows() {
+        val draft = mutableStateOf("Hi")
+        val base = chatConversationSlots()
+        compose.setContent {
+            ChatTheme {
+                Box(Modifier.width(360.dp)) {
+                    MessageComposer(dev.forntoh.chat.ui.ComposerContent(Draft(draft.value), false, { draft.value = it }, {}),
+                        base.copy(composerSend = {
+                            Button(onClick = it.onSend, modifier = Modifier.testTag("host-send")) { Text("Submit") }
+                        }))
+                }
+            }
+        }
+        fun field() = compose.onNodeWithTag("composer").fetchSemanticsNode().boundsInRoot
+        fun send() = compose.onNodeWithTag("host-send").fetchSemanticsNode().boundsInRoot
+        val single = field()
+        assertTrue(send().right <= 344f, "Send belongs inside the rounded input's 4dp inner edge")
+        compose.onNodeWithTag("composer").performTextReplacement("One\nTwo\nThree\nFour\nFive\nSix")
+        assertTrue(field().height > single.height, "Multiline draft must grow the input")
+        assertTrue(kotlin.math.abs(send().bottom - field().bottom) <= 4f,
+            "A consumer-provided Send remains at the bottom of the growing input: field=${field()}, send=${send()}")
+        compose.onNodeWithTag("host-send").assertIsDisplayed().assertIsEnabled()
+    }
 
     @Test fun shortTextKeepsTimeBesideBodyAndDeliverySharesItsBaseline() {
         val row = Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sending)

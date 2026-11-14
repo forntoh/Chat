@@ -2,6 +2,7 @@ package dev.forntoh.chat.actions
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import dev.forntoh.chat.core.*
 import dev.forntoh.chat.ui.ComposerContent
 
@@ -218,7 +219,8 @@ fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots 
 }
 
 /**
- * Retained edit/quote context and operation feedback above a host composer. [slots] replaces the
+ * Retained edit/quote context and operation feedback for a host composer header. Dismiss controls
+ * sit beside context; pending/error/delete feedback remains below it. [slots] replaces the
  * ambient bundle, including nested quote/confirmation content. Pending/errors describe actions,
  * separately from message delivery. The host restores the retained pre-edit draft on cancellation;
  * this component only emits guarded intents. It renders no input and retains no second draft.
@@ -227,15 +229,26 @@ fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots 
 fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {
     ActionTheme(slots = slots) {
         slots.composerStatus {
-            content.state.editing?.let {
-                slots.status(ActionStatusContent(ActionStatusKind.Editing))
-                if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
-                slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
-            }
-            content.state.quoteTargetId?.let {
-                slots.status(ActionStatusContent(ActionStatusKind.Replying))
-                QuotedMessage(content, it)
-                slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+            if (content.state.editing != null || content.state.quoteTargetId != null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        content.state.editing?.let {
+                            slots.status(ActionStatusContent(ActionStatusKind.Editing))
+                            if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+                        }
+                        content.state.quoteTargetId?.let {
+                            slots.status(ActionStatusContent(ActionStatusKind.Replying))
+                            QuotedMessage(content, it)
+                        }
+                    }
+                    // Dismiss stays beside context rather than taking another row above the input.
+                    if (content.state.editing != null) {
+                        slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
+                    }
+                    if (content.state.quoteTargetId != null) {
+                        slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+                    }
+                }
             }
             DeleteConfirmation(content)
             if (content.state.pending) slots.status(ActionStatusContent(ActionStatusKind.Pending))

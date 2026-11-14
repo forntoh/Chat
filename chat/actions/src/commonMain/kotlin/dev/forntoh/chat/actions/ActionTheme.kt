@@ -1,6 +1,10 @@
 package dev.forntoh.chat.actions
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -119,6 +124,17 @@ fun ActionControl(label: String, enabled: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun ActionLabel(command: ActionCommand) {
+    if (command == ActionCommand.CancelQuote || command == ActionCommand.CancelEdit) {
+        val color = LocalActionStyle.current.textStyle.color.takeOrElse { Color.Black }
+        Canvas(Modifier.size(22.dp).semantics {
+            contentDescription = if (command == ActionCommand.CancelQuote) "Cancel reply" else "Cancel edit"
+        }) {
+            val inset = size.width * 0.25f
+            drawLine(color, Offset(inset, inset), Offset(size.width - inset, size.height - inset), 2.dp.toPx(), StrokeCap.Round)
+            drawLine(color, Offset(size.width - inset, inset), Offset(inset, size.height - inset), 2.dp.toPx(), StrokeCap.Round)
+        }
+        return
+    }
     BasicText(when (command) {
         ActionCommand.OpenMenu -> "Actions"
         ActionCommand.CloseMenu -> "Close actions"
@@ -140,7 +156,9 @@ fun ActionControl(content: ActionControlContent, label: @Composable () -> Unit =
     val style = LocalActionStyle.current
     Box(Modifier.sizeIn(minWidth = style.minimumControlSize, minHeight = style.minimumControlSize)
         .background(style.controlBackground, style.controlShape)
-        .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick).padding(style.controlPadding)) { label() }
+        .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick)
+        .padding(if (content.command == ActionCommand.CancelQuote || content.command == ActionCommand.CancelEdit) PaddingValues(0.dp) else style.controlPadding),
+        contentAlignment = Alignment.Center) { label() }
 }
 
 @Composable

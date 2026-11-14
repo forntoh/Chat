@@ -4,6 +4,10 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
+- The composer floats over the timeline with scrollable bottom clearance. Material3 keeps Send
+  inside its borderless rounded field and centers placeholder/text vertically. Optional actions use
+  an icon-only reply/edit dismiss control beside the preview. Header/leading slots accept host content. History
+  scrolls behind the surrounding space; multiline growth preserves latest/history reader intent.
 - Return-to-latest uses continuous scrolling without long-history teleports. Sending from history
   returns to latest; keyboard/composer viewport changes retain bottom-follow, including oversized final messages.
 - Replies can render an inset, slot-customizable sender/excerpt preview inside the message bubble.

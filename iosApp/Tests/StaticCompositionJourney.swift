@@ -71,6 +71,7 @@ final class StaticCompositionJourney: XCTestCase {
         app.buttons["Reply"].tap()
         composer.tap()
         composer.typeText("A reply with an embedded preview")
+        capture("composer-reply")
         app.buttons["Send"].tap()
         let preview = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Reply to Morgan Lee")).firstMatch
         XCTAssertTrue(preview.waitForExistence(timeout: 10))

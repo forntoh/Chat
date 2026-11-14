@@ -54,3 +54,9 @@ val slots = LocalConversationSlots.current.copy(presentedMessage = { row, outgoi
     }
 })
 ```
+
+
+The composer overlays the timeline with measured, scrollable bottom clearance. History may pass
+behind its transparent margins; latest content rests above it. The return control uses that same
+clearance, and reply targets center in the area above the composer. Composer growth preserves an
+existing bottom reader or a history reader’s anchor without reserving a separate clipped viewport.

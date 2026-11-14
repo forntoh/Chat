@@ -1,14 +1,12 @@
 package dev.forntoh.chat.material3
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.focus.onFocusChanged
 import dev.forntoh.chat.core.*
 import dev.forntoh.chat.ui.*
 
@@ -108,29 +106,50 @@ fun MessageComposer(content: ComposerContent) {
     MessageComposer(content, LocalConversationSlots.current)
 }
 
+/** Rounded floating input with bottom-aligned field/Send subslots. See the overload with
+ * `headerContent` and `leadingContent` for optional host-owned reply/attachment presentation. */
 @Composable
 fun MessageComposer(content: ComposerContent, slots: ConversationSlots) {
-    var focused by remember { mutableStateOf(false) }
+    MessageComposer(content, slots, headerContent = {}, leadingContent = {})
+}
+
+/**
+ * Floating composer surface. [headerContent] renders inside the input above its field (for example,
+ * optional action-module reply/edit context); [leadingContent] sits outside, aligned to the bottom
+ * (for example an attachment control). Empty content reserves no space. The input and Send use
+ * [slots] and keep the guarded [content] callbacks. No optional module is required by this renderer.
+ * Conversation measures the entire composer slot for timeline clearance; custom wrappers should
+ * paint only their occupied surfaces so messages remain visible through the surrounding space.
+ */
+@Composable
+fun MessageComposer(
+    content: ComposerContent,
+    slots: ConversationSlots,
+    headerContent: @Composable () -> Unit,
+    leadingContent: @Composable () -> Unit,
+) {
     ConversationTheme(slots) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = ChatGeometry.Gutter,
-                    vertical = ChatGeometry.ComposerVerticalPadding
-                ),
+            Modifier.fillMaxWidth().padding(
+                horizontal = ChatGeometry.Gutter,
+                vertical = ChatGeometry.ComposerVerticalPadding
+            ),
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.ComposerGap),
         ) {
+            leadingContent()
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                border = if (focused) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
-                modifier = Modifier.weight(1f).onFocusChanged { focused = it.hasFocus },
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
+                modifier = Modifier.weight(1f),
             ) {
-                slots.composerField(content)
+                Column {
+                    headerContent()
+                    Row(Modifier.fillMaxWidth().padding(ChatGeometry.ComposerInnerPadding), verticalAlignment = Alignment.Bottom) {
+                        Box(Modifier.weight(1f)) { slots.composerField(content) }
+                        slots.composerSend(content)
+                    }
+                }
             }
-            slots.composerSend(content)
         }
     }
 }

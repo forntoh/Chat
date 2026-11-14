@@ -95,14 +95,15 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = ChatGeometry.Control)
-                .padding(
-                    horizontal = ChatGeometry.InputHorizontalPadding,
-                    vertical = ChatGeometry.InputVerticalPadding
-                )
                 .testTag("composer").semantics { contentDescription = "Message" },
             decorationBox = { field ->
-                Box {
+                Box(
+                    Modifier.heightIn(min = ChatGeometry.Control).padding(
+                        horizontal = ChatGeometry.InputHorizontalPadding,
+                        vertical = ChatGeometry.InputVerticalPadding
+                    ),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
                     if (it.draft.text.isEmpty()) {
                         Text(
                             "Type a message…",

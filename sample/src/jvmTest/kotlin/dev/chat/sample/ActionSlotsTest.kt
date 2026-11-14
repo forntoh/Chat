@@ -23,6 +23,22 @@ import androidx.compose.ui.graphics.toPixelMap
 class ActionSlotsTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun defaultReplyDismissUsesIconAndPreservesDraft() {
+        val host = FakeHost()
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Retain my draft"))
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
+        compose.setContent {
+            val actions = rememberMessageActions(host.state, host.actions, host::onAction, host::onEvent)
+            Box(Modifier.width(360.dp)) { ActionComposerStatus(actions, ActionSlots()) }
+        }
+        compose.onNodeWithText("Cancel reply").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Cancel reply").assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(null, host.actions.quoteTargetId)
+            assertEquals("Retain my draft", host.state.draft.text)
+        }
+    }
+
     @Test fun focusAllowsIndependentTopAndBottomContentAndRemovesChangedTargets() {
         val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
         val conversation = mutableStateOf(ConversationState("room", "me", messages = listOf(target)))

@@ -4,6 +4,9 @@ import dev.forntoh.chat.actions.*
 import dev.forntoh.chat.material3.ChatTheme
 import dev.forntoh.chat.material3.chatColorScheme
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -103,7 +106,12 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
                             )
                         )
                     ) {
-                        ActionControl(button) {
+                        if (button.command == ActionCommand.CancelQuote || button.command == ActionCommand.CancelEdit) {
+                            IconButton(onClick = button.onClick, enabled = button.enabled,
+                                modifier = Modifier.semantics { contentDescription = if (button.command == ActionCommand.CancelQuote) "Cancel reply" else "Cancel edit" }) {
+                                Icon(ChatIcons.Close, null, Modifier.size(22.dp))
+                            }
+                        } else ActionControl(button) {
                             val icon = when (button.command) {
                                 ActionCommand.Copy -> ChatIcons.Copy
                                 ActionCommand.Quote -> ChatIcons.Reply

@@ -21,7 +21,7 @@ internal object ChatGeometry {
     val RowGap = 4.dp
     val Control = 48.dp
     val Icon = 22.dp
-    val ComposerGap = 8.dp
+    val ComposerInnerPadding = 4.dp
     val ComposerVerticalPadding = 8.dp
     val InputHorizontalPadding = 16.dp
     val InputVerticalPadding = 12.dp

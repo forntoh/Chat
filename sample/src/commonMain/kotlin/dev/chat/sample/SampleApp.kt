@@ -148,14 +148,13 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                         })
                     }, composer = { content ->
                         Column {
-                            ActionComposerStatus(actions)
                             if (custom) Text("Custom composer · host draft", style = MaterialTheme.typography.labelMedium,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                            if (retainedHost.actions.editing != null) {
-                                MessageComposer(actions.composer(content), base.copy(composerSend = { composer ->
-                                    TextButton(onClick = composer.onSend, enabled = composer.canSend) { Text("Save edit") }
-                                }))
-                            } else base.composer(actions.composer(content))
+                            val composerSlots = if (retainedHost.actions.editing != null) base.copy(composerSend = { composer ->
+                                TextButton(onClick = composer.onSend, enabled = composer.canSend) { Text("Save edit") }
+                            }) else base
+                            MessageComposer(actions.composer(content), composerSlots,
+                                headerContent = { ActionComposerStatus(actions) }, leadingContent = {})
                         }
                     }), history = retainedHost.history, onLoadEarlier = retainedHost::loadEarlier)
             } else Text("In-memory sample. Messages and drafts last only while the app is open. " +

@@ -19,6 +19,38 @@ class ReplyNavigationJourney {
         }
     }
 
+    @Test fun floatingComposerShowsHistoryBehindItAndRetainsMultilineDraft() {
+        val field = compose.onNodeWithTag("composer")
+        for (n in 1..6) {
+            field.performTextInput("Composer journey $n. More messages to demonstrate history behind the floating field.")
+            compose.onNodeWithContentDescription("Send").performClick()
+            compose.waitUntil(10000) {
+                field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+            }
+        }
+        field.performTouchInput { click() }
+        compose.waitUntil(5000) {
+            compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntil(5000) {
+            !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        capture("composer-default")
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("timeline").performScrollToIndex(2)
+        val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue("Timeline continues behind the floating input", viewport.bottom > field.fetchSemanticsNode().boundsInRoot.bottom)
+        capture("composer-history-behind")
+        field.performClick().performTextInput("One\nTwo\nThree\nFour\nFive\nSix")
+        compose.onNodeWithContentDescription("Send").assertIsDisplayed().assertIsEnabled()
+        capture("composer-multiline-keyboard")
+        compose.onNodeWithTag("demo-menu").performClick()
+        compose.onNodeWithText("Custom UI").performClick()
+        field.assertTextContains("Six", substring = true)
+        capture("composer-custom-multiline")
+    }
+
     @Test fun keyboardKeepsLatestVisibleAndSendingLeavesHistory() {
         val field = compose.onNodeWithTag("composer")
         for (n in 1..8) {
@@ -28,27 +60,25 @@ class ReplyNavigationJourney {
                 field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
             }
         }
-        field.performClick()
+        field.performTouchInput { click() }
         compose.waitUntil(5000) {
             compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         val newest = compose.onNodeWithText("Keyboard journey message 8. Building enough history to check bottom following.")
         newest.assertIsDisplayed()
-        var viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= viewport.bottom + 1)
+        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1)
         capture("keyboard-open-latest")
         androidx.test.espresso.Espresso.pressBack()
         compose.waitUntil(5000) {
             !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         newest.assertIsDisplayed()
-        field.performClick()
+        field.performTouchInput { click() }
         compose.waitUntil(5000) {
             compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         newest.assertIsDisplayed()
-        viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= viewport.bottom + 1)
+        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1)
         compose.onNodeWithTag("timeline").performScrollToIndex(1)
         field.performTextInput("Sent while viewing history")
         compose.onNodeWithContentDescription("Send").performClick()
@@ -63,6 +93,7 @@ class ReplyNavigationJourney {
         compose.onNodeWithTag("bubble-morgan", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         compose.onNodeWithTag("composer").performTextInput("A reply with an embedded preview")
+        capture("composer-reply")
         compose.onNodeWithContentDescription("Send").performClick()
         compose.waitUntil(10000) { compose.onAllNodesWithTag("bubble-studio-1", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
         if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())

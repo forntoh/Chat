@@ -1,10 +1,11 @@
 package dev.forntoh.chat.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.disabled
@@ -13,10 +14,38 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import dev.forntoh.chat.core.*
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertTrue
+import androidx.compose.ui.unit.dp
 import kotlin.test.assertEquals
 
 class ConversationSlotTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun timelineScrollsBehindCustomComposerWhileLatestClearsItsChangingHeight() {
+        val composerHeight = mutableStateOf(72.dp)
+        val rows = (0..39).map { n -> Message("m$n", Participant("other", "Avery"), 0, "09:41", "Message $n", Delivery.Sent) }
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.size(360.dp, 400.dp)) {
+                Conversation(ConversationState("room", "me", messages = rows), {},
+                    messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
+                    composerContent = {
+                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(composerHeight.value).testTag("host-composer"))
+                    })
+            }
+        }
+        fun bounds(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+        assertEquals(bounds("host-composer").bottom, bounds("timeline").bottom, 1f,
+            "The timeline must extend behind the composer instead of ending at its top")
+        assertTrue(bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
+            "Latest rests fully above the overlaid composer with breathing room")
+        compose.runOnIdle { composerHeight.value = 144.dp }
+        assertTrue(bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
+            "Composer growth must retain the latest message above the input")
+        compose.onNodeWithTag("timeline").performScrollToIndex(10)
+        val anchor = bounds("message-m10").top
+        compose.runOnIdle { composerHeight.value = 72.dp }
+        assertEquals(anchor, bounds("message-m10").top, 1f, "Resizing must preserve a history reader's anchor")
+    }
 
     @Test fun groupingFollowsAdjacentSenderIdentityAcrossPrependAndConversationChanges() {
         val sender = Participant("avery", "Avery")

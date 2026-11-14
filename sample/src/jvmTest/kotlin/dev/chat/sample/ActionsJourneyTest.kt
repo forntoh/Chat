@@ -71,7 +71,7 @@ class ActionsJourneyTest {
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         capture("05-host-theme-quoted-draft")
         demo("Default chat theme")
-        compose.onNodeWithText("Cancel reply").performClick()
+        compose.onNodeWithContentDescription("Cancel reply").performClick()
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
@@ -82,6 +82,16 @@ class ActionsJourneyTest {
         compose.runOnIdle { assertEquals("welcome", host.actions.quotes[host.state.messages.last().id]) }
         compose.onNodeWithTag("composer").assertTextContains("")
     }
+    @Test fun replyContextKeepsDismissBesidePreviewInsideComposer() {
+        val host = FakeHost()
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
+        val quote = compose.onNodeWithContentDescription("Reply to Avery", substring = true, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val cancel = compose.onNodeWithContentDescription("Cancel reply").fetchSemanticsNode().boundsInRoot
+        kotlin.test.assertTrue(cancel.center.y <= quote.bottom && cancel.center.y >= quote.top,
+            "Dismiss belongs beside the quoted context, leaving the field directly below")
+    }
+
     @Test fun embeddedReplyIsInsideBubbleAndTappingCentersItsTarget() {
         val host = FakeHost()
         host.useHistoryFixture()
@@ -103,7 +113,8 @@ class ActionsJourneyTest {
         preview.performClick()
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         val row = compose.onNodeWithTag("message-${target.id}").fetchSemanticsNode().boundsInRoot
-        assertEquals(viewport.center.y, row.center.y, 2f)
+        val composer = compose.onNodeWithTag("composer-area").fetchSemanticsNode().boundsInRoot
+        assertEquals((viewport.top + composer.top) / 2f, row.center.y, 2f)
         capture("reply-target-centered")
         demo("Custom UI")
         capture("reply-custom-target-centered")
@@ -151,9 +162,9 @@ class ActionsJourneyTest {
         compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").assertTextContains("Original message")
-        compose.onNodeWithText("Cancel edit").performClick()
+        compose.onNodeWithContentDescription("Cancel edit").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
-        compose.onNodeWithText("Cancel reply").assertExists()
+        compose.onNodeWithContentDescription("Cancel reply").assertExists()
         compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").performTextReplacement("Revised message")
@@ -167,7 +178,7 @@ class ActionsJourneyTest {
         demo("Complete action")
         compose.runOnIdle { assertEquals("Revised message", host.state.messages.last().text) }
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
-        compose.onNodeWithText("Cancel reply").assertExists()
+        compose.onNodeWithContentDescription("Cancel reply").assertExists()
     }
     @Test fun deleteRequiresConfirmationAndRevalidatesCapabilityAndTarget() {
         val host = FakeHost()

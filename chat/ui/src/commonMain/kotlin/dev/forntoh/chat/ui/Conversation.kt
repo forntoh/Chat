@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -79,6 +80,9 @@ class ComposerContent(
  * with separately named actions. Swapping slots at this call site does not accept a draft
  * or reset pending submission; keep [state] authoritative rather than copying it into a slot.
  * [composerContent] receives guarded composer callbacks and pending state via [ComposerContent].
+ * The composer overlays the timeline. Its measured height becomes scrollable bottom clearance,
+ * keeping latest content above it while history scrolls behind transparent areas. Custom composers
+ * own their backgrounds; avoid painting an opaque full-width band for a floating presentation.
  *
  * A send latches synchronously before invoking [onEvent]. Changing conversation or draft
  * revision resets that latch; unmounting also discards it. An allowed Send activation also
@@ -170,8 +174,10 @@ fun Conversation(
     var submitted by remember(state.conversationId, state.draft.revision) { mutableStateOf(false) }
     var sendScrollRequest by remember(state.conversationId) { mutableIntStateOf(0) }
     val pending = state.draft.submitting || submitted
+    var composerHeight by remember { mutableIntStateOf(0) }
+    val composerInset = with(LocalDensity.current) { composerHeight.toDp() }
     ConversationTheme(slots) {
-        Column(modifier.fillMaxSize().imePadding()) {
+        Box(modifier.fillMaxSize().imePadding()) {
             key(state.conversationId) {
                 val list = rememberLazyListState()
                 val scope = rememberCoroutineScope()
@@ -246,7 +252,7 @@ fun Conversation(
                                     }
                                     list.animateScrollBy(
                                         target.offset + (target.size + gap) / 2f -
-                                                (layout.viewportStartOffset + layout.viewportEndOffset) / 2f
+                                                (layout.viewportStartOffset + layout.viewportEndOffset - composerHeight) / 2f
                                     )
                                     list.layoutInfo.visibleItemsInfo.any { it.key == targetId } &&
                                             latestState.messages.map { it.id } == currentIds
@@ -341,11 +347,11 @@ fun Conversation(
                         }
                     }
                 }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
+                Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         Modifier.fillMaxSize().testTag("timeline"),
                         state = list,
-                        contentPadding = PaddingValues(12.dp),
+                        contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = composerInset + 12.dp),
                     ) {
                         item(key = HistoryMarker) {
                             (historyContent ?: {
@@ -418,7 +424,7 @@ fun Conversation(
                     val awayFromLatest by remember { derivedStateOf { list.canScrollForward } }
                     TimelineLatest(
                         awayFromLatest,
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = composerInset).padding(12.dp),
                     ) {
                         (latestContent ?: slots.latest)(
                             LatestContent(newMessages) {
@@ -428,41 +434,43 @@ fun Conversation(
                     }
                 }
             }
-            (composerContent ?: slots.composer)(
-                ComposerContent(
-                    state.draft, pending,
-                    onTextChange = {
-                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                            onEvent(
-                                ConversationEvent.DraftChanged(
-                                    conversationId = state.conversationId,
-                                    text = it,
-                                ),
-                            )
-                        }
-                    },
-                    onSend = {
-                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
-                            submitted = true
-                            sendScrollRequest++
-                            onEvent(
-                                ConversationEvent.SendDraft(
-                                    conversationId = state.conversationId,
-                                    revision = state.draft.revision,
-                                    text = state.draft.text,
-                                    attachments = state.draft.attachments.toList(),
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }.testTag("composer-area")) {
+                (composerContent ?: slots.composer)(
+                    ComposerContent(
+                        state.draft, pending,
+                        onTextChange = {
+                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                                onEvent(
+                                    ConversationEvent.DraftChanged(
+                                        conversationId = state.conversationId,
+                                        text = it,
+                                    ),
                                 )
-                            )
-                        }
-                    },
-                    onDraftAction = { action ->
-                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                            submitted = true
-                            action()
-                        }
-                    },
+                            }
+                        },
+                        onSend = {
+                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
+                                submitted = true
+                                sendScrollRequest++
+                                onEvent(
+                                    ConversationEvent.SendDraft(
+                                        conversationId = state.conversationId,
+                                        revision = state.draft.revision,
+                                        text = state.draft.text,
+                                        attachments = state.draft.attachments.toList(),
+                                    )
+                                )
+                            }
+                        },
+                        onDraftAction = { action ->
+                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                                submitted = true
+                                action()
+                            }
+                        },
+                    )
                 )
-            )
+            }
         }
     }
 }

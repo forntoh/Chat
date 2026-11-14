@@ -149,3 +149,29 @@ provider using the host MaterialTheme. Prefer the new names for current integrat
 The version-catalog alias is `libs.tabler.icons`; the dependency stays inside chat-material3.
 Core/custom-UI/actions/media consumers do not inherit it unless they select Material3.
 Icons are bundled by the dependency; no copied vector paths or runtime icon fetch is used.
+
+
+### Floating composer
+
+`Conversation` overlays the composer on the timeline. It measures the complete composer slot
+and adds its height to scrollable bottom padding: the latest message rests above the input,
+while history can scroll behind its transparent margins. Latest floats above that measured
+area, and quote navigation centers within the unobscured timeline. Keyboard insets still belong
+to `Conversation`; do not apply another IME inset in a custom composer.
+
+Material3 `MessageComposer` places `composerField` and `composerSend` inside one rounded surface,
+with Send aligned to the bottom during multiline growth. Its four-argument overload accepts
+`headerContent` inside the surface (for example `ActionComposerStatus` from the optional actions
+module) and `leadingContent` outside it (for example a host attachment button). Empty slots
+reserve no space. A leading control owns its trailing gap. Existing overloads and slot overrides
+remain supported; the default renderer requires neither actions nor media. Custom composers
+own their surfaces, labels and controls; paint only occupied shapes to retain the floating effect.
+
+Composer defaults use the shared 12dp outer gutter, 8dp vertical margin, 4dp inner surface inset,
+28dp corner radius, 48dp controls and 22dp Tabler icons. The field remains bounded to five visible
+lines and scrolls longer drafts; editing/pending/Send guards continue through `ComposerContent`.
+
+The default floating surface has no outline. Placeholder and editable text share a vertically
+centered decoration area; multiline content retains bottom-aligned Send. Optional actions render
+reply/edit cancellation as an accessible X with the existing guarded command and replaceable
+control slot. Cancelling reply leaves the draft untouched.
