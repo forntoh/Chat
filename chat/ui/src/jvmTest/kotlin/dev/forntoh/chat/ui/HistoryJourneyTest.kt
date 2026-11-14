@@ -94,6 +94,91 @@ class HistoryJourneyTest {
         compose.onNodeWithTag("message-m29").assertIsNotDisplayed()
     }
 
+    @Test fun replyNavigationTracksStableTargetWhenHistoryIsPrependedDuringTravel() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..99).map(::message)))
+        val highlighted = mutableSetOf<String>()
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {},
+                    slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
+                        androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
+                        BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
+                    }), composerContent = {})
+            }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText("Message 99").performClick()
+        repeat(4) { compose.mainClock.advanceTimeByFrame() }
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = (-40..99).map(::message)) }
+        compose.mainClock.advanceTimeBy(1600)
+        val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        val target = compose.onNodeWithTag("message-m12").fetchSemanticsNode().boundsInRoot
+        assertEquals(viewport.center.y, target.center.y, 2f)
+        compose.runOnIdle { assertTrue("m12" in highlighted) }
+        compose.mainClock.autoAdvance = true
+    }
+
+    @Test fun replyNavigationStopsWhenTargetDisappearsOrConversationChanges() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..99).map(::message)))
+        val highlighted = mutableSetOf<String>()
+        lateinit var navigate: (String) -> Unit
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {},
+                    slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
+                        androidx.compose.runtime.SideEffect {
+                            navigate = presentation.onNavigateToMessage
+                            if (presentation.isHighlighted) highlighted.add(row.id)
+                        }
+                        BasicText(row.text, Modifier.height(48.dp))
+                    }), composerContent = {})
+            }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { navigate("m12") }
+        repeat(4) { compose.mainClock.advanceTimeByFrame() }
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages.filterNot { it.id == "m12" }) }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.runOnIdle { assertTrue(highlighted.isEmpty()) }
+        // Reintroducing the ID must not restart the cancelled request.
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = (0..99).map(::message)) }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.runOnIdle { assertTrue(highlighted.isEmpty()); navigate("m12") }
+        repeat(4) { compose.mainClock.advanceTimeByFrame() }
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(conversationId = "other") }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.onNodeWithTag("message-m99").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(highlighted.isEmpty()) }
+        compose.mainClock.autoAdvance = true
+    }
+
+    @Test fun readerDragCancelsReplyNavigationEvenWhenHistoryThenArrives() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..99).map(::message)))
+        val highlighted = mutableSetOf<String>()
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {},
+                    slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
+                        androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
+                        BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
+                    }), composerContent = {})
+            }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText("Message 99").performClick()
+        repeat(4) { compose.mainClock.advanceTimeByFrame() }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(durationMillis = 400) }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = (-40..99).map(::message)) }
+        compose.mainClock.advanceTimeBy(1200)
+        compose.runOnIdle { assertTrue(highlighted.isEmpty()) }
+        compose.onNodeWithTag("message-m12").assertDoesNotExist()
+        compose.mainClock.autoAdvance = true
+    }
+
     @Test fun latestMessageStaysVisibleThroughoutKeyboardViewportContraction() {
         fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
         val height = mutableStateOf(600.dp)

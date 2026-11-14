@@ -7,8 +7,9 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
 - Return-to-latest uses continuous scrolling without long-history teleports. Sending from history
   returns to latest; keyboard/composer viewport changes retain bottom-follow, including oversized final messages.
 - Replies can render an inset, slot-customizable sender/excerpt preview inside the message bubble.
-  Tapping a loaded quote smoothly centers its stable target and briefly highlights it. Custom row
-  slots receive `MessagePresentation` for their own animation; unavailable targets remain inert.
+  Tapping a loaded quote smoothly centers its stable target and briefly highlights it.
+  Navigation follows the stable target across history prepends and cancels if it disappears.
+  Custom row slots receive `MessagePresentation` for their own animation; unavailable targets remain inert.
 - History feedback scrolls with the timeline. Arrivals follow readers already at the bottom;
   readers in history retain their anchor. Latest floats at the lower right as a small chevron,
   animates in/out and smoothly returns to the newest message without taking timeline height.

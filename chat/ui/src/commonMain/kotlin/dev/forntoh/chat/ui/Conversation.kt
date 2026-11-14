@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -150,6 +152,7 @@ fun Conversation(
  * @param historyContent Optional status/retry override at the start of the timeline; null uses effective slots.
  * @param latestContent Optional latest-control override; null uses effective slots.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 fun Conversation(
     state: ConversationState,
@@ -224,11 +227,14 @@ fun Conversation(
                         followingLatest = false
                         highlightedId = null
                         navigation = scope.launch {
-                            val index = latestState.messages.indexOfFirst { it.id == targetId }
-                            if (index >= 0) {
-                                list.animateScrollToItem(index + 1)
-                                val layout = list.layoutInfo
-                                layout.visibleItemsInfo.find { it.key == targetId }?.let { target ->
+                            val located = snapshotFlow { latestState.messages.map { it.id } }
+                                .mapLatest { currentIds ->
+                                    val index = currentIds.indexOf(targetId)
+                                    if (index < 0) return@mapLatest false
+                                    list.animateScrollToItem(index + 1)
+                                    val layout = list.layoutInfo
+                                    val target = layout.visibleItemsInfo.find { it.key == targetId }
+                                        ?: return@mapLatest false
                                     val rows = latestState.messages
                                     val row = rows.getOrNull(index)
                                     val group = MessageGroupContext(
@@ -242,14 +248,15 @@ fun Conversation(
                                         target.offset + (target.size + gap) / 2f -
                                                 (layout.viewportStartOffset + layout.viewportEndOffset) / 2f
                                     )
-                                }
-                                if (latestState.messages.any { it.id == targetId }) {
-                                    highlightedId = targetId
-                                    try {
-                                        delay(900)
-                                    } finally {
-                                        highlightedId = null
-                                    }
+                                    list.layoutInfo.visibleItemsInfo.any { it.key == targetId } &&
+                                            latestState.messages.map { it.id } == currentIds
+                                }.first()
+                            if (located) {
+                                highlightedId = targetId
+                                try {
+                                    delay(900)
+                                } finally {
+                                    highlightedId = null
                                 }
                             }
                         }
