@@ -51,6 +51,14 @@ messageMetadata = { message ->
 Do not wrap this helper in another layout. A plain existing metadata override remains footer
 content. Replace or empty `messageMetadata` to control its visible content; change
 `messageDescription` separately for announced content. Custom body slots use their full measured bounds for a safe fit decision; no text geometry is guessed.
+For host actions, use the `MessageBubble(message, outgoing, retry, slots, bubbleModifier)` overload.
+Attach click/long-click modifiers to `bubbleModifier`; its hit region and indication are clipped to
+the colored bubble, excluding the external heading, avatar, row space and Retry. Avoid wrapping
+an entire row in a clickable container. Custom renderers attach interaction to their own shaped surface.
+
+Fit detection uses the visible time/status width. Outgoing minimum status sizing is reserved
+separately, so it cannot force a fitting timestamp onto another row. Default status changes
+preserve the body origin while the footer changes rows as needed.
 The bubble measures its body/footer
 independently of the heading, so a long sender name cannot stretch a short colored bubble.
 

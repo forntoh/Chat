@@ -38,6 +38,21 @@ fun MessageBubble(
     isCurrentParticipant: Boolean,
     onRetry: (() -> Unit)?,
     slots: ConversationSlots
+) = MessageBubble(message, isCurrentParticipant, onRetry, slots, Modifier)
+
+/**
+ * Renders the default message with [bubbleModifier] applied only to the shaped colored surface.
+ * Host click/long-click handling and indication attached here exclude the external sender, avatar,
+ * row gutters and separate Retry. The modifier is clipped to the bubble's grouped corners.
+ * Slots retain content ownership; actions and their eligibility remain host-owned.
+ */
+@Composable
+fun MessageBubble(
+    message: Message,
+    isCurrentParticipant: Boolean,
+    onRetry: (() -> Unit)?,
+    slots: ConversationSlots,
+    bubbleModifier: Modifier,
 ) {
     val group = LocalMessageGroupContext.current
     ConversationTheme(slots) {
@@ -58,6 +73,7 @@ fun MessageBubble(
                         message = message,
                         outgoing = isCurrentParticipant,
                         slots = slots,
+                        bubbleModifier = bubbleModifier,
                         shape = RoundedCornerShape(
                             topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
                             topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,

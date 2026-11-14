@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import dev.forntoh.chat.actions.*
 import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.material3.MessageBubble
 import dev.forntoh.chat.material3.MessageComposer
 import dev.forntoh.chat.material3.ChatScaffold
 import dev.forntoh.chat.material3.ChatIcons
@@ -115,16 +117,17 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                 Conversation(retainedHost.state, actions::onConversationEvent, modifier = Modifier.weight(1f),
                     slots = base.copy(message = { message, outgoing, retry ->
                         Box {
-                            Column(Modifier.combinedClickable(
+                            val bubbleInteraction = Modifier.testTag("bubble-${message.id}").combinedClickable(
                                 onClickLabel = "Message actions",
                                 onClick = { actions.request(ActionCommand.OpenMenu, message.id) },
                                 onLongClick = { actions.request(ActionCommand.OpenMenu, message.id) },
-                            )) {
+                            )
+                            Column {
                                 retainedHost.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                                 if (custom && !outgoing) {
                                     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer,
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                        modifier = Modifier.testTag("custom-incoming").clearAndSetSemantics {
+                                        modifier = Modifier.testTag("custom-incoming").clip(RoundedCornerShape(16.dp)).then(bubbleInteraction).clearAndSetSemantics {
                                             contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${message.delivery.name}"
                                         }) {
                                         Column(Modifier.padding(16.dp)) {
@@ -133,7 +136,7 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                                             Text("${message.displayTime} · ${message.delivery.name}", style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
-                                } else base.message(message, outgoing, retry)
+                                } else MessageBubble(message, outgoing, retry, base, bubbleInteraction)
                             }
                             DropdownMenu(expanded = retainedHost.actions.menuTargetId == message.id,
                                 onDismissRequest = { actions.request(ActionCommand.CloseMenu) }) {

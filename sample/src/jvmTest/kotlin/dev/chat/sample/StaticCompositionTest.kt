@@ -52,8 +52,51 @@ class StaticCompositionTest {
         capture("default-long-content")
     }
 
+    @Test fun messageActionsAndPressFeedbackAreConfinedToBubble() {
+        val host = FakeHost()
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
+        val message = host.state.messages.first()
+        compose.onNodeWithTag("bubble-${message.id}").assertHasClickAction()
+        compose.onNodeWithTag("message-${message.id}").performTouchInput {
+            click(androidx.compose.ui.geometry.Offset(2f, centerY))
+        }
+        compose.runOnIdle { kotlin.test.assertEquals(null, host.actions.menuTargetId, "Row gutter must not activate actions") }
+        compose.onNodeWithText(message.sender.displayName, useUnmergedTree = true).performTouchInput { click() }
+        compose.runOnIdle { kotlin.test.assertEquals(null, host.actions.menuTargetId, "External sender must not activate actions") }
+        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { click() }
+        compose.onNodeWithText("Reply").assertIsDisplayed()
+        compose.onNodeWithText("Close actions").performClick()
+        compose.mainClock.advanceTimeBy(300)
+        val beforePress = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
+        val bubble = compose.onNodeWithTag("bubble-${message.id}", true).fetchSemanticsNode().boundsInRoot
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(80)
+        val pressed = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
+        var changedInside = 0
+        for (y in 0 until pressed.height) for (x in 0 until pressed.width) {
+            if (pressed[x, y].toArgb() != beforePress[x, y].toArgb()) {
+                kotlin.test.assertTrue(x >= bubble.left && x < bubble.right && y >= bubble.top && y < bubble.bottom,
+                    "Touch feedback must not draw outside the bubble")
+                changedInside++
+            }
+        }
+        kotlin.test.assertTrue(changedInside > 0, "Bubble press must show feedback")
+        capture("bubble-only-pressed")
+        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { cancel() }
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { longClick() }
+        compose.onNodeWithText("Reply").assertIsDisplayed()
+        capture("bubble-actions-menu")
+        compose.onNodeWithText("Close actions").performClick()
+        compose.onNodeWithTag("demo-menu").performClick()
+        compose.onNodeWithText("Custom UI").performClick()
+        compose.onNodeWithTag("custom-incoming", true).performTouchInput { click() }
+        compose.onNodeWithText("Reply").assertIsDisplayed()
+    }
+
     private fun capture(name: String) {
-        val pixels = compose.onRoot().captureToImage().toPixelMap()
+        val pixels = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
         val image = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until pixels.height) for (x in 0 until pixels.width) image.setRGB(x, y, pixels[x, y].toArgb())
         val directory = File("build/pat267-evidence").apply { mkdirs() }

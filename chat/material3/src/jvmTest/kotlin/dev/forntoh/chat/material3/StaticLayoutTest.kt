@@ -76,6 +76,29 @@ class StaticLayoutTest {
             "A full final line at constrained width needs a separate metadata row")
     }
 
+    @Test fun outgoingFitUsesVisibleTimeWidthAcrossDeliveryTransitions() {
+        val delivery = mutableStateOf(Delivery.Sent)
+        compose.setContent {
+            ChatTheme {
+                Box(Modifier.width(240.dp)) {
+                    MessageBubble(Message("one", Participant("me", "You"), 0, "09:41", "WWWWWW", delivery.value), true, null)
+                }
+            }
+        }
+        fun body() = compose.onNodeWithText("WWWWWW", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        fun time() = compose.onNodeWithText("09:41", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val origin = body().topLeft
+        assertTrue(time().left >= body().right && time().top < body().bottom,
+            "Visible Sent timestamp fits even when an 88dp reservation would not")
+        compose.runOnIdle { delivery.value = Delivery.Sending }
+        assertTrue(time().top >= body().bottom, "Visible pending status must wrap if it would overlap")
+        assertTrue(body().topLeft == origin, "Status changes preserve the text origin")
+        compose.runOnIdle { delivery.value = Delivery.Failed }
+        assertTrue(time().top >= body().bottom && body().topLeft == origin)
+        compose.runOnIdle { delivery.value = Delivery.Sent }
+        assertTrue(time().top < body().bottom && time().left >= body().right && body().topLeft == origin)
+    }
+
     @Test fun absentAvatarAndDeliveryChangesKeepTextGeometryStableAndLongContentFits() {
         val row = mutableStateOf(Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sending))
         val avatar = mutableStateOf(true)

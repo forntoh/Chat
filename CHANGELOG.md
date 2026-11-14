@@ -8,6 +8,9 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
   wrapping only to avoid overlap. Bubbles stay content-sized with bounded gutters. The optional
   `MessageMetadata` helper places sender headings outside and time inside the bubble through
   the existing metadata slot; plain and empty overrides remain supported.
+- Material3 exposes a bubble-only modifier for host touch feedback and actions, clipped to
+  grouped corners. The sample excludes sender headings, avatars, gutters and Retry from message
+  action activation; its custom surface retains equivalent handling.
 - Library namespace/root package is `dev.forntoh.chat`; update prior `dev.chat.*` library imports
   and local staging group to `dev.forntoh.chat.candidate`. Sample/consumer packages are unchanged.
 - Host-owned conversation state/events and shared Compose UI for Android, arm64 iOS and desktop JVM.
