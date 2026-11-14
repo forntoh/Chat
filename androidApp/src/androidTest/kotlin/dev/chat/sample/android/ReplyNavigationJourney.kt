@@ -48,7 +48,7 @@ class ReplyNavigationJourney {
             !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         capture("composer-default")
-        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToIndex(2)
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         org.junit.Assert.assertTrue("Timeline continues behind the floating input", viewport.bottom > field.fetchSemanticsNode().boundsInRoot.bottom)
@@ -94,7 +94,9 @@ class ReplyNavigationJourney {
         }
         val newest = compose.onNodeWithText("Keyboard journey message 8. Building enough history to check bottom following.")
         newest.assertIsDisplayed()
-        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1)
+        compose.waitUntil(5000) {
+            newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1
+        }
         capture("keyboard-open-latest")
         androidx.test.espresso.Espresso.pressBack()
         compose.waitUntil(5000) {
@@ -107,7 +109,9 @@ class ReplyNavigationJourney {
             compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
         }
         newest.assertIsDisplayed()
-        org.junit.Assert.assertTrue(newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1)
+        compose.waitUntil(5000) {
+            newest.fetchSemanticsNode().boundsInRoot.bottom <= field.fetchSemanticsNode().boundsInRoot.top + 1
+        }
         compose.onNodeWithTag("timeline").performScrollToIndex(1)
         field.performTextInput("Sent while viewing history")
         compose.onNodeWithContentDescription("Send").performClick()
@@ -138,7 +142,7 @@ class ReplyNavigationJourney {
             }
             compose.onNodeWithText("Native follow message $n. This keeps the conversation readable while new messages arrive.").assertIsDisplayed()
         }
-        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToKey("studio-1")
         compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).assertIsDisplayed()
         capture("reply-default")
@@ -152,7 +156,7 @@ class ReplyNavigationJourney {
         capture("reply-custom-centered")
         compose.onNodeWithContentDescription("Latest", substring = true).performClick()
         capture("reply-latest")
-        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         capture("reply-history-start")
         compose.onNodeWithText("Start of conversation").assertIsDisplayed()
