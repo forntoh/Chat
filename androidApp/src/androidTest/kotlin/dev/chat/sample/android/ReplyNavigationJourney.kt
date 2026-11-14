@@ -78,7 +78,7 @@ class ReplyNavigationJourney {
             }
             compose.onNodeWithText("Native follow message $n. This keeps the conversation readable while new messages arrive.").assertIsDisplayed()
         }
-        compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).performScrollTo()
+        compose.onNodeWithTag("timeline").performScrollToNode(hasTestTag("message-studio-1"))
         capture("reply-default")
         compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).performClick()
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
