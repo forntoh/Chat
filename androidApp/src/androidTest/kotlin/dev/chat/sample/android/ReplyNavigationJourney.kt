@@ -92,7 +92,9 @@ class ReplyNavigationJourney {
         capture("reply-custom-centered")
         compose.onNodeWithContentDescription("Latest", substring = true).performClick()
         capture("reply-latest")
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown() }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        capture("reply-history-start")
         compose.onNodeWithText("Start of conversation").assertIsDisplayed()
         compose.onNodeWithTag("timeline").performScrollToIndex(3)
         compose.onNodeWithText("Start of conversation").assertIsNotDisplayed()
