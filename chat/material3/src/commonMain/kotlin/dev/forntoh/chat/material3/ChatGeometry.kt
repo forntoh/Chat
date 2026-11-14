@@ -16,6 +16,7 @@ internal object ChatGeometry {
     val FooterGap = 8.dp
     val OutgoingFooterMinWidth = 88.dp
     val FooterMinHeight = 16.dp
+    val DeliveryMinWidth = 48.dp
     val GroupGap = 8.dp
     val RowGap = 4.dp
     val Control = 48.dp

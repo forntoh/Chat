@@ -28,12 +28,20 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     composer = { MessageComposer(it) },
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
-    messageMetadata = {
-        Text(
-            text = it.displayTime,
-            style = MaterialTheme.typography.labelSmall,
-            color = LocalContentColor.current.copy(alpha = 0.8f)
-        )
+    messageMetadata = { message ->
+        Column(horizontalAlignment = Alignment.End) {
+            if (LocalMessageGroupContext.current.isFirst) {
+                Text(
+                    message.sender.displayName.ifBlank { "Unknown sender" },
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            Text(
+                text = message.displayTime,
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalContentColor.current.copy(alpha = 0.8f)
+            )
+        }
     },
     messageBody = {
         Text(

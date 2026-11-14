@@ -69,4 +69,21 @@ class StaticLayoutTest {
         compose.onNodeWithText("Message unavailable", useUnmergedTree = true).assertExists()
     }
 
+    @Test fun metadataSlotOwnsSenderAndCanReplaceOrOmitVisibleMetadata() {
+        val showMetadata = mutableStateOf(true)
+        val row = Message("one", Participant("avery", "Avery Chen"), 0, "09:41", "Hi", Delivery.Sent)
+        compose.setContent {
+            ChatTheme {
+                MessageBubble(row, false, null, chatConversationSlots().copy(
+                    messageMetadata = { if (showMetadata.value) Text("Host metadata") },
+                ))
+            }
+        }
+        compose.onNodeWithText("Host metadata", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Avery Chen", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { showMetadata.value = false }
+        compose.onNodeWithText("Host metadata", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("Hi", useUnmergedTree = true).assertExists()
+    }
+
 }

@@ -16,7 +16,7 @@ import dev.forntoh.chat.ui.*
 
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
- * independently actionable. Incoming groups label their first sender; body and metadata subslots
+ * independently actionable. Sender and time come entirely from the metadata slot; body and metadata subslots
  * occupy separate measured regions. Time and delivery share a bottom-aligned footer; avatar
  * space remains reserved when a host supplies no avatar. Reads [LocalMessageGroupContext] from the shared timeline and
  * [ConversationTheme] subslots. [isCurrentParticipant] selects bubble contrast, not permission.
@@ -70,11 +70,6 @@ fun MessageBubble(
                             Modifier.padding(horizontal = ChatGeometry.BubbleHorizontalPadding, vertical = ChatGeometry.BubbleVerticalPadding),
                             verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
                         ) {
-                            if (!isCurrentParticipant && group.isFirst) {
-                                Text(
-                                    message.sender.displayName.ifBlank { "Unknown sender" },
-                                    style = MaterialTheme.typography.labelLarge)
-                            }
                             slots.messageBody(message)
                             Row(
                                 Modifier
@@ -89,8 +84,10 @@ fun MessageBubble(
                                 horizontalArrangement = Arrangement.spacedBy(ChatGeometry.FooterGap, Alignment.End),
                                 verticalAlignment = Alignment.Bottom,
                             ) {
-                                slots.messageMetadata(message)
-                                slots.messageDelivery(message.delivery)
+                                Box(Modifier.weight(1f, fill = false)) { slots.messageMetadata(message) }
+                                Box(if (isCurrentParticipant) Modifier.widthIn(min = ChatGeometry.DeliveryMinWidth) else Modifier) {
+                                    slots.messageDelivery(message.delivery)
+                                }
                             }
                         }
                     }
