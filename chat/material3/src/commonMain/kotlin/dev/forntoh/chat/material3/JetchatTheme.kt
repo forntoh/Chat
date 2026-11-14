@@ -29,19 +29,35 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
     messageMetadata = {
-        Text(it.displayTime, style = MaterialTheme.typography.labelSmall,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
-            modifier = Modifier.padding(bottom = 1.dp))
+        Text(
+            text = it.displayTime,
+            style = MaterialTheme.typography.labelSmall,
+            color = LocalContentColor.current.copy(alpha = 0.8f)
+        )
     },
-    messageBody = { Text(it.text, style = MaterialTheme.typography.bodyLarge) },
+    messageBody = {
+        Text(
+            text = it.text.ifBlank { "Message unavailable" },
+            style = MaterialTheme.typography.bodyLarge
+        )
+    },
     messageDelivery = {
-        if (it == Delivery.Failed) Surface(color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-            Text(it.name, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(4.dp))
-        } else if (it == Delivery.Sending) Text(it.name, style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(top = 4.dp))
+        if (it == Delivery.Failed) {
+            Surface(color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer) {
+                Text(
+                    it.name,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        } else if (it == Delivery.Sending) {
+            Text(it.name, style = MaterialTheme.typography.labelSmall)
+        }
     },
-    messageDescription = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${it.delivery.name}" },
+    messageDescription = {
+        "${it.sender.displayName.ifBlank { "Unknown sender" }}, ${it.text.ifBlank { "Message unavailable" }}, ${it.displayTime}, ${it.delivery.name}"
+    },
     retry = { TextButton(onClick = it.onRetry) { Text("Retry") } },
     composerField = {
         BasicTextField(
@@ -52,12 +68,23 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             maxLines = 5,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp, vertical = 12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = ChatGeometry.Control)
+                .padding(
+                    horizontal = ChatGeometry.InputHorizontalPadding,
+                    vertical = ChatGeometry.InputVerticalPadding
+                )
                 .testTag("composer").semantics { contentDescription = "Message" },
             decorationBox = { field ->
                 Box {
-                    if (it.draft.text.isEmpty()) Text("Type a message…", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge)
+                    if (it.draft.text.isEmpty()) {
+                        Text(
+                            "Type a message…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                     field()
                 }
             },
@@ -66,9 +93,15 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
         FilledIconButton(
             enabled = it.canSend,
             onClick = it.onSend,
-            modifier = Modifier.size(48.dp).semantics { contentDescription = "Send" }
+            modifier = Modifier
+                .size(ChatGeometry.Control)
+                .semantics { contentDescription = "Send" }
         ) {
-            Icon(ChatIcons.Send, contentDescription = null, modifier = Modifier.size(22.dp))
+            Icon(
+                ChatIcons.Send,
+                contentDescription = null,
+                modifier = Modifier.size(ChatGeometry.Icon)
+            )
         }
     },
     historyFeedback = { DefaultHistoryFeedback(it) },
@@ -78,7 +111,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(30.dp).clearAndSetSemantics {}
+            modifier = Modifier.size(ChatGeometry.Avatar).clearAndSetSemantics {}
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
@@ -90,7 +123,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             }
         }
     },
-    messageSpacing = { if (it.isFirst) 8.dp else 4.dp },
+    messageSpacing = { if (it.isFirst) ChatGeometry.GroupGap else ChatGeometry.RowGap },
 )
 
 /** Legacy factory name. Prefer [chatConversationSlots] for the current reference design. */
@@ -102,7 +135,10 @@ fun jetchatConversationSlots(): ConversationSlots = chatConversationSlots()
  * Existing explicit/bundle overrides still take precedence. No alternate Conversation is created.
  */
 @Composable
-fun JetchatTheme(slots: ConversationSlots = jetchatConversationSlots(), content: @Composable () -> Unit) {
+fun JetchatTheme(
+    slots: ConversationSlots = jetchatConversationSlots(),
+    content: @Composable () -> Unit
+) {
     ConversationTheme(slots, content)
 }
 

@@ -3,7 +3,7 @@ import ChatSample
 
 @main
 struct ChatApp: App {
-    var body: some Scene { WindowGroup { ChatView().ignoresSafeArea(.keyboard) } }
+    var body: some Scene { WindowGroup { ChatView().ignoresSafeArea() } }
 }
 
 struct ChatView: UIViewControllerRepresentable {

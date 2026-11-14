@@ -16,7 +16,9 @@ import dev.forntoh.chat.ui.*
 
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
- * independently actionable. Reads [LocalMessageGroupContext] from the shared timeline and
+ * independently actionable. Incoming groups label their first sender; body and metadata subslots
+ * occupy separate measured regions. Time and delivery share a bottom-aligned footer; avatar
+ * space remains reserved when a host supplies no avatar. Reads [LocalMessageGroupContext] from the shared timeline and
  * [ConversationTheme] subslots. [isCurrentParticipant] selects bubble contrast, not permission.
  * A standalone caller validates [onRetry] eligibility and identity; Conversation supplies it only
  * for an outgoing failed row. Callback activation is repeatable; the host owns deduplication.
@@ -40,30 +42,56 @@ fun MessageBubble(
 ) {
     val group = LocalMessageGroupContext.current
     ConversationTheme(slots) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth(),
+            contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart
+        ) {
+            val maxBubbleWidth = minOf(maxWidth * ChatGeometry.BubbleWidthFraction, ChatGeometry.BubbleMaxWidth)
             Row(
-                Modifier.widthIn(max = 560.dp).fillMaxWidth(if (isCurrentParticipant) 0.82f else 0.88f),
-                horizontalArrangement = if (isCurrentParticipant) Arrangement.End else Arrangement.Start,
+                Modifier.widthIn(max = maxBubbleWidth),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 if (!isCurrentParticipant) AvatarGutter(message, group.isLast, slots)
                 Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
+                    val outer = ChatGeometry.BubbleRadius
+                    val joined = ChatGeometry.JoinedRadius
                     Surface(
                         color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                         contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(
+                            topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
+                            topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
+                            bottomEnd = if (isCurrentParticipant) joined else outer,
+                            bottomStart = if (!isCurrentParticipant) joined else outer,
+                        ),
                         modifier = Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
                     ) {
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.Bottom,
-                                itemVerticalAlignment = Alignment.Bottom,
-                            ) {
-                                slots.messageBody(message)
-                                slots.messageMetadata(message)
+                        Column(
+                            Modifier.padding(horizontal = ChatGeometry.BubbleHorizontalPadding, vertical = ChatGeometry.BubbleVerticalPadding),
+                            verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
+                        ) {
+                            if (!isCurrentParticipant && group.isFirst) {
+                                Text(
+                                    message.sender.displayName.ifBlank { "Unknown sender" },
+                                    style = MaterialTheme.typography.labelLarge)
                             }
-                            slots.messageDelivery(message.delivery)
+                            slots.messageBody(message)
+                            Row(
+                                Modifier
+                                    .align(Alignment.End).heightIn(min = ChatGeometry.FooterMinHeight)
+                                    .widthIn(
+                                        min = if (isCurrentParticipant) {
+                                            ChatGeometry.OutgoingFooterMinWidth
+                                        } else {
+                                            0.dp
+                                        }
+                                    ),
+                                horizontalArrangement = Arrangement.spacedBy(ChatGeometry.FooterGap, Alignment.End),
+                                verticalAlignment = Alignment.Bottom,
+                            ) {
+                                slots.messageMetadata(message)
+                                slots.messageDelivery(message.delivery)
+                            }
                         }
                     }
                     if (onRetry != null) slots.retry(RetryContent(message, onRetry))
@@ -75,7 +103,12 @@ fun MessageBubble(
 
 @Composable
 private fun AvatarGutter(message: Message, visible: Boolean, slots: ConversationSlots) {
-    Box(Modifier.width(36.dp).padding(end = 6.dp)) {
+    Box(
+        Modifier
+            .width(ChatGeometry.Avatar + ChatGeometry.AvatarGap)
+            .height(ChatGeometry.Avatar)
+            .padding(end = ChatGeometry.AvatarGap)
+    ) {
         if (visible) slots.messageAvatar(message)
     }
 }
@@ -90,9 +123,14 @@ fun MessageComposer(content: ComposerContent, slots: ConversationSlots) {
     var focused by remember { mutableStateOf(false) }
     ConversationTheme(slots) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = ChatGeometry.Gutter,
+                    vertical = ChatGeometry.ComposerVerticalPadding
+                ),
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.ComposerGap),
         ) {
             Surface(
                 shape = RoundedCornerShape(28.dp),
