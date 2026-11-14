@@ -4,6 +4,12 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
+- Replies can render an inset, slot-customizable sender/excerpt preview inside the message bubble.
+  Tapping a loaded quote smoothly centers its stable target and briefly highlights it. Custom row
+  slots receive `MessagePresentation` for their own animation; unavailable targets remain inert.
+- History feedback scrolls with the timeline. Arrivals follow readers already at the bottom;
+  readers in history retain their anchor. Latest floats at the lower right as a small chevron,
+  animates in/out and smoothly returns to the newest message without taking timeline height.
 - Optional actions add long-press bubble focus with a up to 5% sender-edge anchored lift (capped to keep wide custom content within safe bounds), 40% black scrim, 8dp action gaps, bounded vertical
   menu and independent consumer content above/below. Tap leaves actions closed; dismissal and
   stale-target guards preserve host state. The live bubble layer moves continuously to and from

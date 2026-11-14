@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -56,22 +60,38 @@ internal val LastTextBottom = HorizontalAlignmentLine(::maxOf)
 internal val LocalBubbleOutgoing = staticCompositionLocalOf { false }
 
 private enum class MetadataElement { Header, Footer, Body, Delivery }
+
 private val BubbleWidth = VerticalAlignmentLine(::maxOf)
 private val BubbleTop = HorizontalAlignmentLine(::maxOf)
 private val BubbleHeight = HorizontalAlignmentLine(::maxOf)
 
 @Composable
-internal fun MessageBubbleLayout(message: Message, outgoing: Boolean, slots: ConversationSlots, shape: Shape, bubbleModifier: Modifier) {
-    val bubbleColor = if (outgoing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
-    val bubbleContentColor = if (outgoing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    // Keep the actionable surface a sibling of the grouped visual content. Clearing the content's
-    // semantics must not hide the bubble's host-provided click/long-click and keyboard actions.
+internal fun MessageBubbleLayout(
+    message: Message,
+    outgoing: Boolean,
+    slots: ConversationSlots,
+    shape: Shape,
+    bubbleModifier: Modifier,
+    highlighted: Boolean
+) {
+    val bubbleColor =
+        if (outgoing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
+    val displayedColor by animateColorAsState(
+        if (highlighted) lerp(
+            bubbleColor,
+            MaterialTheme.colorScheme.tertiaryContainer,
+            0.35f
+        ) else bubbleColor,
+        animationSpec = tween(180)
+    )
+    val bubbleContentColor =
+        if (outgoing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Layout(content = {
         Surface(
             modifier = Modifier.clip(shape).then(bubbleModifier).clearAndSetSemantics {
                 contentDescription = slots.messageDescription(message)
             },
-            color = bubbleColor,
+            color = displayedColor,
             shape = shape,
         ) {}
         MessageBubbleContent(message, outgoing, slots, bubbleContentColor)
@@ -89,9 +109,14 @@ internal fun MessageBubbleLayout(message: Message, outgoing: Boolean, slots: Con
 }
 
 @Composable
-private fun MessageBubbleContent(message: Message, outgoing: Boolean, slots: ConversationSlots, bubbleContentColor: androidx.compose.ui.graphics.Color) {
+private fun MessageBubbleContent(
+    message: Message,
+    outgoing: Boolean,
+    slots: ConversationSlots,
+    bubbleContentColor: androidx.compose.ui.graphics.Color
+) {
     Layout(
-        modifier = Modifier.clearAndSetSemantics {},
+        modifier = Modifier,
         content = {
             CompositionLocalProvider(
                 LocalContentColor provides bubbleContentColor,
@@ -113,37 +138,60 @@ private fun MessageBubbleContent(message: Message, outgoing: Boolean, slots: Con
         val gap = ChatGeometry.ContentGap.roundToPx()
         val metadataGap = ChatGeometry.MetadataGap.roundToPx()
         val maxInnerWidth = (constraints.maxWidth - 2 * padX).coerceAtLeast(0)
-        val body = children.single { it.layoutId == MetadataElement.Body }.measure(Constraints(maxWidth = maxInnerWidth))
-        val delivery = children.single { it.layoutId == MetadataElement.Delivery }.measure(Constraints(maxWidth = maxInnerWidth))
+        val body = children.single { it.layoutId == MetadataElement.Body }
+            .measure(Constraints(maxWidth = maxInnerWidth))
+        val delivery = children.single { it.layoutId == MetadataElement.Delivery }
+            .measure(Constraints(maxWidth = maxInnerWidth))
         val hasDelivery = delivery.width > 0 || delivery.height > 0
         val headers = children.filter { it.layoutId == MetadataElement.Header }
-            .map { it.measure(Constraints(maxWidth = constraints.maxWidth)) }.filter { it.height > 0 }
-        val footerWidthLimit = (maxInnerWidth - delivery.width - if (hasDelivery) metadataGap else 0).coerceAtLeast(0)
-        val footers = children.filter { it.layoutId != MetadataElement.Header && it.layoutId != MetadataElement.Body &&
-            it.layoutId != MetadataElement.Delivery }
+            .map { it.measure(Constraints(maxWidth = constraints.maxWidth)) }
+            .filter { it.height > 0 }
+        val footerWidthLimit =
+            (maxInnerWidth - delivery.width - if (hasDelivery) metadataGap else 0).coerceAtLeast(0)
+        val footers = children.filter {
+            it.layoutId != MetadataElement.Header && it.layoutId != MetadataElement.Body &&
+                    it.layoutId != MetadataElement.Delivery
+        }
             .map { it.measure(Constraints(maxWidth = footerWidthLimit)) }.filter { it.height > 0 }
         val metadataWidth = footers.maxOfOrNull { it.width } ?: 0
         val metadataHeight = footers.sumOf { it.height } + gap * (footers.size - 1).coerceAtLeast(0)
         val hasFooter = footers.isNotEmpty() || hasDelivery
         val footerWidth = (metadataWidth + delivery.width +
-            if (footers.isNotEmpty() && hasDelivery) metadataGap else 0).coerceAtMost(maxInnerWidth)
-        val footerHeight = if (hasFooter) maxOf(metadataHeight, delivery.height, ChatGeometry.MetadataMinHeight.roundToPx()) else 0
-        val textRight = body[LastTextRight].takeUnless { it == AlignmentLine.Unspecified } ?: body.width
+                if (footers.isNotEmpty() && hasDelivery) metadataGap else 0).coerceAtMost(
+            maxInnerWidth
+        )
+        val footerHeight = if (hasFooter) maxOf(
+            metadataHeight,
+            delivery.height,
+            ChatGeometry.MetadataMinHeight.roundToPx()
+        ) else 0
+        val textRight =
+            body[LastTextRight].takeUnless { it == AlignmentLine.Unspecified } ?: body.width
         val textTop = body[LastTextTop].takeUnless { it == AlignmentLine.Unspecified } ?: 0
-        val textBottom = body[LastTextBottom].takeUnless { it == AlignmentLine.Unspecified } ?: body.height
+        val textBottom =
+            body[LastTextBottom].takeUnless { it == AlignmentLine.Unspecified } ?: body.height
         // Text must also be the bottom content, not an earlier quote or attachment.
-        val inline = hasFooter && textBottom == body.height && textRight + metadataGap + footerWidth <= maxInnerWidth
-        val innerWidth = maxOf(body.width, if (inline) textRight + metadataGap + footerWidth else footerWidth,
+        val inline =
+            hasFooter && textBottom == body.height && textRight + metadataGap + footerWidth <= maxInnerWidth
+        val innerWidth = maxOf(
+            body.width, if (inline) textRight + metadataGap + footerWidth else footerWidth,
             if (outgoing && hasFooter) textRight + metadataGap + ChatGeometry.OutgoingMetadataMinWidth.roundToPx() else 0
         ).coerceAtMost(maxInnerWidth)
         val bubbleWidth = innerWidth + 2 * padX
-        val footerTop = if (inline) maxOf(textTop, body.height - footerHeight) else body.height + gap
-        val bubbleHeight = 2 * padY + if (hasFooter) maxOf(body.height, footerTop + footerHeight) else body.height
+        val footerTop =
+            if (inline) maxOf(textTop, body.height - footerHeight) else body.height + gap
+        val bubbleHeight =
+            2 * padY + if (hasFooter) maxOf(body.height, footerTop + footerHeight) else body.height
         val headerHeight = headers.sumOf { it.height } + gap * (headers.size - 1).coerceAtLeast(0)
         val bubbleTop = headerHeight + if (headers.isNotEmpty()) gap else 0
-        val width = constraints.constrainWidth(maxOf(bubbleWidth, headers.maxOfOrNull { it.width } ?: 0))
+        val width =
+            constraints.constrainWidth(maxOf(bubbleWidth, headers.maxOfOrNull { it.width } ?: 0))
         val height = constraints.constrainHeight(bubbleTop + bubbleHeight)
-        layout(width, height, mapOf(BubbleWidth to bubbleWidth, BubbleTop to bubbleTop, BubbleHeight to bubbleHeight)) {
+        layout(
+            width = width,
+            height = height,
+            alignmentLines = mapOf(BubbleWidth to bubbleWidth, BubbleTop to bubbleTop, BubbleHeight to bubbleHeight)
+        ) {
             val bubbleX = if (outgoing) width - bubbleWidth else 0
             var headerY = 0
             headers.forEach {
@@ -154,11 +202,16 @@ private fun MessageBubbleContent(message: Message, outgoing: Boolean, slots: Con
             val footerY = bubbleTop + padY + footerTop
             var metadataY = footerY + footerHeight - metadataHeight
             footers.forEach {
-                it.placeRelative(bubbleX + padX + innerWidth - delivery.width - (if (hasDelivery) metadataGap else 0) - it.width, metadataY)
+                it.placeRelative(
+                    bubbleX + padX + innerWidth - delivery.width - (if (hasDelivery) metadataGap else 0) - it.width,
+                    metadataY
+                )
                 metadataY += it.height + gap
             }
-            if (hasDelivery) delivery.placeRelative(bubbleX + padX + innerWidth - delivery.width,
-                footerY + footerHeight - delivery.height)
+            if (hasDelivery) delivery.placeRelative(
+                bubbleX + padX + innerWidth - delivery.width,
+                footerY + footerHeight - delivery.height
+            )
         }
     }
 }

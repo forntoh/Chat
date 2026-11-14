@@ -1,6 +1,16 @@
 package dev.forntoh.chat.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.animateScrollBy
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -10,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.*
 
@@ -36,8 +47,13 @@ class ComposerContent(
     val onDraftAction: (() -> Unit) -> Unit,
 ) {
     /** Retains the original text-composer constructor, including trailing-lambda callers. */
-    constructor(draft: Draft, pending: Boolean, onTextChange: (String) -> Unit, onSend: () -> Unit) :
-        this(draft, pending, onTextChange, onSend, { action -> if (!pending) action() })
+    constructor(
+        draft: Draft,
+        pending: Boolean,
+        onTextChange: (String) -> Unit,
+        onSend: () -> Unit
+    ) :
+            this(draft, pending, onTextChange, onSend, { action -> if (!pending) action() })
 
     val canSend: Boolean get() = !pending && draft.hasContent
 }
@@ -85,7 +101,7 @@ class ComposerContent(
  * Supply its labels, focus behavior and accessibility semantics.
  * @param history Host paging availability; exhausted by default, so no requests are emitted.
  * @param onLoadEarlier Synchronous request handler; publish Loading before starting host async work.
- * @param historyContent Optional status/retry override above the timeline; null uses the effective theme.
+ * @param historyContent Optional status/retry override at the start of the timeline; null uses the effective theme.
  * @param latestContent Optional latest-control override; null uses the effective theme.
  */
 @Composable
@@ -100,8 +116,10 @@ fun Conversation(
     historyContent: (@Composable (HistoryContent) -> Unit)? = null,
     latestContent: (@Composable (LatestContent) -> Unit)? = null,
 ) {
-    Conversation(state, onEvent, LocalConversationSlots.current, modifier, messageContent,
-        composerContent, history, onLoadEarlier, historyContent, latestContent)
+    Conversation(
+        state, onEvent, LocalConversationSlots.current, modifier, messageContent,
+        composerContent, history, onLoadEarlier, historyContent, latestContent
+    )
 }
 
 /**
@@ -119,7 +137,7 @@ fun Conversation(
  * @param composerContent Optional composer renderer, overriding effective slots, receiving guarded input/send callbacks and pending state.
  * @param history Host paging availability; exhausted by default, so no requests are emitted.
  * @param onLoadEarlier Synchronous request handler; publish Loading before starting host async work.
- * @param historyContent Optional status/retry override above the timeline; null uses effective slots.
+ * @param historyContent Optional status/retry override at the start of the timeline; null uses effective slots.
  * @param latestContent Optional latest-control override; null uses effective slots.
  */
 @Composable
@@ -143,13 +161,26 @@ fun Conversation(
             key(state.conversationId) {
                 val list = rememberLazyListState()
                 val scope = rememberCoroutineScope()
-                var requested by remember(history.revision, history.status) { mutableStateOf(false) }
+                val density = LocalDensity.current
+                var requested by remember(
+                    history.revision,
+                    history.status
+                ) { mutableStateOf(false) }
                 val currentHistory by rememberUpdatedState(history)
                 val currentRequest by rememberUpdatedState(onLoadEarlier)
                 val loadEarlier = {
-                    if (!requested && currentHistory.status in listOf(HistoryStatus.Idle, HistoryStatus.Error)) {
+                    if (!requested && currentHistory.status in listOf(
+                            HistoryStatus.Idle,
+                            HistoryStatus.Error
+                        )
+                    ) {
                         requested = true
-                        currentRequest(HistoryRequest(state.conversationId, currentHistory.revision))
+                        currentRequest(
+                            HistoryRequest(
+                                state.conversationId,
+                                currentHistory.revision
+                            )
+                        )
                     }
                 }
                 val currentLoad by rememberUpdatedState(loadEarlier)
@@ -161,13 +192,51 @@ fun Conversation(
                 }
                 var previousIds by remember { mutableStateOf<List<String>>(emptyList()) }
                 var newMessages by remember { mutableStateOf(false) }
+                var followingLatest by remember { mutableStateOf(true) }
+                var highlightedId by remember { mutableStateOf<String?>(null) }
+                var navigation by remember { mutableStateOf<Job?>(null) }
+                val navigate: (String) -> Unit = { targetId ->
+                    if (latestState.conversationId == state.conversationId && latestState.messages.any { it.id == targetId }) {
+                        navigation?.cancel()
+                        highlightedId = null
+                        navigation = scope.launch {
+                            val index = latestState.messages.indexOfFirst { it.id == targetId }
+                            if (index >= 0) {
+                                list.animateScrollToItem(index + 1)
+                                val layout = list.layoutInfo
+                                layout.visibleItemsInfo.find { it.key == targetId }?.let { target ->
+                                    val rows = latestState.messages
+                                    val row = rows.getOrNull(index)
+                                    val group = MessageGroupContext(
+                                        rows.getOrNull(index - 1)?.sender?.id != row?.sender?.id,
+                                        rows.getOrNull(index + 1)?.sender?.id != row?.sender?.id
+                                    )
+                                    val gap = if (index == 0) 0f else with(density) {
+                                        slots.messageSpacing(group).toPx()
+                                    }
+                                    list.animateScrollBy(
+                                        target.offset + (target.size + gap) / 2f -
+                                                (layout.viewportStartOffset + layout.viewportEndOffset) / 2f
+                                    )
+                                }
+                                if (latestState.messages.any { it.id == targetId }) {
+                                    highlightedId = targetId
+                                    try {
+                                        delay(900)
+                                    } finally {
+                                        highlightedId = null
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 val ids = state.messages.map { it.id }
                 LaunchedEffect(ids) {
                     val oldLayout = list.layoutInfo
-                    val wasAtBottom = previousIds.isEmpty() || oldLayout.visibleItemsInfo.lastOrNull()?.let {
-                        it.key == previousIds.lastOrNull() && it.offset + it.size <= oldLayout.viewportEndOffset
-                    } == true
-                    val anchor = oldLayout.visibleItemsInfo.firstOrNull { it.index == list.firstVisibleItemIndex }
+                    val wasAtBottom = followingLatest
+                    val anchor =
+                        oldLayout.visibleItemsInfo.firstOrNull { it.index == list.firstVisibleItemIndex }
                     val anchorOffset = list.firstVisibleItemScrollOffset
                     val appended = previousIds.lastOrNull()?.let { oldLast ->
                         val index = ids.indexOf(oldLast)
@@ -175,108 +244,192 @@ fun Conversation(
                     } == true
                     if (ids.isNotEmpty()) {
                         if (wasAtBottom && (appended || previousIds.isEmpty())) {
-                            list.scrollToItem(ids.lastIndex)
+                            list.scrollToItem(ids.size)
                         } else if (anchor != null && previousIds.isNotEmpty()) {
                             val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
                                 ?: (1..previousIds.size).firstNotNullOfOrNull { distance ->
-                                    val later = previousIds.getOrNull(anchor.index + distance)?.let(ids::indexOf)
-                                    val earlier = previousIds.getOrNull(anchor.index - distance)?.let(ids::indexOf)
+                                    val later = previousIds.getOrNull(anchor.index - 1 + distance)
+                                        ?.let(ids::indexOf)
+                                    val earlier = previousIds.getOrNull(anchor.index - 1 - distance)
+                                        ?.let(ids::indexOf)
                                     later?.takeIf { it >= 0 } ?: earlier?.takeIf { it >= 0 }
                                 }
-                            if (surviving != null) list.scrollToItem(surviving, anchorOffset)
+                            if (surviving != null) list.scrollToItem(surviving + 1, anchorOffset)
                         }
                     }
                     if (appended && !wasAtBottom) newMessages = true
                     previousIds = ids
                 }
                 LaunchedEffect(list) {
-                    snapshotFlow { !list.canScrollForward }.collect { if (it) newMessages = false }
-                }
-                (historyContent ?: { slots.history(HistoryFeedbackContent(it, state.messages.isEmpty())) })(
-                    HistoryContent(
-                        state = history,
-                        canLoadEarlier = !requested && history.status in listOf(HistoryStatus.Idle, HistoryStatus.Error),
-                        onLoadEarlier = loadEarlier,
-                    ),
-                )
-                LazyColumn(
-                    Modifier.weight(1f).fillMaxWidth().testTag("timeline"),
-                    state = list,
-                    contentPadding = PaddingValues(12.dp),
-                ) {
-                    itemsIndexed(state.messages, key = { _, row -> row.id }) { index, message ->
-                        val isCurrent = message.sender.id == state.currentParticipantId
-                        val group = MessageGroupContext(
-                            isFirst = state.messages.getOrNull(index - 1)?.sender?.id != message.sender.id,
-                            isLast = state.messages.getOrNull(index + 1)?.sender?.id != message.sender.id,
-                        )
-                        Column(
-                            Modifier.fillMaxWidth().padding(top = if (index == 0) 0.dp else slots.messageSpacing(group))
-                                .testTag("message-${message.id}"),
-                            horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start
-                        ) {
-                            CompositionLocalProvider(LocalMessageGroupContext provides group) {
-                                (messageContent ?: slots.message)(
-                                    message,
-                                    isCurrent,
-                                    if (isCurrent && message.delivery == Delivery.Failed) {
-                                        {
-                                            onEvent(
-                                                ConversationEvent.RetryMessage(
-                                                    conversationId = state.conversationId,
-                                                    messageId = message.id
-                                                )
-                                            )
-                                        }
-                                    } else null,
-                                )
-                            }
+                    var previousViewport = list.layoutInfo.viewportSize
+                    var previousIndex = list.firstVisibleItemIndex
+                    var previousOffset = list.firstVisibleItemScrollOffset
+                    snapshotFlow {
+                        TimelineObservation(previousIds, list.layoutInfo, list.firstVisibleItemIndex,
+                            list.firstVisibleItemScrollOffset, list.canScrollForward)
+                    }.collect { observed ->
+                        val viewportChanged = previousViewport != observed.layout.viewportSize
+                        val movedBackward = observed.firstIndex < previousIndex ||
+                            (observed.firstIndex == previousIndex && observed.firstOffset < previousOffset)
+                        previousViewport = observed.layout.viewportSize
+                        previousIndex = observed.firstIndex
+                        previousOffset = observed.firstOffset
+                        // A larger bubble, status or composer can overflow the viewport without
+                        // the reader moving. Only a backward reader/navigation movement leaves
+                        // following mode. New row snapshots use their own identity effect first.
+                        if (observed.layout.totalItemsCount == observed.ids.size + 1) {
+                            if (followingLatest && observed.canScrollForward && observed.ids.isNotEmpty() &&
+                                (!movedBackward || (viewportChanged && !list.isScrollInProgress))) {
+                                // Never force a remeasure from a snapshot callback during layout.
+                                withFrameNanos { }
+                                if (!list.isScrollInProgress && observed.ids == previousIds &&
+                                    list.firstVisibleItemIndex == observed.firstIndex &&
+                                    list.firstVisibleItemScrollOffset == observed.firstOffset)
+                                    list.scrollToItem(observed.ids.size)
+                            } else followingLatest = !observed.canScrollForward
+                            if (followingLatest) newMessages = false
                         }
                     }
                 }
-                val awayFromLatest by remember { derivedStateOf { list.canScrollForward } }
-                if (awayFromLatest) {
-                    (latestContent ?: slots.latest)(
-                        LatestContent(newMessages) {
-                            scope.launch {
-                                if (ids.isNotEmpty()) list.scrollToItem(ids.lastIndex); newMessages =
-                                false
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    LazyColumn(
+                        Modifier.fillMaxSize().testTag("timeline"),
+                        state = list,
+                        contentPadding = PaddingValues(12.dp),
+                    ) {
+                        item(key = HistoryMarker) {
+                            (historyContent ?: {
+                                slots.history(
+                                    HistoryFeedbackContent(
+                                        it,
+                                        state.messages.isEmpty()
+                                    )
+                                )
+                            })(
+                                HistoryContent(
+                                    state = history,
+                                    canLoadEarlier = !requested && history.status in listOf(
+                                        HistoryStatus.Idle,
+                                        HistoryStatus.Error
+                                    ),
+                                    onLoadEarlier = loadEarlier,
+                                ),
+                            )
+                        }
+                        itemsIndexed(state.messages, key = { _, row -> row.id }) { index, message ->
+                            val isCurrent = message.sender.id == state.currentParticipantId
+                            val group = MessageGroupContext(
+                                isFirst = state.messages.getOrNull(index - 1)?.sender?.id != message.sender.id,
+                                isLast = state.messages.getOrNull(index + 1)?.sender?.id != message.sender.id,
+                            )
+                            Column(
+                                Modifier.fillMaxWidth().padding(
+                                    top = if (index == 0) 0.dp else slots.messageSpacing(group)
+                                )
+                                    .testTag("message-${message.id}"),
+                                horizontalAlignment = if (isCurrent) Alignment.End else Alignment.Start
+                            ) {
+                                val presentation =
+                                    MessagePresentation(message.id == highlightedId, navigate)
+                                CompositionLocalProvider(
+                                    LocalMessageGroupContext provides group,
+                                    LocalMessagePresentation provides presentation
+                                ) {
+                                    val renderer: @Composable (Message, Boolean, (() -> Unit)?) -> Unit =
+                                        messageContent
+                                            ?: slots.presentedMessage?.let { presented ->
+                                                { row, outgoing, retry ->
+                                                    presented(
+                                                        row,
+                                                        outgoing,
+                                                        retry,
+                                                        presentation
+                                                    )
+                                                }
+                                            } ?: slots.message
+                                    renderer(
+                                        message,
+                                        isCurrent,
+                                        if (isCurrent && message.delivery == Delivery.Failed) {
+                                            {
+                                                onEvent(
+                                                    ConversationEvent.RetryMessage(
+                                                        conversationId = state.conversationId,
+                                                        messageId = message.id
+                                                    )
+                                                )
+                                            }
+                                        } else null,
+                                    )
+                                }
                             }
-                        },
-                    )
+                        }
+                    }
+                    val awayFromLatest by remember { derivedStateOf { list.canScrollForward } }
+                    TimelineLatest(
+                        awayFromLatest,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                    ) {
+                        (latestContent ?: slots.latest)(
+                            LatestContent(newMessages) {
+                                navigation?.cancel()
+                                navigation = scope.launch {
+                                    if (ids.isNotEmpty()) list.animateScrollToItem(ids.size)
+                                    newMessages = false
+                                }
+                            },
+                        )
+                    }
                 }
             }
-            (composerContent ?: slots.composer)(ComposerContent(state.draft, pending,
-                onTextChange = {
-                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                        onEvent(
-                            ConversationEvent.DraftChanged(
-                                conversationId = state.conversationId,
-                                text = it,
-                            ),
-                        )
-                    }
-                },
-                onSend = {
-                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
-                        submitted = true
-                        onEvent(
-                            ConversationEvent.SendDraft(
-                                conversationId = state.conversationId,
-                                revision = state.draft.revision,
-                                text = state.draft.text,
-                                attachments = state.draft.attachments.toList(),
+            (composerContent ?: slots.composer)(
+                ComposerContent(
+                    state.draft, pending,
+                    onTextChange = {
+                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                            onEvent(
+                                ConversationEvent.DraftChanged(
+                                    conversationId = state.conversationId,
+                                    text = it,
+                                ),
                             )
-                        )
-                    }
-                },
-                onDraftAction = { action ->
-                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                        submitted = true
-                        action()
-                    }
-                },
-            ))
+                        }
+                    },
+                    onSend = {
+                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
+                            submitted = true
+                            onEvent(
+                                ConversationEvent.SendDraft(
+                                    conversationId = state.conversationId,
+                                    revision = state.draft.revision,
+                                    text = state.draft.text,
+                                    attachments = state.draft.attachments.toList(),
+                                )
+                            )
+                        }
+                    },
+                    onDraftAction = { action ->
+                        if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                            submitted = true
+                            action()
+                        }
+                    },
+                )
+            )
         }
     }
 }
+
+private const val HistoryMarker = 0L
+
+@Composable
+private fun TimelineLatest(visible: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible, modifier, enter = fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 2 },
+        exit = fadeOut(tween(180)) + slideOutVertically(tween(180)) { it / 2 }) { content() }
+}
+
+private data class TimelineObservation(
+    val ids: List<String>, val layout: LazyListLayoutInfo,
+    val firstIndex: Int, val firstOffset: Int, val canScrollForward: Boolean,
+)

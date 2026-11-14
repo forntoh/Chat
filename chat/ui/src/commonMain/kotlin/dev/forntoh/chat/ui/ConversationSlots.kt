@@ -41,32 +41,68 @@ val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() 
  * @property composerSend Composable slot for the send action control within the composer.
  * @property historyFeedback Composable slot for history loading status and feedback.
  * @property latestLabel Composable slot for the label indicating new messages or latest state.
+ * @property presentedMessage Optional row slot with transient highlight and ID-based navigation.
+ * Takes precedence over [message]; explicit Conversation messageContent still takes precedence.
+ * Custom bubbles animate [MessagePresentation.isHighlighted] with their own presentation.
  * @property messageAvatar Optional host avatar presentation; never fetches implicitly.
  * @property messageSpacing Gap before each row except the first loaded row; neutral default is 12dp.
  */
 class ConversationSlots(
-    val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry -> DefaultMessage(row, retry) },
+    val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry ->
+        DefaultMessage(row, retry)
+    },
     val composer: @Composable (ComposerContent) -> Unit = { DefaultComposer(it) },
     val history: @Composable (HistoryFeedbackContent) -> Unit = { DefaultHistoryFeedback(it) },
-    val latest: @Composable (LatestContent) -> Unit = { NeutralControl(it.onReturnToLatest) { LocalConversationSlots.current.latestLabel(it) } },
+    val latest: @Composable (LatestContent) -> Unit = {
+        NeutralControl(it.onReturnToLatest) {
+            LocalConversationSlots.current.latestLabel(it)
+        }
+    },
     val messageMetadata: @Composable (Message) -> Unit = { BasicText("${it.sender.displayName} · ${it.displayTime}") },
     val messageBody: @Composable (Message) -> Unit = { BasicText(it.text) },
     val messageDelivery: @Composable (Delivery) -> Unit = { BasicText(it.name) },
     val messageDescription: (Message) -> String = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${it.delivery.name}" },
     val retry: @Composable (RetryContent) -> Unit = { NeutralControl(it.onRetry) { BasicText("Retry") } },
     val composerField: @Composable (ComposerContent) -> Unit = {
-        BasicTextField(it.draft.text, it.onTextChange, enabled = !it.pending,
-            modifier = Modifier.fillMaxWidth().testTag("composer").semantics { contentDescription = "Message" })
+        BasicTextField(
+            value = it.draft.text, onValueChange = it.onTextChange, enabled = !it.pending,
+            modifier = Modifier.fillMaxWidth().testTag("composer")
+                .semantics { contentDescription = "Message" })
     },
-    val composerSend: @Composable (ComposerContent) -> Unit = { NeutralControl(it.onSend, it.canSend) { BasicText("Send") } },
+    val composerSend: @Composable (ComposerContent) -> Unit = {
+        NeutralControl(
+            it.onSend,
+            it.canSend
+        ) { BasicText("Send") }
+    },
     val historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = { NeutralHistoryFeedback(it) },
     val messageAvatar: @Composable (Message) -> Unit = {},
     val messageSpacing: (MessageGroupContext) -> Dp = { 12.dp },
+    val presentedMessage: (@Composable (Message, Boolean, (() -> Unit)?, MessagePresentation) -> Unit)? = null,
     val latestLabel: @Composable (LatestContent) -> Unit = { BasicText(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
 ) {
+    constructor(
+        message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
+        composer: @Composable (ComposerContent) -> Unit,
+        history: @Composable (HistoryFeedbackContent) -> Unit,
+        latest: @Composable (LatestContent) -> Unit,
+        messageMetadata: @Composable (Message) -> Unit,
+        messageBody: @Composable (Message) -> Unit,
+        messageDelivery: @Composable (Delivery) -> Unit,
+        messageDescription: (Message) -> String,
+        retry: @Composable (RetryContent) -> Unit,
+        composerField: @Composable (ComposerContent) -> Unit,
+        composerSend: @Composable (ComposerContent) -> Unit,
+        historyFeedback: @Composable (HistoryFeedbackContent) -> Unit,
+        messageAvatar: @Composable (Message) -> Unit,
+        messageSpacing: (MessageGroupContext) -> Dp,
+        latestLabel: @Composable (LatestContent) -> Unit,
+    ) : this(
+        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
+        messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar,
+        messageSpacing, null, latestLabel
+    )
 
-    /** Retains the original thirteen-argument positional constructor. Optional avatar/spacing
-     * precede latestLabel in the primary constructor so trailing lambdas still target the label. */
     constructor(
         message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
         composer: @Composable (ComposerContent) -> Unit,
@@ -87,7 +123,28 @@ class ConversationSlots(
         messageAvatar = {}, messageSpacing = { 12.dp }, latestLabel = latestLabel,
     )
 
-    /** Original thirteen-argument positional copy; retains this bundle's avatar/spacing overrides. */
+    fun copy(
+        message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
+        composer: @Composable (ComposerContent) -> Unit,
+        history: @Composable (HistoryFeedbackContent) -> Unit,
+        latest: @Composable (LatestContent) -> Unit,
+        messageMetadata: @Composable (Message) -> Unit,
+        messageBody: @Composable (Message) -> Unit,
+        messageDelivery: @Composable (Delivery) -> Unit,
+        messageDescription: (Message) -> String,
+        retry: @Composable (RetryContent) -> Unit,
+        composerField: @Composable (ComposerContent) -> Unit,
+        composerSend: @Composable (ComposerContent) -> Unit,
+        historyFeedback: @Composable (HistoryFeedbackContent) -> Unit,
+        messageAvatar: @Composable (Message) -> Unit,
+        messageSpacing: (MessageGroupContext) -> Dp,
+        latestLabel: @Composable (LatestContent) -> Unit,
+    ): ConversationSlots = ConversationSlots(
+        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
+        messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar,
+        messageSpacing, presentedMessage, latestLabel
+    )
+
     fun copy(
         message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit,
         composer: @Composable (ComposerContent) -> Unit,
@@ -107,6 +164,7 @@ class ConversationSlots(
         messageDescription, retry, composerField, composerSend, historyFeedback,
         messageAvatar = messageAvatar, messageSpacing = messageSpacing, latestLabel = latestLabel,
     )
+
     /** Copies this immutable bundle; trailing lambdas customize latestLabel. */
     fun copy(
         message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = this.message,
@@ -123,13 +181,27 @@ class ConversationSlots(
         historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = this.historyFeedback,
         messageAvatar: @Composable (Message) -> Unit = this.messageAvatar,
         messageSpacing: (MessageGroupContext) -> Dp = this.messageSpacing,
+        presentedMessage: (@Composable (Message, Boolean, (() -> Unit)?, MessagePresentation) -> Unit)? = this.presentedMessage,
         latestLabel: @Composable (LatestContent) -> Unit = this.latestLabel,
     ): ConversationSlots = ConversationSlots(
-        message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
-        messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar, messageSpacing, latestLabel,
+        message = message,
+        composer = composer,
+        history = history,
+        latest = latest,
+        messageMetadata = messageMetadata,
+        messageBody = messageBody,
+        messageDelivery = messageDelivery,
+        messageDescription = messageDescription,
+        retry = retry,
+        composerField = composerField,
+        composerSend = composerSend,
+        historyFeedback = historyFeedback,
+        messageAvatar = messageAvatar,
+        messageSpacing = messageSpacing,
+        presentedMessage = presentedMessage,
+        latestLabel = latestLabel,
     )
 
-    // Keep the original data-class component order independently of constructor defaults.
     operator fun component1(): @Composable (Message, Boolean, (() -> Unit)?) -> Unit = message
     operator fun component2(): @Composable (ComposerContent) -> Unit = composer
     operator fun component3(): @Composable (HistoryFeedbackContent) -> Unit = history
@@ -145,23 +217,25 @@ class ConversationSlots(
     operator fun component13(): @Composable (LatestContent) -> Unit = latestLabel
     operator fun component14(): @Composable (Message) -> Unit = messageAvatar
     operator fun component15(): (MessageGroupContext) -> Dp = messageSpacing
+    operator fun component16(): (@Composable (Message, Boolean, (() -> Unit)?, MessagePresentation) -> Unit)? =
+        presentedMessage
 
     override fun equals(other: Any?): Boolean = this === other || (other is ConversationSlots &&
-        message == other.message &&
-        composer == other.composer &&
-        history == other.history &&
-        latest == other.latest &&
-        messageMetadata == other.messageMetadata &&
-        messageBody == other.messageBody &&
-        messageDelivery == other.messageDelivery &&
-        messageDescription == other.messageDescription &&
-        retry == other.retry &&
-        composerField == other.composerField &&
-        composerSend == other.composerSend &&
-        historyFeedback == other.historyFeedback &&
-        latestLabel == other.latestLabel &&
-        messageAvatar == other.messageAvatar &&
-        messageSpacing == other.messageSpacing)
+            message == other.message &&
+            composer == other.composer &&
+            history == other.history &&
+            latest == other.latest &&
+            messageMetadata == other.messageMetadata &&
+            messageBody == other.messageBody &&
+            messageDelivery == other.messageDelivery &&
+            messageDescription == other.messageDescription &&
+            retry == other.retry &&
+            composerField == other.composerField &&
+            composerSend == other.composerSend &&
+            historyFeedback == other.historyFeedback &&
+            latestLabel == other.latestLabel &&
+            messageAvatar == other.messageAvatar &&
+            messageSpacing == other.messageSpacing && presentedMessage == other.presentedMessage)
 
     override fun hashCode(): Int {
         var result = message.hashCode()
@@ -179,10 +253,12 @@ class ConversationSlots(
         result = 31 * result + latestLabel.hashCode()
         result = 31 * result + messageAvatar.hashCode()
         result = 31 * result + messageSpacing.hashCode()
+        result = 31 * result + (presentedMessage?.hashCode() ?: 0)
         return result
     }
 
-    override fun toString(): String = "ConversationSlots(message=$message, composer=$composer, history=$history, latest=$latest, messageMetadata=$messageMetadata, messageBody=$messageBody, messageDelivery=$messageDelivery, messageDescription=$messageDescription, retry=$retry, composerField=$composerField, composerSend=$composerSend, historyFeedback=$historyFeedback, latestLabel=$latestLabel, messageAvatar=$messageAvatar, messageSpacing=$messageSpacing)"
+    override fun toString(): String =
+        "ConversationSlots(message=$message, composer=$composer, history=$history, latest=$latest, messageMetadata=$messageMetadata, messageBody=$messageBody, messageDelivery=$messageDelivery, messageDescription=$messageDescription, retry=$retry, composerField=$composerField, composerSend=$composerSend, historyFeedback=$historyFeedback, latestLabel=$latestLabel, messageAvatar=$messageAvatar, messageSpacing=$messageSpacing, presentedMessage=$presentedMessage)"
 
 }
 
@@ -200,7 +276,10 @@ val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
  * ```
  */
 @Composable
-fun ConversationTheme(slots: ConversationSlots = LocalConversationSlots.current, content: @Composable () -> Unit) {
+fun ConversationTheme(
+    slots: ConversationSlots = LocalConversationSlots.current,
+    content: @Composable () -> Unit
+) {
     CompositionLocalProvider(LocalConversationSlots provides slots, content = content)
 }
 
@@ -208,8 +287,11 @@ fun ConversationTheme(slots: ConversationSlots = LocalConversationSlots.current,
 fun DefaultMessage(message: Message, onRetry: (() -> Unit)?) {
     val slots = LocalConversationSlots.current
     Column {
-        Column(Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) }) {
-            slots.messageMetadata(message); slots.messageBody(message); slots.messageDelivery(message.delivery)
+        Column(
+            Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) }
+        ) {
+            slots.messageMetadata(message); slots.messageBody(message)
+            slots.messageDelivery(message.delivery)
         }
         if (onRetry != null) slots.retry(RetryContent(message, onRetry))
     }
@@ -230,7 +312,11 @@ fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
 }
 
 @Composable
-private fun NeutralControl(onClick: () -> Unit, enabled: Boolean = true, content: @Composable () -> Unit) {
+private fun NeutralControl(
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit
+) {
     Box(
         Modifier
             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
@@ -254,15 +340,18 @@ private fun NeutralHistoryFeedback(content: HistoryFeedbackContent) {
                 enabled = history.canLoadEarlier
             ) { BasicText("Load earlier") }
         }
+
         HistoryStatus.Error -> {
             NeutralControl(
                 onClick = history.onLoadEarlier,
                 enabled = history.canLoadEarlier
             ) { BasicText("Couldn't load messages · Retry") }
         }
+
         HistoryStatus.Loading -> {
             BasicText("Loading messages…")
         }
+
         HistoryStatus.Exhausted -> {
             BasicText(if (content.empty) "No messages yet" else "Start of conversation")
         }

@@ -122,21 +122,28 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                                 }
                             }, bubble = { interaction ->
                             val bubbleInteraction = Modifier.testTag("bubble-${message.id}").then(interaction)
+                            val replyBody = base.copy(messageBody = { row ->
+                                val target = retainedHost.actions.quotes[row.id]
+                                if (target == null) base.messageBody(row) else
+                                    dev.forntoh.chat.material3.ReplyMessageBody(
+                                        preview = { QuotedMessage(actions, target) },
+                                        body = { base.messageBody(row) })
+                            })
                             Column {
-                                retainedHost.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                                 if (custom && !outgoing) {
                                     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer,
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                        modifier = Modifier.testTag("custom-incoming").clip(RoundedCornerShape(16.dp)).then(bubbleInteraction).clearAndSetSemantics {
+                                        modifier = Modifier.testTag("custom-incoming").clip(RoundedCornerShape(16.dp)).then(bubbleInteraction).semantics {
                                             contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${message.delivery.name}"
                                         }) {
                                         Column(Modifier.padding(16.dp)) {
+                                            retainedHost.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                                             Text(message.sender.displayName, style = MaterialTheme.typography.titleSmall)
                                             Text(message.text, style = MaterialTheme.typography.bodyLarge)
                                             Text("${message.displayTime} · ${message.delivery.name}", style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
-                                } else MessageBubble(message, outgoing, retry, base, bubbleInteraction)
+                                } else MessageBubble(message, outgoing, retry, replyBody, bubbleInteraction)
                             }
                         })
                     }, composer = { content ->

@@ -162,3 +162,20 @@ menu target in its next snapshot. The retained draft and delivery state remain h
 
 `MessageActions` remains available for existing explicitly controlled integrations. The sample's
 standard interaction uses `MessageActionFocus` and has no tap-to-open button or dropdown.
+
+## Embedded replies
+
+The host's `ActionState.quotes` maps a sent message ID to its quoted target. Render
+`QuotedMessage(actions, targetId)` inside the message-body slot, before the body text, to keep
+the preview inside the bubble. `ActionSlots.quote` owns all preview content and can replace it
+or leave it empty. `ActionQuoteContent` supplies the resolved nullable message and optional
+`onClick`; forward that callback from a custom preview to retain navigation.
+
+Foundation defaults use a rounded inset with a 3dp accent, sender and a two-line excerpt.
+`ActionStyle.quoteBackground` and `quoteAccent` customize that presentation. Material3 hosts
+can bridge their quote slot to `ReplyPreview(it.message, it.onClick)`; this component ships in
+`chat-material3` without importing actions. It inherits the bubble foreground and supplies the
+same inset/ellipsis/fallback presentation. `ReplyMessageBody(preview, body)` measures the two
+together so the inset spans the content width without stretching unrelated bubbles. A deleted/unloaded target renders “Message unavailable”
+without activation. Preview navigation is UI-only; reply submission and target validation remain
+host-owned. The default sample uses the same library renderers in default and custom modes.

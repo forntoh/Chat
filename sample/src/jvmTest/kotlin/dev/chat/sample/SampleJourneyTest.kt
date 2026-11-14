@@ -106,6 +106,7 @@ class SampleJourneyTest {
             host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Keep studio"))
             host.loadEarlier(HistoryRequest(host.state.conversationId, host.history.revision))
         }
+        compose.onNodeWithTag("timeline").performScrollToIndex(0)
         compose.onNodeWithText("Loading messages…").assertExists()
         val old = host.pendingHistory!!
         compose.runOnIdle { host.failHistory() }

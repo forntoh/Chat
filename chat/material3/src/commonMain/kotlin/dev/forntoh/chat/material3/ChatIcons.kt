@@ -4,8 +4,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.*
 
-/** Default icons from com.composables:icons-tabler-outline-cmp. Replace via composable slots. */
 object ChatIcons {
+    val ChevronDown: ImageVector get() = Tabler.Outline.ChevronDown
     val Copy: ImageVector get() = Tabler.Outline.Copy
     val Reply: ImageVector get() = Tabler.Outline.ArrowBackUp
     val Edit: ImageVector get() = Tabler.Outline.Pencil

@@ -28,8 +28,8 @@ class HistoryJourneyTest {
             })
         }
         compose.onNodeWithTag("message-m999").assertIsDisplayed()
-        compose.onNodeWithTag("timeline").performScrollToIndex(450)
         compose.onNodeWithTag("timeline").performScrollToIndex(451)
+        compose.onNodeWithTag("timeline").performScrollToIndex(452)
         val top = compose.onNodeWithTag("message-m452").fetchSemanticsNode().boundsInRoot.top
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = (-40..999).map(::message)) }
         assertEquals(top, compose.onNodeWithTag("message-m452").fetchSemanticsNode().boundsInRoot.top, 1f)
@@ -48,6 +48,50 @@ class HistoryJourneyTest {
         compose.onNodeWithTag("message-m7").assertIsDisplayed()
         compose.onNodeWithText("New messages").assertDoesNotExist()
         assertTrue(snapshot.value.draft.text == "Other draft")
+    }
+
+    @Test fun startMarkerScrollsAwayAndArrivalsFollowOnlyAtBottom() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..29).map(::message)))
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {}, messageContent = { row, _, _ ->
+                    BasicText(row.text, Modifier.height(48.dp))
+                }, composerContent = {})
+            }
+        }
+        compose.onNodeWithTag("message-m29").assertIsDisplayed()
+        compose.onNodeWithText("Start of conversation").assertDoesNotExist()
+        compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        compose.onNodeWithText("Start of conversation").assertIsDisplayed()
+        compose.onNodeWithText("Latest").performClick()
+        compose.onNodeWithTag("message-m29").assertIsDisplayed()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + (30..34).map(::message)) }
+        compose.onNodeWithTag("message-m34").assertIsDisplayed()
+        compose.onNodeWithTag("timeline").performScrollToIndex(5)
+        val top = compose.onNodeWithTag("message-m5").fetchSemanticsNode().boundsInRoot.top
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(35)) }
+        assertEquals(top, compose.onNodeWithTag("message-m5").fetchSemanticsNode().boundsInRoot.top, 1f)
+    }
+
+    @Test fun replyNavigationCentersLoadedTargetAndOffersTransientHighlightToCustomRows() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val highlighted = mutableSetOf<String>()
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(ConversationState("room", "me", messages = (0..29).map(::message)), {},
+                    slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
+                        androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
+                        BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
+                    }), composerContent = {})
+            }
+        }
+        compose.onNodeWithText("Message 29").performClick()
+        val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        val target = compose.onNodeWithTag("message-m12").fetchSemanticsNode().boundsInRoot
+        assertEquals(viewport.center.y, target.center.y, 2f)
+        compose.runOnIdle { assertTrue("m12" in highlighted) }
+        compose.onNodeWithTag("message-m29").assertIsNotDisplayed()
     }
 
     @Test fun boundaryRequestsOnceAndFailureRequiresExplicitRetry() {

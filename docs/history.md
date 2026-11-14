@@ -19,4 +19,38 @@ Merge overlapping page identities in the host before constructing `ConversationS
 
 Run the desktop sample and choose **History fixture** for a reproducible source of 1,000 messages with the latest 50 loaded. Scroll up or choose **Load earlier**, then **Complete page** or **Fail page**. Successful pages overlap one identity and refresh its text. Use **New arrival**, **Switch room**, and **Custom UI** / **Material3 UI** to inspect host ownership and presentation. Drafts and unresolved submissions are retained per room in memory; no process-death or backend guarantee is made.
 
-Validation is deliberately limited to three shared JVM journeys: prepend/arrival anchoring and return with 1,000 rows; single boundary request and explicit retry/exhaustion; sample overlap reconciliation, stale room results and retained drafts. No frame-rate target is measured. Native platform/configuration campaigns and dedicated accessibility/RTL checks remain owner-deferred for this stage. Current candidate evidence is recorded on PAT-242.
+The original history validation used three shared JVM journeys: prepend/arrival anchoring and return with 1,000 rows; single boundary request and explicit retry/exhaustion; sample overlap reconciliation, stale room results and retained drafts. No frame-rate target is measured. Native platform/configuration campaigns and dedicated accessibility/RTL checks remain owner-deferred for this stage. That baseline evidence is recorded on PAT-242. PAT-267 adds focused reply-navigation,
+multiline composer/bottom-follow and start-marker regressions plus targeted native sample journeys.
+
+## Timeline presentation and reply navigation
+
+History feedback is the first keyed timeline item, so “Start of conversation” scrolls away.
+The Material3 Latest control is a 48dp chevron button over the lower-right timeline, with a
+180ms fade/slide entrance and exit. It appears whenever newer content is outside the viewport.
+Its callback uses animated scrolling; the composer and timeline keep their height. Host latest
+slots retain the same callback and new-message flag. Bottom-follow records the prior reader
+position before a changed snapshot is measured; arrivals while reading history preserve identity/offset.
+Composer/safe-area viewport changes keep an existing bottom reader pinned instead of changing
+reader mode simply because a multiline draft needs more height.
+
+`ConversationSlots.presentedMessage` is an optional four-argument row slot. It receives the
+message, sender direction, retry callback and `MessagePresentation`. It overrides `message`;
+an explicit `Conversation.messageContent` still overrides both. Existing row slots can read the
+same value from `LocalMessagePresentation`. `onNavigateToMessage(id)` smoothly brings a loaded
+stable ID into the center, bounded by the available scroll range, then sets `isHighlighted` for
+900ms. The default bubble fades its surface tint over 180ms; consumers can animate the flag
+however they wish, or render it immediately. `MessageBubble` also accepts an explicit
+`presentation` alongside its bubble modifier. Compose animation duration scaling applies.
+
+Navigation never loads history or emits host intents. Missing IDs do nothing. New navigation
+cancels prior travel/highlight; switching conversations cancels the scoped work. First/last rows
+are limited by the available scroll range. Consumers needing unloaded-target resolution own
+that history request and must navigate only after the target is in the snapshot.
+
+```kotlin
+val slots = LocalConversationSlots.current.copy(presentedMessage = { row, outgoing, retry, presentation ->
+    HostBubble(row, outgoing, retry, presentation.isHighlighted) {
+        presentation.onNavigateToMessage(hostQuoteTargetId)
+    }
+})
+```

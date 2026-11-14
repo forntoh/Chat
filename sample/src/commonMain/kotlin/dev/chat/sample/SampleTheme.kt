@@ -25,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import dev.forntoh.chat.material3.ReplyPreview
 
 /**
  * The sample uses the library's default reference palette and renderer theme. [hostTheme] demonstrates host control of colors
@@ -41,59 +42,91 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
 
     val type = if (hostTheme) Typography(
         bodyLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 18.sp, lineHeight = 25.sp),
-        titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 24.sp),
+        titleLarge = TextStyle(
+            fontFamily = FontFamily.Serif,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        ),
     ) else Typography(
-        bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp, lineHeight = 24.sp),
-        titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 20.sp, lineHeight = 24.sp),
+        bodyLarge = TextStyle(
+            fontFamily = FontFamily.SansSerif,
+            fontSize = 16.sp,
+            lineHeight = 24.sp
+        ),
+        titleLarge = TextStyle(
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.Medium,
+            fontSize = 20.sp,
+            lineHeight = 24.sp
+        ),
     )
     MaterialTheme(colorScheme = colors, typography = type) {
         // The sample bridges its optional Material3 theme at the host boundary.
         ActionTheme(
-            style = ActionStyle(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                menuBackground = MaterialTheme.colorScheme.surfaceContainerHigh),
+            style = ActionStyle(
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                menuBackground = MaterialTheme.colorScheme.surfaceContainerHigh
+            ),
             slots = LocalActionSlots.current.copy(
                 composerStatus = { Column(Modifier.padding(horizontal = 16.dp)) { it() } },
-                quote = { quote ->
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                        Text(quote.message?.let { "${it.sender.displayName}: ${it.text}" } ?: "Message unavailable",
-                            Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
-                    }
-                },
+                quote = { ReplyPreview(it.message, it.onClick) },
                 confirmation = {
-                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.errorContainer) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
                         Column(Modifier.padding(12.dp)) { it() }
                     }
                 },
-                status = { status -> Text(when (status.kind) {
-                    ActionStatusKind.Editing -> "Editing message"
-                    ActionStatusKind.Unavailable -> "This action is no longer available. Cancel and select the message again."
-                    ActionStatusKind.Replying -> "Replying to"
-                    ActionStatusKind.Pending -> "Request pending…"
-                    ActionStatusKind.Error -> status.error.orEmpty()
-                    ActionStatusKind.DeletePrompt -> "Delete this message?"
-                }, Modifier.padding(vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
-                    color = if (status.kind == ActionStatusKind.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
+                status = { status ->
+                    Text(
+                        when (status.kind) {
+                            ActionStatusKind.Editing -> "Editing message"
+                            ActionStatusKind.Unavailable -> "This action is no longer available. Cancel and select the message again."
+                            ActionStatusKind.Replying -> "Replying to"
+                            ActionStatusKind.Pending -> "Request pending…"
+                            ActionStatusKind.Error -> status.error.orEmpty()
+                            ActionStatusKind.DeletePrompt -> "Delete this message?"
+                        },
+                        Modifier.padding(vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (status.kind == ActionStatusKind.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 control = { button ->
-                    ActionTheme(style = LocalActionStyle.current.copy(
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color =
-                            if (button.command == ActionCommand.RequestDelete || button.command == ActionCommand.ConfirmDelete)
-                                MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                    )) { ActionControl(button) {
-                        val icon = when (button.command) {
-                            ActionCommand.Copy -> ChatIcons.Copy
-                            ActionCommand.Quote -> ChatIcons.Reply
-                            ActionCommand.BeginEdit -> ChatIcons.Edit
-                            ActionCommand.RequestDelete -> ChatIcons.Delete
-                            ActionCommand.CloseMenu -> ChatIcons.Close
-                            else -> null
+                    ActionTheme(
+                        style = LocalActionStyle.current.copy(
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color =
+                                    if (button.command == ActionCommand.RequestDelete || button.command == ActionCommand.ConfirmDelete)
+                                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    ) {
+                        ActionControl(button) {
+                            val icon = when (button.command) {
+                                ActionCommand.Copy -> ChatIcons.Copy
+                                ActionCommand.Quote -> ChatIcons.Reply
+                                ActionCommand.BeginEdit -> ChatIcons.Edit
+                                ActionCommand.RequestDelete -> ChatIcons.Delete
+                                ActionCommand.CloseMenu -> ChatIcons.Close
+                                else -> null
+                            }
+                            if (icon == null) ActionLabel(button.command) else Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                ActionLabel(button.command)
+                                Icon(
+                                    icon,
+                                    null,
+                                    Modifier.size(20.dp),
+                                    tint = LocalActionStyle.current.textStyle.color
+                                )
+                            }
                         }
-                        if (icon == null) ActionLabel(button.command) else Row(
-                            Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            ActionLabel(button.command)
-                            Icon(icon, null, Modifier.size(20.dp), tint = LocalActionStyle.current.textStyle.color)
-                        }
-                    } }
+                    }
                 },
             ),
             content = { ChatTheme(colorScheme = colors, typography = type, content = content) },
@@ -104,7 +137,8 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
 /** Host-owned identity content for the scaffold's avatar slot. */
 @Composable
 internal fun SampleAvatar(initials: String) {
-    Surface(shape = androidx.compose.foundation.shape.CircleShape,
+    Surface(
+        shape = androidx.compose.foundation.shape.CircleShape,
         color = MaterialTheme.colorScheme.secondaryContainer,
         modifier = Modifier.size(36.dp).clearAndSetSemantics {}) {
         androidx.compose.foundation.layout.Box(contentAlignment = androidx.compose.ui.Alignment.Center) {

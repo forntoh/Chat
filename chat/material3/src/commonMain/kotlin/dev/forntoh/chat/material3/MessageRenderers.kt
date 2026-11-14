@@ -44,6 +44,7 @@ fun MessageBubble(
  * Renders the default message with [bubbleModifier] applied only to the shaped colored surface.
  * Host click/long-click handling and indication attached here exclude the external sender, avatar,
  * row gutters and separate Retry. The modifier is clipped to the bubble's grouped corners.
+ * [presentation] exposes reply-navigation highlight state; custom row slots may animate it themselves.
  * Slots retain content ownership; actions and their eligibility remain host-owned.
  */
 @Composable
@@ -53,6 +54,7 @@ fun MessageBubble(
     onRetry: (() -> Unit)?,
     slots: ConversationSlots,
     bubbleModifier: Modifier,
+    presentation: MessagePresentation = LocalMessagePresentation.current,
 ) {
     val group = LocalMessageGroupContext.current
     ConversationTheme(slots) {
@@ -74,6 +76,7 @@ fun MessageBubble(
                         outgoing = isCurrentParticipant,
                         slots = slots,
                         bubbleModifier = bubbleModifier,
+                        highlighted = presentation.isHighlighted,
                         shape = RoundedCornerShape(
                             topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
                             topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
@@ -149,8 +152,8 @@ fun HistoryStatusContent(content: HistoryContent, empty: Boolean, slots: Convers
 @Composable
 fun LatestControl(content: LatestContent, slots: ConversationSlots = LocalConversationSlots.current) {
     ConversationTheme(slots) {
-        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-            FilledTonalButton(onClick = content.onReturnToLatest) { slots.latestLabel(content) }
+        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh, shadowElevation = 3.dp) {
+            IconButton(onClick = content.onReturnToLatest) { slots.latestLabel(content) }
         }
     }
 }

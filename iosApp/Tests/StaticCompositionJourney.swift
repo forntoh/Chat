@@ -60,6 +60,42 @@ final class StaticCompositionJourney: XCTestCase {
         app.buttons["Close actions"].tap()
     }
 
+    func testEmbeddedReplyAndLatestNavigation() {
+        let app = XCUIApplication()
+        app.launch()
+        let composer = app.textViews.firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15))
+        let target = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Morgan Lee, I’ll bring")).firstMatch
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        target.press(forDuration: 0.7)
+        app.buttons["Reply"].tap()
+        composer.tap()
+        composer.typeText("A reply with an embedded preview")
+        app.buttons["Send"].tap()
+        let preview = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Reply to Morgan Lee")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        capture("reply-default")
+        preview.tap()
+        capture("reply-centered")
+        let returnToBottom = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Latest")).firstMatch
+        if returnToBottom.exists { returnToBottom.tap() }
+        for n in 1...4 {
+            composer.tap()
+            composer.typeText("Native follow message \(n). More conversation content for the scrolling journey.")
+            app.buttons["Send"].tap()
+            let message = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Native follow message \(n)")).firstMatch
+            XCTAssertTrue(message.waitForExistence(timeout: 10))
+        }
+        app.swipeDown()
+        let latest = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Latest")).firstMatch
+        XCTAssertTrue(latest.waitForExistence(timeout: 5))
+        capture("reply-floating-latest")
+        latest.tap()
+        app.buttons["Conversation options"].tap()
+        app.buttons["Custom UI"].tap()
+        capture("reply-custom-latest")
+    }
+
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "pat267-\(name)"

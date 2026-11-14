@@ -82,6 +82,62 @@ class ActionsJourneyTest {
         compose.runOnIdle { assertEquals("welcome", host.actions.quotes[host.state.messages.last().id]) }
         compose.onNodeWithTag("composer").assertTextContains("")
     }
+    @Test fun embeddedReplyIsInsideBubbleAndTappingCentersItsTarget() {
+        val host = FakeHost()
+        host.useHistoryFixture()
+        val target = host.state.messages[20]
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, target.id))
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "A reply with an embedded preview"))
+        val draft = host.state.draft
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.SendQuote,
+            target.id, draft.text, draft.revision))
+        host.accept()
+        host.completeDelivery(Delivery.Sent)
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        val preview = compose.onNodeWithContentDescription("Reply to ${target.sender.displayName}", useUnmergedTree = true)
+        val previewBounds = preview.fetchSemanticsNode().boundsInRoot
+        val bubbleBounds = compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        kotlin.test.assertTrue(previewBounds.top >= bubbleBounds.top && previewBounds.bottom < bubbleBounds.bottom)
+        kotlin.test.assertTrue(previewBounds.width >= bubbleBounds.width * 0.75f, "The inset preview should span its parent bubble content")
+        capture("reply-embedded")
+        preview.performClick()
+        val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+        val row = compose.onNodeWithTag("message-${target.id}").fetchSemanticsNode().boundsInRoot
+        assertEquals(viewport.center.y, row.center.y, 2f)
+        capture("reply-target-centered")
+        demo("Custom UI")
+        capture("reply-custom-target-centered")
+        compose.onNodeWithContentDescription("Latest").performClick()
+        capture("reply-custom-embedded")
+        compose.runOnIdle { host.removeMessage(target.id) }
+        compose.onNodeWithContentDescription("Message unavailable", useUnmergedTree = true).assert(hasClickAction().not())
+    }
+
+    @Test fun shortConversationKeepsFollowingAfterReplyNavigationAndMultilineInput() {
+        val host = FakeHost().apply { useChatFixture() }
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, "morgan"))
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "A reply with an embedded preview"))
+        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.SendQuote,
+            "morgan", host.state.draft.text, host.state.draft.revision))
+        host.accept(); host.completeDelivery(Delivery.Sent); host.receiveMessage()
+        compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { SampleApp(host, manualService = true) } }
+        compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).performClick()
+        if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())
+            compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        repeat(3) { n ->
+            compose.onNodeWithTag("composer").performTextInput("Following message $n. More conversation content for the scrolling journey.")
+            compose.onNodeWithContentDescription("Send").performClick()
+            compose.runOnIdle { host.accept() }
+            compose.waitForIdle()
+            compose.runOnIdle { host.completeDelivery(Delivery.Sent) }
+            compose.waitForIdle()
+            compose.runOnIdle { host.receiveMessage() }
+            val bounds = compose.onNodeWithTag("message-${host.state.messages.last().id}").fetchSemanticsNode().boundsInRoot
+            val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
+            kotlin.test.assertTrue(bounds.bottom <= viewport.bottom, "Arrivals must remain fully in view after a fitting reply navigation")
+        }
+    }
+
     @Test fun editCancelIsLosslessAndFailureDoesNotChangeAuthoritativeMessage() {
         val host = FakeHost()
         host.onEvent(ConversationEvent.DraftChanged("studio", "Original message"))

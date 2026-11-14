@@ -130,7 +130,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
         }
     },
     historyFeedback = { DefaultHistoryFeedback(it) },
-    latestLabel = { Text(if (it.hasNewMessages) "New messages · Latest" else "Latest") },
+    latestLabel = { Icon(ChatIcons.ChevronDown, contentDescription = if (it.hasNewMessages) "New messages · Latest" else "Latest") },
     messageAvatar = { message ->
         Surface(
             shape = CircleShape,

@@ -210,7 +210,10 @@ fun MessageActions(content: ActionsContent, messageId: String, slots: ActionSlot
 @Composable
 fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots = LocalActionSlots.current) {
     ActionTheme(slots = slots) {
-        slots.quote(ActionQuoteContent(targetId, content.conversation.messages.find { it.id == targetId }))
+        val target = content.conversation.messages.find { it.id == targetId }
+        val presentation = dev.forntoh.chat.ui.LocalMessagePresentation.current
+        slots.quote(ActionQuoteContent(targetId, target,
+            if (target != null) ({ presentation.onNavigateToMessage(targetId) }) else null))
     }
 }
 

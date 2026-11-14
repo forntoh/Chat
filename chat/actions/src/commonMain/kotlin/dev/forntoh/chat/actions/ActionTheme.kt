@@ -11,6 +11,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -30,6 +35,8 @@ data class ActionStyle(
     val minimumControlSize: Dp = 48.dp,
     val menuBackground: Color = Color(0xFFF4F5F8),
     val menuShape: Shape = RoundedCornerShape(20.dp),
+    val quoteBackground: Color = Color(0x14000000),
+    val quoteAccent: Color = Color(0xFF53A6DF),
 )
 
 /** Guarded explicit action. Custom controls author their label from [command], honor [enabled],
@@ -38,7 +45,7 @@ data class ActionControlContent(val command: ActionCommand, val enabled: Boolean
 
 /** Latest host quote, or null if unavailable. Preserve [targetId] when rendering a fallback;
  * slots own their visible wording and must not clear host state while rendering. */
-data class ActionQuoteContent(val targetId: String, val message: Message?)
+data class ActionQuoteContent(val targetId: String, val message: Message?, val onClick: (() -> Unit)? = null)
 
 /** Presentation feedback category, independent of message delivery state. */
 enum class ActionStatusKind { Editing, Unavailable, Replying, Pending, Error, DeletePrompt }
@@ -150,6 +157,21 @@ fun DefaultActionStatus(content: ActionStatusContent) {
 
 @Composable
 fun DefaultActionQuote(content: ActionQuoteContent) {
-    BasicText(content.message?.let { "${it.sender.displayName}: ${it.text}" } ?: "Message unavailable",
-        style = LocalActionStyle.current.textStyle)
+    val style = LocalActionStyle.current
+    Row(Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(10.dp))
+        .background(style.quoteBackground)
+        .then(if (content.onClick != null) Modifier.clickable(role = Role.Button, onClick = content.onClick) else Modifier)
+        .semantics { contentDescription = content.message?.let { "Reply to ${it.sender.displayName}" } ?: "Message unavailable" }
+        .height(IntrinsicSize.Min)) {
+        Box(Modifier.width(3.dp).fillMaxHeight().background(style.quoteAccent))
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            content.message?.let {
+                BasicText(it.sender.displayName.ifBlank { "Unknown sender" },
+                    style = style.textStyle.copy(color = style.quoteAccent, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            BasicText(content.message?.text?.ifBlank { "Message unavailable" } ?: "Message unavailable",
+                style = style.textStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
 }
