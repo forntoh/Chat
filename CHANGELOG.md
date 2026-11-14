@@ -7,7 +7,9 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
 - Optional actions add long-press bubble focus with a 1% lift, dimmed scrim, bounded vertical
   menu and independent consumer content above/below. Tap leaves actions closed; dismissal and
   stale-target guards preserve host state. The live bubble layer moves continuously to and from
-  the action layout, with no duplicate left in the timeline. Motion can be disabled.
+  the action layout, with no duplicate left in the timeline. Native travel starts after popup
+  placement; bubbles move only when action space is needed, and menu shadows have scroll-viewport
+  clearance. The iOS scrim covers the full window; action controls respect safe areas. Motion can be disabled.
 - Material3 bubbles keep time/status beside the final text line when measured space permits,
   wrapping only to avoid overlap. Bubbles stay content-sized with bounded gutters. The optional
   `MessageMetadata` helper places sender headings outside and time inside the bubble through

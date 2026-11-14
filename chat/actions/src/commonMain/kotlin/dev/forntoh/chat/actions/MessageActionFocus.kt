@@ -62,7 +62,8 @@ fun MessageActionFocus(
     var openedTarget by remember(content.conversation.conversationId, messageId) { mutableStateOf(target) }
     LaunchedEffect(selected) { if (!selected) openedTarget = target }
     val visible = selected && target == openedTarget
-    val transition = remember { MutableTransitionState(false) }.apply { targetState = visible }
+    var popupReady by remember { mutableStateOf(false) }
+    val transition = remember { MutableTransitionState(false) }.apply { targetState = visible && popupReady }
     val animation = rememberTransition(transition, label = "Message action focus")
     val progress by animation.animateFloat(
         transitionSpec = { tween(if (motionEnabled) 180 else 0, easing = FastOutSlowInEasing) },
@@ -76,12 +77,12 @@ fun MessageActionFocus(
     var anchor by remember { mutableStateOf(Rect.Zero) }
     var rowBounds by remember { mutableStateOf(Rect.Zero) }
     val safeTarget = allowed && target == openedTarget
-    val presenting = safeTarget && (transition.currentState || transition.targetState)
+    val presenting = safeTarget && (visible || transition.currentState || transition.targetState)
     Box(modifier.onGloballyPositioned {
         rowBounds = Rect(it.localToScreen(Offset.Zero), it.size.toSize())
     }.drawWithContent {
-        layer.record { this@drawWithContent.drawContent() }
-        if (presenting) {
+        if (!presenting || !popupReady) layer.record { this@drawWithContent.drawContent() }
+        if (presenting && popupReady) {
             clipRect(
                 left = anchor.left - rowBounds.left,
                 top = anchor.top - rowBounds.top,
@@ -112,21 +113,25 @@ fun MessageActionFocus(
                     layoutDirection: LayoutDirection, popupContentSize: IntSize) = IntOffset.Zero
             },
             onDismissRequest = dismiss,
-            properties = PopupProperties(focusable = true, clippingEnabled = false),
+            properties = focusPopupProperties(),
         ) {
+            DisposableEffect(Unit) { onDispose { popupReady = false } }
             val focus = remember { FocusRequester() }
             LaunchedEffect(Unit) { focus.requestFocus() }
             var popupOrigin by remember { mutableStateOf(Offset.Zero) }
             Box(Modifier.fillMaxSize().onGloballyPositioned {
                 popupOrigin = it.localToScreen(Offset.Zero)
+                popupReady = true
             }.onPreviewKeyEvent {
                 if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { dismiss(); true } else false
             }.focusRequester(focus).focusable()) {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f * progress))
                     .clickable(interactionSource = null, indication = null, onClick = dismiss)
                     .semantics { contentDescription = "Dismiss message actions" })
+                // Scrim spans the window; only interactive content observes native safe areas.
+                val safeInsets = WindowInsets.safeDrawing
                 Layout(content = {
-                    Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) { if (visible) above() else presentation.above() }
+                    FocusActionSlot(progress) { if (visible) above() else presentation.above() }
                     Box(Modifier.graphicsLayer {
                         scaleX = 1f + .01f * progress
                         scaleY = 1f + .01f * progress
@@ -137,42 +142,58 @@ fun MessageActionFocus(
                                 .size(with(density) { anchor.width.toDp() }, with(density) { anchor.height.toDp() })
                                 .semantics { contentDescription = "${target.sender.displayName}, ${target.text}, ${target.displayTime}" }
                         ) {
-                            clipRect {
+                            if (popupReady) clipRect {
                                 translate(rowBounds.left - anchor.left, rowBounds.top - anchor.top) { drawLayer(layer) }
                             }
                         }
                     }
-                    Box(Modifier.graphicsLayer { alpha = progress; translationY = 8.dp.toPx() * (1f - progress) }.verticalScroll(rememberScrollState())) { if (visible) below() else presentation.below() }
+                    FocusActionSlot(progress) { if (visible) below() else presentation.below() }
                 }, modifier = Modifier.fillMaxSize()) { children, constraints ->
                     val localAnchor = anchor.translate(-popupOrigin)
                     val margin = 16.dp.roundToPx()
-                    val gap = 12.dp.roundToPx()
+                    val topMargin = margin + safeInsets.getTop(this)
+                    val bottomMargin = margin + safeInsets.getBottom(this)
+                    val safeHeight = (constraints.maxHeight - topMargin - bottomMargin).coerceAtLeast(0)
                     val availableWidth = (constraints.maxWidth - margin * 2).coerceAtLeast(0)
                     val menuConstraints = Constraints(maxWidth = availableWidth,
-                        maxHeight = (constraints.maxHeight / 2 - margin * 2).coerceAtLeast(0))
-                    val top = children[0].measure(menuConstraints.copy(maxHeight = (constraints.maxHeight / 4 - margin).coerceAtLeast(0)))
+                        maxHeight = safeHeight / 2)
+                    val top = children[0].measure(menuConstraints.copy(maxHeight = safeHeight / 4))
                     val bottom = children[2].measure(menuConstraints)
-                    val topGap = if (top.height > 0) gap else 0
-                    val bottomGap = if (bottom.height > 0) gap else 0
                     val bubbleHeight = anchor.height.roundToInt().coerceAtMost(
-                        (constraints.maxHeight - margin * 2 - top.height - bottom.height - topGap - bottomGap).coerceAtLeast(0))
+                        (safeHeight - top.height - bottom.height).coerceAtLeast(0))
                     val selectedBubble = children[1].measure(Constraints.fixed(
-                        anchor.width.roundToInt().coerceAtMost(availableWidth), bubbleHeight))
-                    val groupHeight = top.height + topGap + selectedBubble.height + bottomGap + bottom.height
-                    val y = (localAnchor.top.roundToInt() - top.height - topGap)
-                        .coerceIn(margin, maxOf(margin, constraints.maxHeight - margin - groupHeight))
-                    val x = localAnchor.left.roundToInt().coerceIn(margin, maxOf(margin, constraints.maxWidth - margin - selectedBubble.width))
+                        anchor.width.roundToInt().coerceAtMost(constraints.maxWidth), bubbleHeight))
+                    val minimumY = topMargin + top.height
+                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - selectedBubble.height)
+                    val y = localAnchor.top.roundToInt().coerceIn(minimumY, maximumY)
+                    val x = localAnchor.left.roundToInt().coerceIn(0, maxOf(0, constraints.maxWidth - selectedBubble.width))
                     fun menuX(width: Int) = x.coerceAtMost(constraints.maxWidth - margin - width).coerceAtLeast(margin)
-                    if (visible) presentation.position = IntOffset(x, y + top.height + topGap)
+                    if (visible) presentation.position = IntOffset(x, y)
                     layout(constraints.maxWidth, constraints.maxHeight) {
                         val destination = presentation.position
                         val bubbleX = (localAnchor.left + (destination.x - localAnchor.left) * progress).roundToInt()
                         val bubbleY = (localAnchor.top + (destination.y - localAnchor.top) * progress).roundToInt()
-                        top.place(menuX(top.width), bubbleY - topGap - top.height)
+                        top.place(menuX(top.width), bubbleY - top.height)
                         selectedBubble.place(bubbleX, bubbleY)
-                        bottom.place(menuX(bottom.width), bubbleY + selectedBubble.height + bottomGap)
+                        bottom.place(menuX(bottom.width), bubbleY + selectedBubble.height)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusActionSlot(progress: Float, content: @Composable () -> Unit) {
+    Box(Modifier.graphicsLayer { alpha = progress }.verticalScroll(rememberScrollState())) {
+        Layout(content = content) { children, constraints ->
+            val inset = 24.dp.roundToPx()
+            val items = children.map { it.measure(constraints.offset(-2 * inset, -2 * inset)) }
+            val width = items.maxOfOrNull { it.width } ?: 0
+            val height = items.maxOfOrNull { it.height } ?: 0
+            if (width == 0 || height == 0) layout(0, 0) {}
+            else layout(constraints.constrainWidth(width + 2 * inset), constraints.constrainHeight(height + 2 * inset)) {
+                items.forEach { it.place(inset, inset) }
             }
         }
     }

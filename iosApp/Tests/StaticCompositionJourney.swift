@@ -41,6 +41,11 @@ final class StaticCompositionJourney: XCTestCase {
         XCTAssertTrue(liftedBubble.waitForExistence(timeout: 5))
         XCTAssertEqual(liftedBubble.frame.midX, originalFrame.midX, accuracy: 3, "Popup and timeline must share a coordinate space")
         XCTAssertEqual(liftedBubble.frame.midY, originalFrame.midY, accuracy: 3, "A bubble with room for its menu must stay anchored")
+        let scrim = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Dismiss message actions")).firstMatch
+        XCTAssertTrue(scrim.exists)
+        XCTAssertEqual(scrim.frame.minY, app.frame.minY, accuracy: 1, "Scrim must cover the top safe area")
+        XCTAssertEqual(scrim.frame.maxY, app.frame.maxY, accuracy: 1, "Scrim must cover the bottom safe area")
+        XCTAssertEqual(scrim.frame.width, app.frame.width, accuracy: 1)
         capture("default-action-focus")
         app.buttons["Close actions"].tap()
         XCTAssertTrue(bubble.waitForExistence(timeout: 5))

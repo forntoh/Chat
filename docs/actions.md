@@ -133,11 +133,17 @@ or guarded actions and must not emit intents during composition. `ActionStyle.me
 `ActionSlots.control` still owns labels/icons/semantics. The sample maps its existing theme and
 Tabler icons and demonstrates additional content above in Custom UI mode.
 
-The selected bubble transfers drawing of its live graphics layer from the timeline to the focus
+The selected bubble transfers drawing of its recorded graphics layer from the timeline to the focus
 surface; its host content is composed once and the timeline leaves no duplicate under the scrim.
 A 180ms FastOutSlowIn transition moves it continuously from its measured screen position to the
-action layout, accounting for the popup origin and native insets. It enlarges the bubble to 1.01x,
-fades a 20% black scrim and introduces the lower content over 8dp. Dismissal reverses the same
+action layout, accounting for the popup origin and native insets. Native animation starts after
+popup placement is known; the recording remains stable while the popup draws it. A bubble that
+already has room for the occupied slots retains its position, including its original horizontal
+gutter. Empty slots reserve no height or gap. Occupied slots include 24dp of internal shadow
+clearance inside their bounded scroll viewport so the shadow fades before clipping. On iOS the
+popup opts out of platform inset clipping: the scrim covers the complete window, while menu
+placement still observes native safe drawing insets. It enlarges the bubble to 1.01x,
+fades a 20% black scrim and fades the surrounding content. Dismissal reverses the same
 travel before drawing returns to the timeline. Exit converges on the latest host state. Set
 `motionEnabled = false` for immediate transitions; Compose's duration scale is also respected.
 This supplies no glass/blur or reaction feature. Long bubbles and lower content scroll within

@@ -7,7 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import dev.forntoh.chat.actions.*
 import dev.forntoh.chat.core.*
 import org.junit.Rule
@@ -15,6 +15,8 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.toPixelMap
 
@@ -111,6 +113,66 @@ class ActionSlotsTest {
         assertTrue(returnTop > endTop && returnTop < originalTop, "Dismissal must animate back")
         compose.mainClock.advanceTimeBy(200)
         assertEquals(originalTop, magentaRows(compose.onAllNodes(isRoot()).onFirst()).first())
+    }
+
+    @Test fun bottomOnlyActionsKeepBubbleInPlaceAndLeaveRoomForTheirShadow() {
+        val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
+        val state = mutableStateOf(ActionState(capabilities = mapOf("m" to setOf(MessageAction.Copy))))
+        compose.setContent {
+            val actions = rememberMessageActions(ConversationState("room", "me", messages = listOf(target)), state.value, {
+                state.value = state.value.copy(revision = state.value.revision + 1,
+                    menuTargetId = if (it.command == ActionCommand.OpenMenu) "m" else null)
+            }, {})
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                Box(Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(horizontal = 12.dp).offset(y = 120.dp)) {
+                    MessageActionFocus(actions, "m", below = {
+                        Box(Modifier.size(160.dp, 80.dp)
+                            .shadow(16.dp, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .background(Color.White).testTag("lower action"))
+                    }) { interaction ->
+                        BasicText("Original", interaction.fillMaxWidth().height(40.dp).background(Color.Magenta))
+                    }
+                }
+            }
+        }
+        fun coloredRows(): List<Int> {
+            val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
+            return (0 until pixels.height).filter { y ->
+                val c = pixels[pixels.width / 2, y]
+                c.red > .95f && c.blue > .95f && c.green < .05f
+            }
+        }
+        fun coloredColumns(): List<Int> {
+            val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
+            val y = with(compose.density) { 140.dp.roundToPx() }
+            return (0 until pixels.width).filter { x ->
+                val c = pixels[x, y]; c.red > .95f && c.blue > .95f && c.green < .05f
+            }
+        }
+        val originalTop = coloredRows().first()
+        val originalColumns = coloredColumns()
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { state.value = state.value.copy(revision = 1, menuTargetId = "m") }
+        repeat(16) {
+            compose.mainClock.advanceTimeByFrame()
+            assertTrue(kotlin.math.abs(coloredRows().first() - originalTop) <= 1,
+                "Bottom-only actions that fit must not displace or flash the bubble")
+            val columns = coloredColumns()
+            assertTrue(columns.size >= originalColumns.size - 1, "Focusing must not narrow a wide custom bubble")
+            assertTrue(kotlin.math.abs((columns.first() + columns.last()) -
+                (originalColumns.first() + originalColumns.last())) <= 2,
+                "The bubble's center must stay anchored while it grows by 1%")
+        }
+        val menu = compose.onNodeWithTag("lower action").fetchSemanticsNode().boundsInRoot
+        val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
+        val x = ((menu.left + menu.right) / 2).toInt()
+        // White menu casts a visible shadow below its bottom, over the uniform scrim.
+        val scrim = pixels[x, (menu.bottom + 36).toInt()].red
+        assertTrue((1..6).any { pixels[x, menu.bottom.toInt() + it].red < scrim - .015f },
+            "Action shadow must survive its scroll viewport")
+        val density = compose.density.density
+        val tail = pixels[x, (menu.bottom + 13 * density).toInt()].red
+        assertTrue(tail < scrim - .002f, "The lower shadow must extend beyond 12dp without a hard cutoff: tail=$tail background=$scrim")
     }
 
     @Test fun themeSlotsReachNestedSurfacesAndExplicitSlotsOverrideThemWithoutLosingGuards() {
