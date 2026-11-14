@@ -3,9 +3,9 @@ package dev.chat.sample
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dev.chat.core.*
-import dev.chat.ui.*
-import dev.chat.actions.*
+import dev.forntoh.chat.core.*
+import dev.forntoh.chat.ui.*
+import dev.forntoh.chat.actions.*
 
 /**
  * In-memory sample adapter, called on the UI thread. Manual acceptance and delivery controls

@@ -27,7 +27,10 @@ Verify selectable artifacts locally (no network publication):
 ./gradlew -p consumers -PchatRepository="$PWD/build/staging" verifySelection jvmJar compileAndroidMain compileKotlinIosArm64 compileKotlinIosSimulatorArm64 :custom-ui:jvmTest
 ```
 
-Choose `dev.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
+Library packages use the `dev.forntoh.chat` root (`core`, `ui`, `material3`, `actions`, `media`).
+Sample and consumer harness packages remain separate.
+
+Choose `dev.forntoh.chat.candidate:chat-core:0.1.0-local` for contracts, `chat-ui` for custom Compose content, or `chat-material3` for default presentation. The separate consumer build shows each integration. All base artifacts use the same configured platform/toolchain floors.
 
 See [customization](docs/customization.md) for host strings, ordered semantics, mixed renderers
 and the default chat theme and customizable scaffold.
@@ -35,8 +38,8 @@ and the default chat theme and customizable scaffold.
 See [message actions](docs/actions.md) for independently selectable `chat-actions`, quote/edit/delete
 state, explicit host clipboard integration and a Material3-free outside consumer.
 
-`ConversationTheme` and `ConversationSlots` live in `dev.chat.ui`. For optional Material3 presentation,
-wrap the same `dev.chat.ui.Conversation` in `dev.chat.material3.ChatTheme { ... }`.
+`ConversationTheme` and `ConversationSlots` live in `dev.forntoh.chat.ui`. For optional Material3 presentation,
+wrap the same `dev.forntoh.chat.ui.Conversation` in `dev.forntoh.chat.material3.ChatTheme { ... }`.
 Use `ChatScaffold(title = { Text("Design team") }) { Conversation(state, ::handleEvent) }`
 inside that theme for the full customizable screen shell.
 The Material3 module supplies slot renderers and has no separate Conversation component.
@@ -45,3 +48,16 @@ See [host-supplied images](docs/media.md) for independently selectable `chat-med
 image drafts, host rendering/upload/viewer integration and the bundled **Image sample**.
 Stage `:chat:media:publishAllPublicationsToStagingRepository` alongside core/ui, then verify
 `:media-only:verifySelection :media-only:jvmTest` in the separate consumer build.
+
+See [support and versioning](docs/support.md), [changelog](CHANGELOG.md),
+[contributing](CONTRIBUTING.md), [Apache-2.0 license](LICENSE) for original library code and
+[dependency inventory](docs/dependencies.md). Public distribution remains unconfigured.
+
+For combined actions and media graph evidence, stage core/ui/actions/media and run:
+
+```sh
+./gradlew -p consumers -PchatRepository="$PWD/build/staging" :combined:verifySelection
+```
+
+The independent consumer checks JVM, Android and both arm64 iOS artifact graphs without running a
+module/runtime matrix. It selects both optional features without selecting Material3.

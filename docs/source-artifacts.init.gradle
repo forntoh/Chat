@@ -1,0 +1,21 @@
+// Local documentation-bearing source archives only; no publication or binary compilation.
+import org.gradle.jvm.tasks.Jar
+
+gradle.projectsEvaluated {
+    def archives = []
+    rootProject.allprojects.findAll { it.path.startsWith(':chat:') }.each { p ->
+        p.tasks.withType(Jar).matching { it.name.toLowerCase().endsWith('sourcesjar') }.configureEach {
+            from(rootProject.file('docs')) { into 'META-INF/chat/docs' }
+            from(rootProject.files('README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'LICENSE', 'GLOSSARY.md')) {
+                into 'META-INF/chat'
+            }
+            destinationDirectory.set(rootProject.layout.buildDirectory.dir("release-source-docs/${p.name}/${name}"))
+        }
+        archives.addAll(p.tasks.withType(Jar).matching { it.name.toLowerCase().endsWith('sourcesjar') })
+    }
+    rootProject.tasks.register('releaseSourceDocs') {
+        group = 'documentation'
+        description = 'Build local source archives with candidate docs, licenses and unchanged KDoc.'
+        dependsOn archives
+    }
+}
