@@ -8,16 +8,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Sample-only controls. The conversation still consumes ordinary public host snapshots/events. */
 @Composable
 internal fun SimulationPanel(host: FakeHost, onDismiss: () -> Unit) {
     var scenario by remember { mutableStateOf(host.selectedScenario) }
     var seed by remember { mutableStateOf(host.selectedSeed.toString()) }
     var choosing by remember { mutableStateOf(false) }
-    AlertDialog(onDismissRequest = onDismiss,
+    AlertDialog(
+        onDismissRequest = onDismiss,
         title = { Text("Simulation debug panel") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text("Fixture simulation only · no network or persistence.")
                 Box {
                     OutlinedButton(onClick = { choosing = true }) { Text(scenario.label) }
