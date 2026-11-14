@@ -7,8 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.onFocusChanged
 import dev.forntoh.chat.core.*
@@ -17,10 +15,10 @@ import dev.forntoh.chat.ui.*
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
  * independently actionable. Sender and time come entirely from the metadata slot; body and metadata subslots
- * occupy separate measured regions. Metadata sits above and outside the bubble, with delivery
- * aligned alongside it. Avatar
+ * occupy separate measured regions. The metadata slot can place a heading outside the bubble and
+ * time inside it through [MessageMetadata], alongside delivery. Avatar
  * space remains reserved when a host supplies no avatar. Reads [LocalMessageGroupContext] from the shared timeline and
- * [ConversationTheme] subslots. [isCurrentParticipant] selects bubble contrast, not permission.
+ * [ConversationTheme] subslots. [isCurrentParticipant] selects directional presentation, not permission.
  * A standalone caller validates [onRetry] eligibility and identity; Conversation supplies it only
  * for an outgoing failed row. Callback activation is repeatable; the host owns deduplication.
  */
@@ -47,50 +45,26 @@ fun MessageBubble(
             Modifier.fillMaxWidth(),
             contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart
         ) {
-            val maxBubbleWidth = minOf(maxWidth * ChatGeometry.BubbleWidthFraction, ChatGeometry.BubbleMaxWidth)
+            val maxBubbleWidth = minOf(maxWidth * if (isCurrentParticipant) ChatGeometry.OutgoingRowWidthFraction else ChatGeometry.IncomingRowWidthFraction, ChatGeometry.BubbleMaxWidth)
             Row(
                 Modifier.widthIn(max = maxBubbleWidth),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 if (!isCurrentParticipant) AvatarGutter(message, group.isLast, slots)
                 Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start) {
-                    Column(
-                        Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
-                        horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start,
-                        verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
-                    ) {
-                        Row(
-                            Modifier
-                                .heightIn(min = ChatGeometry.MetadataMinHeight)
-                                .widthIn(min = if (isCurrentParticipant) ChatGeometry.OutgoingMetadataMinWidth else 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.MetadataGap, Alignment.End),
-                            verticalAlignment = Alignment.Bottom,
-                        ) {
-                            Box(Modifier.weight(1f, fill = false)) { slots.messageMetadata(message) }
-                            Box(if (isCurrentParticipant) Modifier.widthIn(min = ChatGeometry.DeliveryMinWidth) else Modifier) {
-                                slots.messageDelivery(message.delivery)
-                            }
-                        }
-                        val outer = ChatGeometry.BubbleRadius
-                        val joined = ChatGeometry.JoinedRadius
-                        Surface(
-                            color = if (isCurrentParticipant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentColor = if (isCurrentParticipant) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                            shape = RoundedCornerShape(
-                                topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
-                                topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
-                                bottomEnd = if (isCurrentParticipant) joined else outer,
-                                bottomStart = if (!isCurrentParticipant) joined else outer,
-                            ),
-                        ) {
-                            Column(
-                                Modifier.padding(horizontal = ChatGeometry.BubbleHorizontalPadding, vertical = ChatGeometry.BubbleVerticalPadding),
-                                verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
-                            ) {
-                                slots.messageBody(message)
-                            }
-                        }
-                    }
+                    val outer = ChatGeometry.BubbleRadius
+                    val joined = ChatGeometry.JoinedRadius
+                    MessageBubbleLayout(
+                        message = message,
+                        outgoing = isCurrentParticipant,
+                        slots = slots,
+                        shape = RoundedCornerShape(
+                            topStart = if (!isCurrentParticipant && !group.isFirst) joined else outer,
+                            topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
+                            bottomEnd = if (isCurrentParticipant) joined else outer,
+                            bottomStart = if (!isCurrentParticipant) joined else outer,
+                        )
+                    )
                     if (onRetry != null) slots.retry(RetryContent(message, onRetry))
                 }
             }

@@ -29,22 +29,17 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     history = { HistoryStatusContent(it.history, it.empty) },
     latest = { LatestControl(it) },
     messageMetadata = { message ->
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(ChatGeometry.MetadataGap),
-            itemVerticalAlignment = Alignment.Bottom,
-        ) {
-            if (LocalMessageGroupContext.current.isFirst) {
-                Text(
-                    message.sender.displayName.ifBlank { "Unknown sender" },
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            Text(
-                text = message.displayTime,
-                style = MaterialTheme.typography.labelSmall,
-                color = LocalContentColor.current.copy(alpha = 0.8f)
-            )
-        }
+        MessageMetadata(
+            header = {
+                if (!LocalBubbleOutgoing.current && LocalMessageGroupContext.current.isFirst) {
+                    Text(message.sender.displayName.ifBlank { "Unknown sender" }, style = MaterialTheme.typography.labelMedium)
+                }
+            },
+            footer = {
+                Text(message.displayTime, style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.8f))
+            },
+        )
     },
     messageBody = {
         Text(
