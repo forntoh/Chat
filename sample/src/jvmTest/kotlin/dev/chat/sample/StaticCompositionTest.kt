@@ -63,7 +63,7 @@ class StaticCompositionTest {
         compose.runOnIdle { kotlin.test.assertEquals(null, host.actions.menuTargetId, "Row gutter must not activate actions") }
         compose.onNodeWithText(message.sender.displayName, useUnmergedTree = true).performTouchInput { click() }
         compose.runOnIdle { kotlin.test.assertEquals(null, host.actions.menuTargetId, "External sender must not activate actions") }
-        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { click() }
+        compose.onNodeWithText(message.text, useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").assertIsDisplayed()
         compose.onNodeWithText("Close actions").performClick()
         compose.mainClock.advanceTimeBy(300)
@@ -91,7 +91,7 @@ class StaticCompositionTest {
         compose.onNodeWithText("Close actions").performClick()
         compose.onNodeWithTag("demo-menu").performClick()
         compose.onNodeWithText("Custom UI").performClick()
-        compose.onNodeWithTag("custom-incoming", true).performTouchInput { click() }
+        compose.onNodeWithTag("custom-incoming", true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").assertIsDisplayed()
     }
 

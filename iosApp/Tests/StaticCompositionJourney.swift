@@ -26,6 +26,28 @@ final class StaticCompositionJourney: XCTestCase {
         capture("custom-retained-draft")
     }
 
+    func testLongPressFocusAndCustomSurfaceDismissal() {
+        let app = XCUIApplication()
+        app.launch()
+        let bubble = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Morning! I’ve added")).firstMatch
+        XCTAssertTrue(bubble.waitForExistence(timeout: 15))
+        bubble.tap()
+        XCTAssertFalse(app.buttons["Copy"].exists)
+        bubble.press(forDuration: 0.7)
+        XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5))
+        capture("default-action-focus")
+        app.buttons["Close actions"].tap()
+        XCTAssertTrue(bubble.waitForExistence(timeout: 5))
+        app.buttons["Conversation options"].tap()
+        app.buttons["Custom UI"].tap()
+        let customBubble = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Morning! I’ve added")).firstMatch
+        XCTAssertTrue(customBubble.waitForExistence(timeout: 5))
+        customBubble.press(forDuration: 0.7)
+        XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5))
+        capture("custom-action-focus")
+        app.buttons["Close actions"].tap()
+    }
+
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "pat267-\(name)"

@@ -39,15 +39,32 @@ class ActionsJourneyTest {
         ImageIO.write(scaled, "png", File(directory, "$name.png"))
     }
 
+    @Test fun ordinaryTapDoesNotOpenActionsButHoldDoesAndDismissesWithoutChangingDraft() {
+        val host = FakeHost()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.onNodeWithTag("composer").performTextInput("Keep this draft")
+        val bubble = compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true)
+        bubble.performClick()
+        compose.runOnIdle { assertEquals(null, host.actions.menuTargetId) }
+        bubble.performTouchInput { longClick() }
+        compose.onNodeWithText("Copy").assertExists()
+        compose.onNodeWithText("Copy").performKeyInput { pressKey(androidx.compose.ui.input.key.Key.Escape) }
+        compose.runOnIdle { assertEquals(null, host.actions.menuTargetId) }
+        bubble.performTouchInput { longClick() }
+        compose.onNodeWithText("Close actions").performClick()
+        compose.runOnIdle { assertEquals(null, host.actions.menuTargetId) }
+        compose.onNodeWithTag("composer").assertTextContains("Keep this draft")
+    }
+
     @Test fun quoteCancelRetainsDraftAndAcceptedReplyCarriesTarget() {
         val host = FakeHost()
         compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("My reply")
-        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         capture("01-copy-reply-menu")
         compose.onNodeWithText("Copy").performClick()
         compose.runOnIdle { assertEquals(host.state.messages.first().text, host.copiedText) }
-        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         capture("02-quoted-draft")
         demo("Host theme")
@@ -56,7 +73,7 @@ class ActionsJourneyTest {
         demo("Default chat theme")
         compose.onNodeWithText("Cancel reply").performClick()
         compose.onNodeWithTag("composer").assertTextContains("My reply")
-        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         compose.onNodeWithContentDescription("Send").performClick()
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
@@ -73,15 +90,15 @@ class ActionsJourneyTest {
         host.completeDelivery(Delivery.Sent)
         host.onEvent(ConversationEvent.DraftChanged("studio", "Unsent draft"))
         compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
-        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").assertTextContains("Original message")
         compose.onNodeWithText("Cancel edit").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithText("Cancel reply").assertExists()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").performTextReplacement("Revised message")
         compose.onNodeWithText("Save edit").performClick()
@@ -103,24 +120,24 @@ class ActionsJourneyTest {
         host.accept()
         host.completeDelivery(Delivery.Sent)
         compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
-        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Edit").assertDoesNotExist()
         compose.onNodeWithText("Delete").assertDoesNotExist()
         compose.onNodeWithText("Close actions").performClick()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         capture("04-delete-confirmation")
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { host.revokeActions("studio-1") }
         compose.onNodeWithText("Confirm delete").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { host.allowActions("studio-1") }
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Delete").performClick()
         compose.onNodeWithText("Confirm delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }

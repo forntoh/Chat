@@ -1,6 +1,7 @@
 package dev.chat.sample
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
@@ -15,6 +16,37 @@ import kotlin.test.assertEquals
 
 class ActionSlotsTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun focusAllowsIndependentTopAndBottomContentAndRemovesChangedTargets() {
+        val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)
+        val conversation = mutableStateOf(ConversationState("room", "me", messages = listOf(target)))
+        val state = mutableStateOf(ActionState(capabilities = mapOf("m" to setOf(MessageAction.Copy))))
+        compose.setContent {
+            val actions = rememberMessageActions(conversation.value, state.value, { request ->
+                state.value = state.value.copy(revision = state.value.revision + 1,
+                    menuTargetId = if (request.command == ActionCommand.OpenMenu) "m" else null)
+            }, {})
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.then(
+                androidx.compose.ui.Modifier.size(360.dp, 720.dp))) {
+                MessageActionFocus(actions, "m", motionEnabled = false,
+                    above = { BasicText("Consumer content above") },
+                    below = { Column { BasicText("Consumer content below"); MessageActionMenu(actions, "m") } },
+                    bubble = { modifier -> BasicText("Original", modifier.padding(20.dp)) })
+            }
+        }
+        compose.onNodeWithText("Original").performTouchInput { longClick() }
+        compose.onNodeWithText("Consumer content above").assertIsDisplayed()
+        compose.onNodeWithText("Consumer content below").assertIsDisplayed()
+        compose.onNodeWithText("Copy").assertIsDisplayed()
+        compose.runOnIdle { conversation.value = conversation.value.copy(messages = listOf(target.copy(text = "Changed"))) }
+        compose.onNodeWithText("Consumer content above").assertDoesNotExist()
+        compose.onNodeWithText("Copy").assertDoesNotExist()
+        compose.runOnIdle { state.value = state.value.copy(revision = state.value.revision + 1, menuTargetId = null) }
+        compose.onNodeWithText("Original").performTouchInput { longClick() }
+        compose.onNodeWithText("Copy").assertIsDisplayed()
+        compose.runOnIdle { state.value = state.value.copy(revision = state.value.revision + 1, capabilities = emptyMap()) }
+        compose.onNodeWithText("Copy").assertDoesNotExist()
+    }
 
     @Test fun themeSlotsReachNestedSurfacesAndExplicitSlotsOverrideThemWithoutLosingGuards() {
         val target = Message("m", Participant("me", "You"), 1, "now", "Original", Delivery.Sent)

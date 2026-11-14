@@ -10,7 +10,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Icon
+import dev.forntoh.chat.material3.ChatIcons
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -47,7 +49,8 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors, typography = type) {
         // The sample bridges its optional Material3 theme at the host boundary.
         ActionTheme(
-            style = ActionStyle(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)),
+            style = ActionStyle(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                menuBackground = MaterialTheme.colorScheme.surfaceContainerHigh),
             slots = LocalActionSlots.current.copy(
                 composerStatus = { Column(Modifier.padding(horizontal = 16.dp)) { it() } },
                 quote = { quote ->
@@ -70,11 +73,28 @@ fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
                     ActionStatusKind.DeletePrompt -> "Delete this message?"
                 }, Modifier.padding(vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
                     color = if (status.kind == ActionStatusKind.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
-                control = { button -> TextButton(onClick = button.onClick, enabled = button.enabled) {
+                control = { button ->
                     ActionTheme(style = LocalActionStyle.current.copy(
-                        textStyle = MaterialTheme.typography.labelLarge.copy(color = LocalContentColor.current)
-                    )) { ActionLabel(button.command) }
-                } },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color =
+                            if (button.command == ActionCommand.RequestDelete || button.command == ActionCommand.ConfirmDelete)
+                                MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    )) { ActionControl(button) {
+                        val icon = when (button.command) {
+                            ActionCommand.Copy -> ChatIcons.Copy
+                            ActionCommand.Quote -> ChatIcons.Reply
+                            ActionCommand.BeginEdit -> ChatIcons.Edit
+                            ActionCommand.RequestDelete -> ChatIcons.Delete
+                            ActionCommand.CloseMenu -> ChatIcons.Close
+                            else -> null
+                        }
+                        if (icon == null) ActionLabel(button.command) else Row(
+                            Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            ActionLabel(button.command)
+                            Icon(icon, null, Modifier.size(20.dp), tint = LocalActionStyle.current.textStyle.color)
+                        }
+                    } }
+                },
             ),
             content = { ChatTheme(colorScheme = colors, typography = type, content = content) },
         )

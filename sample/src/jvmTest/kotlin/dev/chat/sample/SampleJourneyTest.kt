@@ -44,7 +44,7 @@ class SampleJourneyTest {
         compose.runOnIdle { width.value = 320.dp }
         capture("pat254-04-narrow")
         compose.onNodeWithTag("timeline").performScrollToIndex(host.state.messages.lastIndex)
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         capture("pat254-05-quoted-draft")
         demo("Manual service")

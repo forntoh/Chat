@@ -1,7 +1,6 @@
 package dev.chat.sample
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -116,12 +115,13 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                 // Wrappers add supported optional actions; default message/composer presentation comes from the artifact.
                 Conversation(retainedHost.state, actions::onConversationEvent, modifier = Modifier.weight(1f),
                     slots = base.copy(message = { message, outgoing, retry ->
-                        Box {
-                            val bubbleInteraction = Modifier.testTag("bubble-${message.id}").combinedClickable(
-                                onClickLabel = "Message actions",
-                                onClick = { actions.request(ActionCommand.OpenMenu, message.id) },
-                                onLongClick = { actions.request(ActionCommand.OpenMenu, message.id) },
-                            )
+                        MessageActionFocus(actions, message.id,
+                            above = {
+                                if (custom) Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                    Text("Message actions", Modifier.padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.labelLarge)
+                                }
+                            }, bubble = { interaction ->
+                            val bubbleInteraction = Modifier.testTag("bubble-${message.id}").then(interaction)
                             Column {
                                 retainedHost.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
                                 if (custom && !outgoing) {
@@ -138,17 +138,7 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                                     }
                                 } else MessageBubble(message, outgoing, retry, base, bubbleInteraction)
                             }
-                            DropdownMenu(expanded = retainedHost.actions.menuTargetId == message.id,
-                                onDismissRequest = { actions.request(ActionCommand.CloseMenu) }) {
-                                MessageActions(actions, message.id, LocalActionSlots.current.copy(
-                                    control = { button ->
-                                        if (button.command != ActionCommand.OpenMenu) DropdownMenuItem(
-                                            text = { ActionLabel(button.command) }, enabled = button.enabled, onClick = button.onClick)
-                                    },
-                                    menu = { it() },
-                                ))
-                            }
-                        }
+                        })
                     }, composer = { content ->
                         Column {
                             ActionComposerStatus(actions)

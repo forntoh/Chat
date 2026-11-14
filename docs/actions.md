@@ -109,3 +109,42 @@ slots. The actions artifact itself has no Material3 dependency. English default 
 type was removed; controls now receive `ActionCommand`, and status slots receive
 `ActionStatusContent` with a distinct kind and optional host error. Theme changes do not authorize
 requests, clear drafts, or report persisted results.
+
+
+## Long-press message focus
+
+`MessageActionFocus` wraps a message renderer in the optional actions artifact. Apply its supplied
+modifier to the shaped bubble only (for Material3, pass it as `bubbleModifier`). Sender headings,
+avatars, gutters and Retry remain outside the interaction. A tap does not open actions.
+
+```kotlin
+MessageActionFocus(actions, message.id,
+    above = { HostTopContent() }, // optional, empty by default
+    below = { MessageActionMenu(actions, message.id) },
+) { bubbleInteraction ->
+    MessageBubble(message, outgoing, retry, conversationSlots, bubbleInteraction)
+}
+```
+
+The default lower surface is a rounded vertical menu with 48dp controls, filtered by the latest
+host capabilities. Replace either surrounding slot independently; slots may contain custom content
+or guarded actions and must not emit intents during composition. `ActionStyle.menuBackground` and
+`menuShape` map the menu to a host theme without importing Material3 into actions. Existing
+`ActionSlots.control` still owns labels/icons/semantics. The sample maps its existing theme and
+Tabler icons and demonstrates additional content above in Custom UI mode.
+
+The selected bubble is recorded from the existing rendering and cropped to its actual surface;
+it is not composed twice. A 180ms FastOutSlowIn transition enlarges it to 1.01x, fades a 20% black
+scrim and introduces the lower content over 8dp. Exit converges on the latest host state. Set
+`motionEnabled = false` for immediate transitions; Compose's duration scale is also respected.
+This supplies no glass/blur or reaction feature. Long bubbles and lower content scroll within
+bounded viewport regions; the group is repositioned to keep the menu on screen.
+
+Close, outside tap, Back/Escape dismiss through guarded `CloseMenu`. A changed/removed message,
+changed conversation, pending operation or loss of all capabilities immediately removes the
+presentation. Remaining actions always use the latest capability snapshot and existing request
+revision guards. Presentation invalidation emits no host event. The host must clear an invalid
+menu target in its next snapshot. The retained draft and delivery state remain host-owned.
+
+`MessageActions` remains available for existing explicitly controlled integrations. The sample's
+standard interaction uses `MessageActionFocus` and has no tap-to-open button or dropdown.

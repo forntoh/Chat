@@ -1,5 +1,6 @@
 package dev.forntoh.chat.actions
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,8 +26,10 @@ data class ActionStyle(
     val textStyle: TextStyle = TextStyle.Default,
     val controlBackground: Color = Color.Transparent,
     val controlShape: Shape = RectangleShape,
-    val controlPadding: PaddingValues = PaddingValues(8.dp),
+    val controlPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     val minimumControlSize: Dp = 48.dp,
+    val menuBackground: Color = Color(0xFFF4F5F8),
+    val menuShape: Shape = RoundedCornerShape(20.dp),
 )
 
 /** Guarded explicit action. Custom controls author their label from [command], honor [enabled],
