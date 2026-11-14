@@ -140,12 +140,12 @@ action layout, accounting for the popup origin and native insets. Native animati
 popup placement is known; the recording remains stable while the popup draws it. A bubble that
 already has room for the occupied slots retains its position, including its original horizontal
 gutter. Empty slots reserve no height or gap. Occupied slots extend their bounded scroll viewport 24dp beyond each visible content edge so
-shadows fade before clipping. This overflow adds no visible horizontal inset or bubble-to-action
-gap; top/bottom content meets the scaled bubble edge and aligns with its sender edge. On iOS the
+shadows fade before clipping. This overflow adds no visible horizontal inset. Occupied top/bottom
+slots keep an 8dp gap from the scaled bubble edge and align with its sender edge. On iOS the
 popup opts out of platform inset clipping: the scrim covers the complete window, while menu
 placement still observes native safe drawing insets. It enlarges the bubble to 1.05x,
 anchored on the right for outgoing messages and on the left for incoming messages,
-fades a 20% black scrim and fades the surrounding content. Dismissal reverses the same
+fades a 40% black scrim and fades the surrounding content. Dismissal reverses the same
 travel before drawing returns to the timeline. Exit converges on the latest host state. Set
 `motionEnabled = false` for immediate transitions; Compose's duration scale is also respected.
 This supplies no glass/blur or reaction feature. Long bubbles and lower content scroll within

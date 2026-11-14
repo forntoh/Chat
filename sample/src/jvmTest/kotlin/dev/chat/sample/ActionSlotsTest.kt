@@ -176,20 +176,21 @@ class ActionSlotsTest {
             "Focused bubble must grow by 5%")
         val menu = compose.onNodeWithTag("lower action").fetchSemanticsNode().boundsInRoot
         val density = compose.density.density
-        assertTrue(kotlin.math.abs(menu.top - (originalTop + 41 * density)) <= 2,
-            "Bottom content starts at the scaled bubble edge without a 24dp gap")
+        assertTrue(kotlin.math.abs(menu.top - (originalTop + 49 * density)) <= 2,
+            "Bottom content keeps an 8dp gap from the scaled bubble edge")
         val expectedLeft = if (outgoing) originalColumns.last() + 1 - menu.width else originalColumns.first().toFloat()
         assertTrue(kotlin.math.abs(menu.left - expectedLeft) <= 2, "Consumer content aligns to the sender edge without horizontal padding")
         if (withTop) {
             val upper = compose.onNodeWithTag("upper action").fetchSemanticsNode().boundsInRoot
-            assertTrue(kotlin.math.abs(upper.bottom - (originalTop - density)) <= 2,
-                "Top content ends at the scaled bubble edge without padding")
+            assertTrue(kotlin.math.abs(upper.bottom - (originalTop - 9 * density)) <= 2,
+                "Top content keeps an 8dp gap from the scaled bubble edge")
             assertTrue(kotlin.math.abs(upper.left - expectedLeft) <= 2, "Top content shares the sender edge")
         }
         val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
         val x = ((menu.left + menu.right) / 2).toInt()
         // White menu casts a visible shadow below its bottom, over the uniform scrim.
         val scrim = pixels[x, (menu.bottom + 36).toInt()].red
+        assertTrue(scrim in .59f.. .61f, "Focused backdrop must use a darker 40% black scrim: $scrim")
         assertTrue((1..6).any { pixels[x, menu.bottom.toInt() + it].red < scrim - .015f },
             "Action shadow must survive its scroll viewport")
         val tail = pixels[x, (menu.bottom + 13 * density).toInt()].red

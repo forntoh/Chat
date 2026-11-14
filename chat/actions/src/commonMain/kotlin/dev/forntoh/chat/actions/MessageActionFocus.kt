@@ -127,7 +127,7 @@ fun MessageActionFocus(
             }.onPreviewKeyEvent {
                 if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { dismiss(); true } else false
             }.focusRequester(focus).focusable()) {
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .20f * progress))
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .40f * progress))
                     .clickable(interactionSource = null, indication = null, onClick = dismiss)
                     .semantics { contentDescription = "Dismiss message actions" })
                 // Scrim spans the window; only interactive content observes native safe areas.
@@ -163,13 +163,15 @@ fun MessageActionFocus(
                         maxHeight = safeHeight / 2)
                     val top = children[0].measure(menuConstraints.copy(maxHeight = safeHeight / 4))
                     val bottom = children[2].measure(menuConstraints)
+                    val topGap = if (top.height > 0) 8.dp.roundToPx() else 0
+                    val bottomGap = if (bottom.height > 0) 8.dp.roundToPx() else 0
                     val bubbleHeight = anchor.height.roundToInt().coerceAtMost(
-                        ((safeHeight - top.height - bottom.height) / 1.05f).roundToInt().coerceAtLeast(0))
+                        ((safeHeight - top.height - bottom.height - topGap - bottomGap) / 1.05f).roundToInt().coerceAtLeast(0))
                     val selectedBubble = children[1].measure(Constraints.fixed(
                         anchor.width.roundToInt().coerceAtMost(availableWidth), bubbleHeight))
                     val growthY = selectedBubble.height * .025f
-                    val minimumY = topMargin + top.height + kotlin.math.ceil(growthY).toInt()
-                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - selectedBubble.height - kotlin.math.ceil(growthY).toInt())
+                    val minimumY = topMargin + top.height + topGap + kotlin.math.ceil(growthY).toInt()
+                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - bottomGap - selectedBubble.height - kotlin.math.ceil(growthY).toInt())
                     val y = localAnchor.top.roundToInt().coerceIn(minimumY, maximumY)
                     val growthX = kotlin.math.ceil(selectedBubble.width * .05f).toInt()
                     val minimumX = leftInset + if (outgoing) growthX else 0
@@ -183,9 +185,9 @@ fun MessageActionFocus(
                         val destination = presentation.position
                         val bubbleX = (localAnchor.left + (destination.x - localAnchor.left) * progress).roundToInt()
                         val bubbleY = (localAnchor.top + (destination.y - localAnchor.top) * progress).roundToInt()
-                        top.place(menuX(top.width, bubbleX), (bubbleY - growthY * progress).roundToInt() - top.height)
+                        top.place(menuX(top.width, bubbleX), (bubbleY - growthY * progress).roundToInt() - topGap - top.height)
                         selectedBubble.place(bubbleX, bubbleY)
-                        bottom.place(menuX(bottom.width, bubbleX), (bubbleY + selectedBubble.height + growthY * progress).roundToInt())
+                        bottom.place(menuX(bottom.width, bubbleX), (bubbleY + selectedBubble.height + growthY * progress).roundToInt() + bottomGap)
                     }
                 }
             }
