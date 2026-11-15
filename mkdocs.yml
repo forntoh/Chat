@@ -1,0 +1,29 @@
+site_name: Compose Chat
+site_description: Host-owned conversations for Compose Multiplatform
+strict: true
+theme:
+  name: mkdocs
+nav:
+  - Overview: index.md
+  - Get started: getting-started.md
+  - Select modules: modules.md
+  - Own state and events: state.md
+  - Themes and custom content: customization.md
+  - Images: media.md
+  - Message actions: actions.md
+  - Earlier messages: history.md
+  - Motion: motion.md
+  - Run the sample: sample.md
+  - Contribute: development.md
+  - Platform support: support.md
+  - Dependencies and licenses: third-party-licenses.md
+  - License: license.md
+markdown_extensions:
+  - fenced_code
+  - tables
+validation:
+  links:
+    not_found: warn
+    anchors: warn
+exclude_docs: |
+  source-artifacts.init.gradle

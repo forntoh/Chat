@@ -8,3 +8,6 @@ evidence/
 graphify-out/
 .idea/
 .paperclip/
+
+site/
+.venv-docs/
