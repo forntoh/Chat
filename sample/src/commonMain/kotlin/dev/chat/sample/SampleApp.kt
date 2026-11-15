@@ -101,9 +101,20 @@ private fun BotConversation(host: BotHost, alternateTheme: Boolean, onTheme: () 
             modifier = Modifier.weight(1f),
             slots = bodySlots.copy(
                 message = { row, outgoing, retry ->
+                    val imageOnly = row.text.isBlank() && row.attachments.isNotEmpty()
                     Column {
-                        MessageBubble(row, outgoing, retry, bodySlots)
-                        MessageSupplement(outgoing) { MediaAttachments(media, row, { BundledImage(it) }) }
+                        if (!imageOnly) MessageBubble(row, outgoing, retry, bodySlots)
+                        MessageSupplement(outgoing) {
+                            if (imageOnly) Text(row.sender.displayName, style = MaterialTheme.typography.labelMedium)
+                            MediaAttachments(media, row, { BundledImage(it) })
+                            if (imageOnly) {
+                                Text(
+                                    "${row.displayTime} · ${row.delivery.name}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 },
                 composer = { content ->

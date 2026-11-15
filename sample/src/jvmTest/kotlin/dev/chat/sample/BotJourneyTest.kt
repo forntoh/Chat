@@ -53,6 +53,7 @@ class BotJourneyTest {
             assertEquals(1, host.state.messages.last().attachments.size)
             assertTrue(host.state.messages.any { it.sender.id == "bot" && it.attachments.isNotEmpty() })
         }
+        compose.onNodeWithText("Message unavailable").assertDoesNotExist()
         compose.onNodeWithContentDescription("Bundled mountain illustration").assertIsDisplayed().performClick()
         compose.onNodeWithText("Close").assertIsDisplayed().performClick()
     }
