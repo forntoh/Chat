@@ -166,7 +166,7 @@ reserve no space. A leading control owns its trailing gap. Existing overloads an
 remain supported; the default renderer requires neither actions nor media. Custom composers
 own their surfaces, labels and controls; paint only occupied shapes to retain the floating effect.
 
-Composer defaults use the shared 12dp outer gutter, 8dp vertical margin, 4dp inner surface inset,
+Composer defaults use the 12dp outer gutter (26pt on iOS), 8dp vertical margin, 4dp inner surface inset,
 28dp corner radius, 48dp controls and 22dp Tabler icons. The field remains bounded to five visible
 lines and scrolls longer drafts; editing/pending/Send guards continue through `ComposerContent`.
 
@@ -190,10 +190,10 @@ For non-conversation content (for example a host's empty navigation page), apply
 `Modifier.padding(LocalConversationViewportPadding.current)` yourself. Custom top/bottom bars
 still own their backgrounds and behavior; no host navigation or state ownership changes.
 
-The iOS default scaffold uses a 12pt bottom gutter for the floating surface, matching its side
+The iOS default scaffold uses a 26pt bottom gutter for the floating surface, matching its side
 gutters, while retaining top/horizontal safe insets and the full IME inset. Android keeps native
 navigation-bar clearance. Explicit `contentWindowInsets` overrides remain host-owned. The field's
-4dp inner inset makes its editable bounds equally inset at the sides and bottom (16pt on iOS).
+4dp inner inset makes its editable bounds equally inset at the sides and bottom (30pt on iOS).
 The visible keyboard still gets the explicit 8dp gap.
 
 Reply context omits the redundant “Replying to” label. `ActionStyle.composerPadding` defaults to

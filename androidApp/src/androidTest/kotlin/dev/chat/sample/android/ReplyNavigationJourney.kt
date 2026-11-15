@@ -14,9 +14,17 @@ class ReplyNavigationJourney {
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val window = compose.activity.window
+        val bitmap = Bitmap.createBitmap(window.decorView.width, window.decorView.height, Bitmap.Config.ARGB_8888)
+        val completed = java.util.concurrent.CountDownLatch(1)
+        var result = -1
+        android.view.PixelCopy.request(window, bitmap, { status -> result = status; completed.countDown() },
+            android.os.Handler(android.os.Looper.getMainLooper()))
+        check(completed.await(5, java.util.concurrent.TimeUnit.SECONDS) && result == android.view.PixelCopy.SUCCESS)
         File(instrumentation.targetContext.filesDir, "$name.png").outputStream().use {
-            check(instrumentation.uiAutomation.takeScreenshot().compress(Bitmap.CompressFormat.PNG, 100, it))
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
+        bitmap.recycle()
     }
 
     private fun waitForClosedKeyboardComposer() {

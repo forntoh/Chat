@@ -5,7 +5,7 @@
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
 - Expand the sample simulator with the remaining conversation scenarios, startup reply examples, and a controllable image-state gallery.
-- iOS floating composer bottom and side gutters match at 12pt; the explicit keyboard gap remains.
+- iOS floating composer bottom and side gutters match at 26pt to follow the screen corner curve; the explicit keyboard gap remains.
   Reply context omits the redundant label and centers dismiss beside the preview, aligned with Send.
 - The default navigation header is transparent with timeline content scrolling behind it.
   Shared viewport padding keeps initial content, reply centering and bottom safe areas clear;

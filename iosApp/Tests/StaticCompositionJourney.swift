@@ -8,6 +8,7 @@ final class StaticCompositionJourney: XCTestCase {
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
         XCTAssertLessThan(app.buttons["Leave"].frame.minY, 100, "The host must not reserve the top safe area twice")
         let closedBottom = composer.frame.maxY
+        XCTAssertEqual(composer.frame.minX, 30, accuracy: 1, "26pt outer gutter plus 4pt inner field inset follows the screen corner")
         XCTAssertEqual(app.frame.maxY - closedBottom, composer.frame.minX, accuracy: 1, "The bottom gap must match the side gutter")
         capture("default-conversation")
         composer.tap()
