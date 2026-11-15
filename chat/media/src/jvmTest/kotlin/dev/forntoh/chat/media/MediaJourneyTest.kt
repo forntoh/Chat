@@ -115,6 +115,39 @@ class MediaJourneyTest {
         compose.onNodeWithText("Image unavailable").assertExists()
     }
 
+    @Test fun draftAttachmentPrependAndReorderFollowHostOrderWithoutChangingCaptionOrEmittingIntents() {
+        val second = image.copy(id = "second", description = "Second")
+        var state by mutableStateOf(ConversationState("room", "me", Draft("Exact caption", attachments = listOf(second))))
+        val requests = mutableListOf<MediaRequest>()
+        val events = mutableListOf<ConversationEvent>()
+        compose.setContent {
+            val media = rememberMedia(state, MediaState(), requests::add)
+            Box(Modifier.size(360.dp, 600.dp)) {
+                Conversation(state, events::add, composerContent = {
+                    Column {
+                        MediaDraft(media, it, renderer = { Box(Modifier.size(80.dp, 40.dp)) })
+                        DefaultComposer(it)
+                    }
+                })
+            }
+        }
+        compose.onNodeWithContentDescription("Second").assertExists()
+        fun assertOrder(first: String, last: String) {
+            val firstBounds = compose.onNodeWithContentDescription(first).fetchSemanticsNode().boundsInRoot
+            val lastBounds = compose.onNodeWithContentDescription(last).fetchSemanticsNode().boundsInRoot
+            assertTrue(firstBounds.bottom <= lastBounds.top, "$first must precede $last: $firstBounds / $lastBounds")
+            compose.onNodeWithTag("composer").assertTextContains("Exact caption")
+            compose.runOnIdle {
+                assertEquals("Exact caption", state.draft.text)
+                assertTrue(requests.isEmpty() && events.isEmpty(), "Presentation must not emit host intents")
+            }
+        }
+        compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 1, attachments = listOf(image, second))) }
+        assertOrder("Mountain", "Second")
+        compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 2, attachments = listOf(second, image))) }
+        assertOrder("Second", "Mountain")
+    }
+
     @Test fun eachDraftAttachmentFadesByIdentityAndRetainsPixelsThroughFinalRemoval() {
         val second = image.copy(id = "second", description = "Second")
         var state by mutableStateOf(ConversationState("room", "me", Draft("Exact caption", attachments = listOf(image))))

@@ -88,7 +88,8 @@ fun MediaDraft(media: MediaContent, composer: ComposerContent,
                         media.request(MediaCommand.Remove, target, adapted)
                     })
             }
-            (retainedIds.toList() + previews.keys).distinct().forEach { id ->
+            // Current previews follow host order; only absent identities remain for their exit.
+            (previews.keys + retainedIds.filterNot { it in previews }).forEach { id ->
                 key(id) {
                     ChatMotionVisibility(previews[id], initiallyVisible = id in initialIds) { shown ->
                         DisposableEffect(id) {
