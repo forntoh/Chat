@@ -90,7 +90,7 @@ class FakeMediaHost {
     fun resolveSelection(choose: Boolean = false, denied: Boolean = false, request: MediaRequest? = selection) {
         if (request == null || selection != request || !current(request.target)) return
         if (choose) state = state.copy(draft = state.draft.copy(revision = state.draft.revision + 1,
-            attachments = listOf(Attachment("mountain-${serial++}", "image/vector", "bundled:mountain", "Bundled mountain illustration"))))
+            attachments = state.draft.attachments + Attachment("mountain-${serial++}", "image/vector", "bundled:mountain", "Bundled mountain illustration")))
         if (!choose) state = state.copy(draft = state.draft.copy(revision = state.draft.revision + 1))
         selection = null
         media = media.copy(revision = media.revision + 1, selecting = false,

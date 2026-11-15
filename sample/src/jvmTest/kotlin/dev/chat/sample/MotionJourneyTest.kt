@@ -43,9 +43,55 @@ class MotionJourneyTest {
         compose.mainClock.advanceTimeBy(500)
         assertTrue(intermediate != pixels(), "Reply preview must have intermediate opacity")
         compose.onNodeWithContentDescription("Cancel reply").performClick()
+        repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.onNodeWithContentDescription("Cancel reply").assertDoesNotExist()
+        fun rootPixels(): List<Int> {
+            val image = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
+            return (0 until image.height).flatMap { y -> (0 until image.width).map { x -> image[x,y].toArgb() } }
+        }
+        val exiting = rootPixels()
         compose.mainClock.advanceTimeBy(600)
+        assertTrue(exiting != rootPixels(), "Cancelled reply must retain visible pixels during its exit")
         compose.onNodeWithContentDescription("Cancel reply").assertDoesNotExist()
         compose.runOnIdle { assertEquals("Retained text", host.state.draft.text); assertEquals(null, host.pendingDraft) }
+        compose.mainClock.autoAdvance = true
+    }
+
+    @Test fun editCancellationRetainsExitPixelsAndDropsThemOnConversationSwitch() {
+        val host = FakeHost().apply { useChatFixture() }
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Retained text"))
+        compose.setContent {
+            SampleTheme(false) {
+                Box(Modifier.size(360.dp, 300.dp)) {
+                    dev.forntoh.chat.actions.ActionComposerStatus(
+                        dev.forntoh.chat.actions.rememberMessageActions(host.state, host.actions, { host.onAction(it) }, host::onEvent))
+                }
+            }
+        }
+        fun pixels(): List<Int> {
+            val image = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
+            return (0 until image.height).flatMap { y -> (0 until image.width).map { x -> image[x,y].toArgb() } }
+        }
+        fun beginEdit() { host.onAction(dev.forntoh.chat.actions.ActionRequest(
+            host.state.conversationId, host.actions.revision, dev.forntoh.chat.actions.ActionCommand.BeginEdit,
+            host.state.messages.last().id)) }
+        compose.runOnIdle { beginEdit() }
+        compose.mainClock.autoAdvance = false
+        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithContentDescription("Cancel edit").performClick()
+        repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.onNodeWithContentDescription("Cancel edit").assertDoesNotExist()
+        val exiting = pixels()
+        compose.mainClock.advanceTimeBy(300)
+        val empty = pixels()
+        assertTrue(exiting != empty, "Editing label must retain pixels through cancellation")
+        assertEquals("Retained text", host.state.draft.text)
+        compose.runOnIdle { beginEdit() }
+        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithContentDescription("Cancel edit").performClick()
+        compose.runOnIdle { host.switchRoom() }
+        repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        assertEquals(empty, pixels(), "Old context cannot survive a conversation switch")
         compose.mainClock.autoAdvance = true
     }
 

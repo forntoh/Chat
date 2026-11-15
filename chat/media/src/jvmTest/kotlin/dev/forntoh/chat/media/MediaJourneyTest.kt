@@ -1,6 +1,9 @@
 package dev.forntoh.chat.media
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -110,6 +113,56 @@ class MediaJourneyTest {
             state = state.copy(messages = listOf(message.copy(attachments = listOf(image.copy(contentReference = null)))))
         }
         compose.onNodeWithText("Image unavailable").assertExists()
+    }
+
+    @Test fun eachDraftAttachmentFadesByIdentityAndRetainsPixelsThroughFinalRemoval() {
+        val second = image.copy(id = "second", description = "Second")
+        var state by mutableStateOf(ConversationState("room", "me", Draft("Exact caption", attachments = listOf(image))))
+        val requests = mutableListOf<MediaRequest>()
+        val events = mutableListOf<ConversationEvent>()
+        compose.setContent {
+            CompositionLocalProvider(LocalChatMotion provides ChatMotion(sizeMillis = 0)) {
+                val media = rememberMedia(state, MediaState(), requests::add)
+                Box(Modifier.size(360.dp, 600.dp).background(Color.White)) {
+                    Conversation(state, events::add, composerContent = {
+                        MediaDraft(media, it, renderer = { target ->
+                            Box(Modifier.size(80.dp, 40.dp).background(if (target.attachment!!.id == "second") Color.Red else Color.Blue))
+                        })
+                    })
+                }
+            }
+        }
+        fun ink(red: Boolean): Float {
+            val pixels = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
+            var sum = 0f
+            for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
+                val c = pixels[x,y]
+                sum += (if (red) c.red - c.blue else c.blue - c.red).coerceAtLeast(0f)
+            }
+            return sum
+        }
+        fun frames() { repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() } }
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 1, attachments = listOf(image, second))) }
+        frames()
+        val entering = ink(true)
+        compose.mainClock.advanceTimeBy(300)
+        assertTrue(entering > 0f && entering < ink(true), "Second attachment needs intermediate opacity: $entering")
+        compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 2, attachments = listOf(image))) }
+        frames()
+        compose.onNodeWithContentDescription("Second").assertDoesNotExist()
+        assertTrue(ink(true) > 0f, "Removed attachment pixels must survive while another remains")
+        compose.mainClock.advanceTimeBy(300)
+        assertEquals(0f, ink(true))
+        compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 3, attachments = emptyList())) }
+        frames()
+        compose.onNodeWithContentDescription("Mountain").assertDoesNotExist()
+        assertTrue(ink(false) > 0f, "Last attachment pixels must survive its exit")
+        compose.mainClock.advanceTimeBy(300)
+        assertEquals(0f, ink(false))
+        assertEquals("Exact caption", state.draft.text)
+        assertTrue(requests.isEmpty() && events.isEmpty(), "Motion cannot emit host intents")
+        compose.mainClock.autoAdvance = true
     }
 
 }

@@ -262,7 +262,8 @@ fun Conversation(
                                 .mapLatest { currentIds ->
                                     val index = currentIds.indexOf(targetId)
                                     if (index < 0) return@mapLatest false
-                                    list.animateScrollToItem(index + 1)
+                                    if (motion.enabled) list.animateScrollToItem(index + 1)
+                                    else list.scrollToItem(index + 1)
                                     val layout = list.layoutInfo
                                     val target = layout.visibleItemsInfo.find { it.key == targetId }
                                         ?: return@mapLatest false
@@ -275,10 +276,10 @@ fun Conversation(
                                     val gap = if (index == 0) 0f else with(density) {
                                         slots.messageSpacing(group).toPx()
                                     }
-                                    list.animateScrollBy(
-                                        target.offset + (target.size + gap) / 2f -
-                                                (layout.viewportStartOffset + layout.viewportEndOffset - composerHeight + headerHeight) / 2f
-                                    )
+                                    val distance = target.offset + (target.size + gap) / 2f -
+                                        (layout.viewportStartOffset + layout.viewportEndOffset - composerHeight + headerHeight) / 2f
+                                    if (motion.enabled) list.animateScrollBy(distance)
+                                    else list.scrollBy(distance)
                                     list.layoutInfo.visibleItemsInfo.any { it.key == targetId } &&
                                             latestState.messages.map { it.id } == currentIds
                                 }.first()

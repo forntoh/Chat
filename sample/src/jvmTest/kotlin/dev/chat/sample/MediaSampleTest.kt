@@ -35,6 +35,24 @@ class MediaSampleTest {
         val directory = File("build/pat245-evidence").apply { mkdirs() }
         ImageIO.write(scaled, "png", File(directory, "$name.png"))
     }
+    @Test fun selectingAnotherImageAppendsWithoutReplacingTheExistingDraft() {
+        val host = FakeMediaHost()
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.onNodeWithTag("composer").performTextInput("Exact caption")
+        compose.onNodeWithContentDescription("Attach image").performClick()
+        compose.onNodeWithText("Choose bundled image").performClick()
+        val first = host.state.draft.attachments.single()
+        compose.onNodeWithContentDescription("Attach image").performClick()
+        compose.onNodeWithText("Choose bundled image").performClick()
+        compose.runOnIdle {
+            assertEquals(2, host.state.draft.attachments.size)
+            assertEquals(first, host.state.draft.attachments.first())
+            assertEquals(2, host.state.draft.attachments.map { it.id }.distinct().size)
+            assertEquals("Exact caption", host.state.draft.text)
+            assertEquals(null, host.submission)
+        }
+    }
+
     @Test fun imageSimulatorRendersLoadingAndUnavailableFallbacks() {
         val host = FakeMediaHost().apply { resetSimulation() }
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }

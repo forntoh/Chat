@@ -9,6 +9,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -56,34 +59,50 @@ fun Modifier.chatContentSize(): Modifier {
     )
 }
 
-/**
- * Finite fade for optional composer context/loading content. Exiting pixels retain their last
- * rendered content until the fade ends, with semantics and pointer activation removed immediately.
- * Supply guarded callbacks (as with ordinary slots); no completion emits an intent. The enclosing
- * Conversation coordinates the resulting height change. Key this subtree by conversation identity
- * when used outside Conversation, so exiting content cannot survive a conversation switch.
- */
+/** Finite fade for content whose presentation does not depend on visibility. For changing
+ * presentation data, use the snapshot overload so exiting pixels retain their prior value. */
 @Composable
 fun ChatMotionVisibility(
     visible: Boolean,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
+) = ChatMotionVisibility(if (visible) Unit else null, modifier) { content() }
+
+/**
+ * Finite fade retaining the last non-null immutable presentation [value] until exit finishes.
+ * Render only from the supplied snapshot in [content], rather than a captured live host value.
+ * Exiting semantics and pointer activation disappear immediately; callbacks must also retain
+ * their ordinary host guards. [initiallyVisible] can be false for a newly inserted identity.
+ * No completion emits an intent. Key this subtree by conversation
+ * identity outside Conversation. The retained snapshot is released after exit or subtree disposal.
+ */
+@Composable
+fun <T : Any> ChatMotionVisibility(
+    value: T?,
+    modifier: Modifier = Modifier,
+    initiallyVisible: Boolean = value != null,
+    content: @Composable (T) -> Unit
 ) {
     val motion = LocalChatMotion.current
     if (!motion.enabled || motion.controlMillis == 0) {
-        if (visible) Box(modifier) { content() }
+        if (value != null) Box(modifier) { content(value) }
         return
     }
-    val retained = remember { MotionContent(content) }
-    SideEffect { if (visible) retained.content = content }
+    val retained = remember { mutableStateOf(value) }
+    val visibility = remember { MutableTransitionState(initiallyVisible) }
+    visibility.targetState = value != null
+    SideEffect { if (value != null) retained.value = value }
+    LaunchedEffect(visibility.isIdle, visibility.currentState) {
+        if (visibility.isIdle && !visibility.currentState) retained.value = null
+    }
     AnimatedVisibility(
-        visible = visible,
+        visibleState = visibility,
         modifier = modifier,
-        enter = fadeIn(tween(motion.duration(motion.controlMillis), easing = motion.easing)),
-        exit = fadeOut(tween(motion.duration(motion.controlMillis), easing = motion.easing)),
+        enter = fadeIn(tween(motion.controlMillis, easing = motion.easing)),
+        exit = fadeOut(tween(motion.controlMillis, easing = motion.easing)),
     ) {
         Box(
-            if (visible) Modifier else Modifier
+            if (value != null) Modifier else Modifier
                 .clearAndSetSemantics { }
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
@@ -91,8 +110,6 @@ fun ChatMotionVisibility(
                             .changes.forEach { it.consume() }
                     }
                 }
-        ) { if (visible) content() else retained.content() }
+        ) { (value ?: retained.value)?.let { content(it) } }
     }
 }
-
-private class MotionContent(var content: @Composable () -> Unit)

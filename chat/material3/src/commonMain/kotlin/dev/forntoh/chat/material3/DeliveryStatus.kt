@@ -24,9 +24,9 @@ internal fun DeliveryStatus(delivery: Delivery) {
         maxOf(measure.measure("Sending", style).size.width.toDp(),
             measure.measure("Failed", style).size.width.toDp() + 8.dp)
     }
-    ChatMotionVisibility(delivery != Delivery.Sent) {
+    ChatMotionVisibility(delivery.takeUnless { it == Delivery.Sent }) { shown ->
         Box(Modifier.width(width), contentAlignment = Alignment.CenterEnd) {
-            Crossfade(delivery, animationSpec = tween(motion.duration(motion.controlMillis), easing = motion.easing)) { status ->
+            Crossfade(shown, animationSpec = tween(motion.duration(motion.controlMillis), easing = motion.easing)) { status ->
                 when (status) {
                     Delivery.Failed -> Surface(color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer) {

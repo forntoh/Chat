@@ -21,7 +21,9 @@ CompositionLocalProvider(
 ```
 
 `ChatMotion(enabled = false)` immediately presents current content, including when disabled during
-an active resize or Latest return. Durations are nonnegative animation-clock milliseconds;
+an active resize, Latest return or quote navigation. Disabled quote navigation positions and centers
+the target immediately; disabling during travel cancels that travel and positions its latest target.
+Durations are nonnegative animation-clock milliseconds;
 `latestMillis` is restricted to 0..360. Compose's platform duration scale applies to finite
 animations, with zero settling immediately. Platforms without a supplied system duration scale
 use normal timing; hosts can provide the deterministic disabled setting. Custom slot animations
@@ -38,8 +40,14 @@ and native controls remain the host's responsibility.
 All use `FastOutSlowInEasing`, overridable through `ChatMotion.easing`, without bounce.
 Preview exit fades for 180ms, then its removal can resize the composer for 240ms; the complete
 sequential removal can therefore take 420ms. Exiting pixels are not retained interactive UI:
+immutable presentation snapshots (quote/status/target/image data) survive until exit completes;
 semantics and pointer activation are removed immediately, and existing snapshot guards still
 reject stale callbacks. Conversation identity keys dispose all exiting composer content on switch.
+
+Each draft attachment transitions by stable attachment ID, including insertion/removal while other
+attachments remain. Retained presentation is discarded after the fade; rendering never caches a
+mutable composable lambda as a snapshot. Custom uses of `ChatMotionVisibility(value)` must render
+from its supplied immutable value, not from captured live host state.
 
 Initial mounted rows, history prepends and remounted timelines are opaque. Subsequent IDs after
 a previously rendered tail fade; an arrival into an already mounted empty timeline can fade too.

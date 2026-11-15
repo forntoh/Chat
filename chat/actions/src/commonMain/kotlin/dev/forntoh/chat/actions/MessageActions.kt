@@ -235,24 +235,28 @@ fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActi
     key(content.conversation.conversationId) {
         ActionTheme(slots = slots) {
             slots.composerStatus {
-                ChatMotionVisibility(content.state.editing != null || content.state.quoteTargetId != null) {
+                val quoteId = content.state.quoteTargetId
+                val presentation = dev.forntoh.chat.ui.LocalMessagePresentation.current
+                val quote = quoteId?.let { id ->
+                    val message = content.conversation.messages.find { it.id == id }
+                    ActionQuoteContent(id, message, if (message != null) ({ presentation.onNavigateToMessage(id) }) else null)
+                }
+                val preview = if (content.state.editing != null || quote != null) ComposerPreview(
+                    editing = content.state.editing != null,
+                    unavailable = content.state.editing != null && !content.canEdit,
+                    quote = quote,
+                    cancelEdit = if (content.state.editing != null) ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) } else null,
+                    cancelQuote = if (quote != null) ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) } else null,
+                ) else null
+                ChatMotionVisibility(preview) { shown ->
                     Row(Modifier.fillMaxWidth().padding(LocalActionStyle.current.composerPadding), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            content.state.editing?.let {
-                                slots.status(ActionStatusContent(ActionStatusKind.Editing))
-                                if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
-                            }
-                            content.state.quoteTargetId?.let {
-                                QuotedMessage(content, it)
-                            }
+                            if (shown.editing) slots.status(ActionStatusContent(ActionStatusKind.Editing))
+                            if (shown.unavailable) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+                            shown.quote?.let { slots.quote(it) }
                         }
-                        // Dismiss stays beside context rather than taking another row above the input.
-                        if (content.state.editing != null) {
-                            slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
-                        }
-                        if (content.state.quoteTargetId != null) {
-                            slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
-                        }
+                        shown.cancelEdit?.let { slots.control(it) }
+                        shown.cancelQuote?.let { slots.control(it) }
                     }
                 }
                 DeleteConfirmation(content)
@@ -262,6 +266,15 @@ fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActi
         }
     }
 }
+
+// Only presentation and already-guarded controls survive the finite exit, never another draft.
+private data class ComposerPreview(
+    val editing: Boolean,
+    val unavailable: Boolean,
+    val quote: ActionQuoteContent?,
+    val cancelEdit: ActionControlContent?,
+    val cancelQuote: ActionControlContent?,
+)
 
 /**
  * Explicit target-bound confirm/cancel, using typed controls and prompt/quote slots. [slots]

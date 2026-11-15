@@ -248,7 +248,7 @@ class ActionSlotsTest {
         val x = ((menu.left + menu.right) / 2).toInt()
         // White menu casts a visible shadow below its bottom, over the uniform scrim.
         val scrim = pixels[x, (menu.bottom + 36).toInt()].red
-        assertTrue(scrim in .59f.. .61f, "Focused backdrop must use a darker 40% black scrim: $scrim")
+        assertTrue(scrim in .34f.. .36f, "Focused backdrop must use the current 65% black scrim: $scrim")
         assertTrue((1..6).any { pixels[x, menu.bottom.toInt() + it].red < scrim - .015f },
             "Action shadow must survive its scroll viewport")
         val tail = pixels[x, (menu.bottom + 13 * density).toInt()].red

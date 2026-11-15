@@ -141,4 +141,34 @@ class MotionTest {
         compose.mainClock.autoAdvance = true
     }
 
+    @Test fun disabledQuoteNavigationPositionsImmediatelyAndDisablingTravelSettles() {
+        val motion = mutableStateOf(ChatMotion(enabled = false))
+        val events = mutableListOf<ConversationEvent>()
+        lateinit var navigate: (String) -> Unit
+        compose.setContent {
+            CompositionLocalProvider(LocalChatMotion provides motion.value) {
+                Box(Modifier.size(360.dp, 400.dp)) {
+                    Conversation(ConversationState("one", "me", Draft("Exact text"), (0..199).map { row("m$it") }), events::add,
+                        slots = ConversationSlots(presentedMessage = { _, _, _, presentation ->
+                            SideEffect { navigate = presentation.onNavigateToMessage }
+                            Box(Modifier.size(100.dp, 48.dp))
+                        }), composerContent = {})
+                }
+            }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { navigate("m12") }
+        repeat(4) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.onNodeWithTag("message-m12").assertIsDisplayed()
+        compose.runOnIdle { motion.value = ChatMotion() }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { navigate("m180") }
+        repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.runOnIdle { motion.value = ChatMotion(enabled = false) }
+        repeat(4) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.onNodeWithTag("message-m180").assertIsDisplayed()
+        assertTrue(events.isEmpty(), "Quote positioning is presentation only")
+        compose.mainClock.autoAdvance = true
+    }
+
 }

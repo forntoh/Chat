@@ -168,8 +168,8 @@ fun HistoryStatusContent(content: HistoryContent, empty: Boolean) {
 fun HistoryStatusContent(content: HistoryContent, empty: Boolean, slots: ConversationSlots) {
     ConversationTheme(slots) {
         Box(Modifier.fillMaxWidth().heightIn(min = 32.dp), contentAlignment = Alignment.Center) {
-            ChatMotionVisibility(content.state.status == HistoryStatus.Loading) {
-                slots.historyFeedback(HistoryFeedbackContent(content, empty))
+            ChatMotionVisibility(HistoryFeedbackContent(content, empty).takeIf { content.state.status == HistoryStatus.Loading }) { shown ->
+                slots.historyFeedback(shown)
             }
             if (content.state.status != HistoryStatus.Loading) {
                 slots.historyFeedback(HistoryFeedbackContent(content, empty))

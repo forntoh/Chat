@@ -79,20 +79,38 @@ fun MediaDraft(media: MediaContent, composer: ComposerContent,
                 media.request(MediaCommand.Select, composer = adapted)
             })
             media.state.selectionError?.let { slots.selectionError(it) }
-            ChatMotionVisibility(composer.draft.attachments.isNotEmpty()) {
-                Column {
-                    composer.draft.attachments.forEach { attachment ->
-                        val target = media.draftTarget(attachment)
-                        MediaImage(media, target, renderer, slots)
-                        slots.control(MediaControlContent(MediaCommand.Remove, !adapted.pending) {
-                            media.request(MediaCommand.Remove, target, adapted)
-                        })
+            val initialIds = remember { composer.draft.attachments.map { it.id }.toSet() }
+            val retainedIds = remember { mutableStateListOf<String>() }
+            val previews = composer.draft.attachments.associate { attachment ->
+                val target = media.draftTarget(attachment)
+                attachment.id to DraftPreview(target, media.imageState(target),
+                    MediaControlContent(MediaCommand.Remove, !adapted.pending) {
+                        media.request(MediaCommand.Remove, target, adapted)
+                    })
+            }
+            (retainedIds.toList() + previews.keys).distinct().forEach { id ->
+                key(id) {
+                    ChatMotionVisibility(previews[id], initiallyVisible = id in initialIds) { shown ->
+                        DisposableEffect(id) {
+                            retainedIds.add(id)
+                            onDispose { retainedIds.remove(id) }
+                        }
+                        Column {
+                            MediaImage(media, shown.target, renderer, slots, shown.image)
+                            slots.control(shown.remove)
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private data class DraftPreview(
+    val target: MediaTarget,
+    val image: ImageState,
+    val remove: MediaControlContent
+)
 
 /**
  * Attachments for a message slot. Keep this outside merged/cleared message semantics so image and
@@ -107,9 +125,13 @@ fun MediaAttachments(media: MediaContent, message: Message,
 }
 
 @Composable
-private fun MediaImage(media: MediaContent, target: MediaTarget,
-    renderer: (@Composable (MediaTarget) -> Unit)?, slots: MediaSlots) {
-    val supplied = media.imageState(target)
+private fun MediaImage(
+    media: MediaContent,
+    target: MediaTarget,
+    renderer: (@Composable (MediaTarget) -> Unit)?,
+    slots: MediaSlots,
+    supplied: ImageState = media.imageState(target)
+) {
     val attachment = target.attachment!!
     val display = when {
         attachment.contentReference.isNullOrBlank() -> ImageState(ImageStatus.Missing)
