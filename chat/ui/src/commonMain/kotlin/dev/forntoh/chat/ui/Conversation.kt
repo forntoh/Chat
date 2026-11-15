@@ -329,8 +329,6 @@ fun Conversation(
                         previousIndex = observed.firstIndex
                         previousOffset = observed.firstOffset
                         if (navigation?.isActive == true) {
-                            // Virtualized seeks update the requested index before layout clamps it.
-                            // Their clamp is not reader intent; actual reader drag cancels above.
                             if (followingLatest && movedBackward && !viewportChanged && navigation !== latestNavigation) {
                                 followingLatest = false
                                 navigation?.cancel()
@@ -516,8 +514,6 @@ private suspend fun LazyListState.animateToLatest() {
                     val position = startIndex + (lastIndex - startIndex) * fraction
                     val index = position.toInt().coerceIn(0, lastIndex)
                     val offset = ((position - index) * rowHeight + startOffset * (1f - fraction)).toInt()
-                    // Estimated row heights may temporarily put us ahead of the interpolation.
-                    // Wait for it to catch up instead of reversing and cancelling reader intent.
                     if (index > firstVisibleItemIndex ||
                         (index == firstVisibleItemIndex && offset >= firstVisibleItemScrollOffset))
                         lazyScope.snapToItem(index, offset)
