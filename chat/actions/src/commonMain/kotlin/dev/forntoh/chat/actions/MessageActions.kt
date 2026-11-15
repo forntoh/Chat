@@ -130,8 +130,8 @@ class ActionsContent internal constructor(
      * Hosts resolve acceptance or refusal with fresh action and draft revisions. Pending and
      * replaced snapshots are rejected; no callback implies delivery or persisted modification.
      */
-    fun onConversationEvent(event: ConversationEvent) {
-        if (event is ConversationEvent.SendDraft && state.editing != null) {
+    fun onConversationEvent(event: ConversationEvent) = when (event) {
+        is ConversationEvent.SendDraft if state.editing != null -> {
             dispatch(
                 ActionRequest(
                     event.conversationId,
@@ -142,7 +142,9 @@ class ActionsContent internal constructor(
                     event.revision,
                 ),
             )
-        } else if (event is ConversationEvent.SendDraft && state.quoteTargetId != null) {
+        }
+
+        is ConversationEvent.SendDraft if state.quoteTargetId != null -> {
             dispatch(
                 ActionRequest(
                     event.conversationId,
@@ -154,9 +156,9 @@ class ActionsContent internal constructor(
                     event.attachments,
                 ),
             )
-        } else {
-            conversationEvent(event)
         }
+
+        else -> conversationEvent(event)
     }
 }
 
