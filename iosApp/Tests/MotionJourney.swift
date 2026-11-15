@@ -22,9 +22,8 @@ final class MotionJourney: XCTestCase {
             // Seeded Exchange IDs are public sample row tags; visible counts change under virtualization.
             let incomingRow = app.otherElements["message-arrival-\(custom ? 6 : 2)"]
             XCTAssertTrue(incomingRow.waitForExistence(timeout: 10))
-            let incoming = incomingRow.buttons.firstMatch
             capture(custom ? "custom-send-incoming" : "default-send-incoming")
-            incoming.press(forDuration: 0.7)
+            incomingRow.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.5)).press(forDuration: 0.7)
             XCTAssertTrue(app.buttons["Reply"].waitForExistence(timeout: 5))
             app.buttons["Reply"].tap()
             XCTAssertTrue(app.buttons["Cancel reply"].waitForExistence(timeout: 5))
