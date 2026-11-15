@@ -34,8 +34,13 @@ class FakeHost {
     private val roomActions = mutableMapOf<String, Pair<ActionState, String?>>()
 
     /** Fake capability changes/removal are explicit host snapshots, never service authorization. */
-    fun revokeActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() + messageId)); actionState = actionState.copy(revision = actionState.revision + 1,
-        menuTargetId = actionState.menuTargetId.takeUnless { it == messageId }) }
+    fun revokeActions(messageId: String) {
+        revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() + messageId))
+        actionState = actionState.copy(revision = actionState.revision + 1,
+            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId })
+        // Invalidate the in-flight operation now so restoring capability cannot revive it.
+        if (pendingAction?.targetId == messageId) completeAction(false)
+    }
     fun allowActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() - messageId)); actionState = actionState.copy(revision = actionState.revision + 1) }
     fun removeMessage(messageId: String) {
         state = state.copy(messages = state.messages.filterNot { it.id == messageId })
@@ -207,6 +212,8 @@ class FakeHost {
         pendingQuoteTarget = null
         actionState = ActionState(revision = actionState.revision + 1)
         revoked = emptyMap()
+        val historyRevision = maxOf(history.revision, rooms.values.maxOfOrNull { it.second.revision } ?: 0) + 1
+        history = HistoryState(revision = historyRevision)
         rooms.clear()
         roomSubmissions.clear()
         roomActions.clear()
@@ -452,7 +459,7 @@ class FakeHost {
             Message("confirmed", Participant("me", "You"), 1_005, "09:44", "Perfect — see you both there!", Delivery.Sent),
         ))
         actionState = actionState.copy(quotes = mapOf("response" to "sketches", "confirmed" to "morgan-2"))
-        history = HistoryState(HistoryStatus.Exhausted)
+        history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
     }
 
     companion object {

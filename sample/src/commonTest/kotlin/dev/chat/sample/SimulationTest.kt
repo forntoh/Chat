@@ -203,4 +203,78 @@ class SimulationTest {
         assertTrue(host.state.messages.any { it.id == "confirmed" })
     }
 
+    @Test fun revokingPendingEditOrDeleteCannotReviveItsResultAfterRestoringCapability() {
+        for (deleting in listOf(false, true)) {
+            val host = FakeHost().apply { startSimulation(Scenario.Capabilities); pause(true) }
+            val original = host.state.messages.last()
+            host.onEvent(ConversationEvent.DraftChanged("studio", "Unrelated draft"))
+            fun request(command: dev.forntoh.chat.actions.ActionCommand, text: String? = null) =
+                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
+                    command, original.id, text, host.state.draft.revision))
+            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.RequestDelete else dev.forntoh.chat.actions.ActionCommand.BeginEdit)
+            if (!deleting) host.onEvent(ConversationEvent.DraftChanged("studio", "Obsolete edit"))
+            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.ConfirmDelete else dev.forntoh.chat.actions.ActionCommand.SubmitEdit,
+                if (deleting) null else "Obsolete edit")
+            assertTrue(host.actions.pending)
+            host.revokeActions(original.id)
+            host.allowActions(original.id)
+            host.step()
+            assertEquals(original, host.state.messages.single { it.id == original.id })
+            assertFalse(host.actions.pending)
+            assertNotNull(host.actions.error)
+            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.CancelDelete else dev.forntoh.chat.actions.ActionCommand.CancelEdit)
+            assertEquals("Unrelated draft", host.state.draft.text)
+        }
+    }
+
+    @Test fun resettingHistoryCannotReuseAnOldRequestWhileNewHistoryIsPending() {
+        for (switchBeforeReset in listOf(false, true)) {
+            val host = FakeHost().apply { startSimulation(Scenario.History); pause(true) }
+            host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
+            val old = host.pendingHistory!!
+            if (switchBeforeReset) host.switchRoom()
+            host.resetSimulation()
+            host.pause(true)
+            host.onEvent(ConversationEvent.DraftChanged("studio", "New session draft"))
+            host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
+            val current = host.pendingHistory!!
+            host.completeHistory(old)
+            assertEquals(50, host.state.messages.size)
+            assertEquals(current, host.pendingHistory)
+            assertEquals(dev.forntoh.chat.ui.HistoryStatus.Loading, host.history.status)
+            assertEquals("New session draft", host.state.draft.text)
+            host.step()
+            assertEquals(dev.forntoh.chat.ui.HistoryStatus.Error, host.history.status)
+            host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
+            host.step()
+            assertEquals(100, host.state.messages.size)
+            assertEquals("New session draft", host.state.draft.text)
+        }
+    }
+
+    @Test fun overlappingHistoryExhaustsWithoutReorderingOrErasingTheDraft() {
+        val host = FakeHost().apply { startSimulation(Scenario.History); pause(true) }
+        host.onEvent(ConversationEvent.DraftChanged("studio", "Keep while paging"))
+        repeat(20) {
+            host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
+            host.step()
+        }
+        assertEquals(dev.forntoh.chat.ui.HistoryStatus.Exhausted, host.history.status)
+        assertEquals((0..999).map { "history-$it" }, host.state.messages.map { it.id })
+        host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
+        assertNull(host.pendingHistory)
+        assertEquals("Keep while paging", host.state.draft.text)
+        host.startSimulation()
+        val originalIds = host.state.messages.map { it.id }
+        send(host, "Same timestamp as response")
+        host.step()
+        val accepted = host.state.messages.last()
+        assertEquals(host.state.messages.single { it.id == "response" }.timestampEpochMillis, accepted.timestampEpochMillis)
+        assertEquals(originalIds + accepted.id, host.state.messages.map { it.id })
+        host.onEvent(ConversationEvent.DraftChanged("studio", "Keep after removal"))
+        host.removeMessage("sketches")
+        assertEquals((originalIds + accepted.id) - "sketches", host.state.messages.map { it.id })
+        assertEquals("Keep after removal", host.state.draft.text)
+    }
+
 }
