@@ -50,14 +50,21 @@ fun ChatScaffold(
             Box(Modifier.testTag("conversation-header")) {
                 if (topBar != null) topBar() else TopAppBar(
                     title = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             avatar()
                             title()
                         }
                     },
                     navigationIcon = navigationIcon,
                     actions = actions,
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent, titleContentColor = contentColor),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        titleContentColor = contentColor
+                    ),
                 )
             }
         },
@@ -66,12 +73,18 @@ fun ChatScaffold(
         floatingActionButton = floatingActionButton,
     ) { padding ->
         val direction = LocalLayoutDirection.current
-        CompositionLocalProvider(LocalConversationViewportPadding provides PaddingValues(
-            top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding()
-        )) {
-            Column(Modifier.fillMaxSize().padding(
-                start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction)
-            ).consumeWindowInsets(padding), content = content)
+        CompositionLocalProvider(
+            LocalConversationViewportPadding provides PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding()
+            )
+        ) {
+            Column(
+                Modifier.fillMaxSize().padding(
+                    start = padding.calculateStartPadding(direction),
+                    end = padding.calculateEndPadding(direction)
+                ).consumeWindowInsets(padding), content = content
+            )
         }
     }
 }
