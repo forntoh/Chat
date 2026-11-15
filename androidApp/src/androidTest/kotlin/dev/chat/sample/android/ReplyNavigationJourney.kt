@@ -77,7 +77,12 @@ class ReplyNavigationJourney {
         compose.onNodeWithText("Long conversation").performScrollTo().performClick()
         compose.onNodeWithText("Start selected scenario").performScrollTo().performClick()
         compose.onNodeWithText("Close").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Message 999").fetchSemanticsNodes().isNotEmpty() }
+        // Establish real reader intent before the test accelerates the long manual scroll.
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * .25f, endY = height * .55f) }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        compose.onNodeWithText("Message 0").assertIsDisplayed()
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty() }
         capture("long-top")
         compose.onNodeWithContentDescription("Latest", substring = true).performClick()
         compose.waitUntil(15_000) {
