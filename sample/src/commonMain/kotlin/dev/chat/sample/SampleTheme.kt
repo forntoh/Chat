@@ -3,13 +3,13 @@ package dev.chat.sample
 import dev.forntoh.chat.actions.*
 import dev.forntoh.chat.material3.ChatTheme
 import dev.forntoh.chat.material3.chatColorScheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
@@ -36,12 +36,18 @@ import dev.forntoh.chat.material3.ReplyPreview
  */
 @Composable
 fun SampleTheme(hostTheme: Boolean, content: @Composable () -> Unit) {
-    val colors = if (hostTheme) lightColorScheme(
+    val dark = isSystemInDarkTheme()
+    val colors = if (hostTheme && dark) darkColorScheme(
+        primary = Color(0xFF8CD6B8), onPrimary = Color(0xFF003828), inversePrimary = Color(0xFF003828),
+        primaryContainer = Color(0xFF15513F), onPrimaryContainer = Color(0xFFCBF1DF),
+        secondaryContainer = Color(0xFF3F4930), onSecondaryContainer = Color(0xFFE7EED6),
+        surface = Color(0xFF111510), background = Color(0xFF111510),
+    ) else if (hostTheme) lightColorScheme(
         primary = Color(0xFF176653), onPrimary = Color.White,
         primaryContainer = Color(0xFFCBF1DF), onPrimaryContainer = Color(0xFF092E24),
         secondaryContainer = Color(0xFFE7EED6), onSecondaryContainer = Color(0xFF252E14),
         surface = Color(0xFFFAFCF5), background = Color(0xFFFAFCF5),
-    ) else chatColorScheme()
+    ) else chatColorScheme(dark)
 
     val type = if (hostTheme) Typography(
         bodyLarge = TextStyle(fontFamily = FontFamily.Serif, fontSize = 18.sp, lineHeight = 25.sp),
