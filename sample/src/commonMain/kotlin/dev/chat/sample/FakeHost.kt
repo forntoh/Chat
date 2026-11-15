@@ -200,7 +200,11 @@ class FakeHost {
         val room: String, val label: String, val apply: () -> Unit)
     private val scheduled = mutableListOf<Scheduled>()
 
-    /** Restart from fixture data. Clock steps are deterministic; no wall clock enters snapshots. */
+    /**
+     * Restart from fixture data with deterministic logical time. Action and history revisions
+     * advance beyond all retained rooms before those snapshots are discarded, so old public
+     * requests cannot match the new session after a room switch followed by reset.
+     */
     fun startSimulation(scenario: Scenario = Scenario.Exchange, seed: Int = 42) {
         selectedScenario = scenario
         selectedSeed = seed
@@ -210,7 +214,8 @@ class FakeHost {
         pendingHistory = null
         pendingAction = null
         pendingQuoteTarget = null
-        actionState = ActionState(revision = actionState.revision + 1)
+        val actionRevision = maxOf(actionState.revision, roomActions.values.maxOfOrNull { it.first.revision } ?: 0) + 1
+        actionState = ActionState(revision = actionRevision)
         revoked = emptyMap()
         val historyRevision = maxOf(history.revision, rooms.values.maxOfOrNull { it.second.revision } ?: 0) + 1
         history = HistoryState(revision = historyRevision)

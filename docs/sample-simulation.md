@@ -57,8 +57,9 @@ with anchor retention. Remove the first loaded row to exercise anchor removal. R
 controls target the open menu's message, or the last row when no menu is open.
 Revoking a pending edit/delete fails that operation immediately; restoring its capability
 cannot revive the queued result. Cancel the failed edit to recover the retained draft.
-History request revisions remain distinct across reset, so even an explicitly supplied
-old page result cannot resolve a new session's pending request.
+Action and history request revisions advance beyond every retained room on reset.
+Old menu requests cannot open edit/delete in the new session, and an explicitly
+supplied old page result cannot resolve its pending history request.
 
 **Open image simulator** reuses the image sample with a gallery of ready, loading, missing and
 unsupported attachments. Its options provide reset, finish loading, incremental upload progress,

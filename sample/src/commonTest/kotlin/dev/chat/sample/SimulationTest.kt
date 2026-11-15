@@ -277,4 +277,31 @@ class SimulationTest {
         assertEquals("Keep after removal", host.state.draft.text)
     }
 
+    @Test fun resetRejectsOldMenuRequestsIncludingThoseRetainedBeforeSwitchingRooms() {
+        for (switchBeforeReset in listOf(false, true)) {
+            for (command in listOf(dev.forntoh.chat.actions.ActionCommand.RequestDelete, dev.forntoh.chat.actions.ActionCommand.BeginEdit)) {
+                val host = FakeHost().apply { startSimulation(Scenario.Capabilities) }
+                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
+                    dev.forntoh.chat.actions.ActionCommand.OpenMenu, "confirmed"))
+                val old = dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision, command, "confirmed")
+                if (switchBeforeReset) host.switchRoom()
+                host.resetSimulation()
+                host.onEvent(ConversationEvent.DraftChanged("studio", "New session draft"))
+                val snapshot = host.state
+                val actions = host.actions
+                host.onAction(old)
+                assertEquals(snapshot, host.state)
+                assertEquals(actions, host.actions)
+                assertNull(host.pendingAction)
+                host.onAction(old.copy(revision = host.actions.revision))
+                if (command == dev.forntoh.chat.actions.ActionCommand.BeginEdit) {
+                    assertEquals("confirmed", host.actions.editing?.original?.id)
+                    host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
+                        dev.forntoh.chat.actions.ActionCommand.CancelEdit))
+                } else assertEquals("confirmed", host.actions.deleting?.id)
+                assertEquals("New session draft", host.state.draft.text)
+            }
+        }
+    }
+
 }
