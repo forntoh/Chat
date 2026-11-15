@@ -77,6 +77,23 @@ class SampleJourneyTest {
         }
     }
 
+    @Test fun resettingScenarioRestoresInitialReadingPositionInDefaultAndCustomModes() {
+        val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
+        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
+        for (custom in listOf(false, true)) {
+            if (custom) demo("Custom UI")
+            compose.onNodeWithTag("message-history-999").assertIsDisplayed()
+            capture("pat272-${if (custom) "custom" else "default"}-initial")
+            compose.onNodeWithTag("timeline").performScrollToIndex(0)
+            compose.onNodeWithTag("message-history-0").assertIsDisplayed()
+            capture("pat272-${if (custom) "custom" else "default"}-reading-history")
+            compose.runOnIdle { host.resetSimulation(); host.pause(true) }
+            compose.onNodeWithTag("message-history-999").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Latest", substring = true).assertDoesNotExist()
+            capture("pat272-${if (custom) "custom" else "default"}-reset-latest")
+        }
+    }
+
     @Test fun longScenarioReturnsFromFirstRowToNewest() {
         val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
         compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }

@@ -1,6 +1,7 @@
 package dev.chat.sample
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.forntoh.chat.core.*
@@ -194,6 +195,10 @@ class FakeHost {
         state.messages.firstOrNull()?.let { removeMessage(it.id); record("removed anchor id=${it.id}") }
     }
     private var sequence = 0L
+    /** Changes only when a scenario starts or resets, so the sample remounts its public
+     * conversation and restores the fixture's initial reading position without changing IDs. */
+    var simulationSession by mutableLongStateOf(0L)
+        private set
     private var generation = 0L
     private var random = kotlin.random.Random(42)
     private data class Scheduled(val due: Long, val order: Long, val generation: Long,
@@ -206,6 +211,7 @@ class FakeHost {
      * requests cannot match the new session after a room switch followed by reset.
      */
     fun startSimulation(scenario: Scenario = Scenario.Exchange, seed: Int = 42) {
+        simulationSession++
         selectedScenario = scenario
         selectedSeed = seed
         paused = false

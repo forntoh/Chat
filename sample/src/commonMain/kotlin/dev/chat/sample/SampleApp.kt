@@ -131,6 +131,7 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                 if (showConversation) {
                     val base = LocalConversationSlots.current
                     // Wrappers add supported optional actions; default message/composer presentation comes from the artifact.
+                    key(retainedHost, retainedHost.simulationSession) {
                     Conversation(retainedHost.state, actions::onConversationEvent, modifier = Modifier.weight(1f),
                         slots = base.copy(message = { message, outgoing, retry ->
                             MessageActionFocus(actions, message.id,
@@ -175,6 +176,7 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                                     headerContent = { ActionComposerStatus(actions) }, leadingContent = {})
                             }
                         }), history = retainedHost.history, onLoadEarlier = retainedHost::loadEarlier)
+                    }
                 } else Text("In-memory sample. Messages and drafts last only while the app is open. " +
                     "Images use a bundled resource; there is no server, upload service or persistence. " +
                     "Your draft stays with this retained host. Delivery and connection outcomes are simulated. Scenario controls are in the debug panel.", Modifier.padding(dev.forntoh.chat.ui.LocalConversationViewportPadding.current).padding(24.dp))

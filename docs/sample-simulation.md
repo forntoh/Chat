@@ -10,7 +10,9 @@ seed, then **Start selected scenario** to restore its fixture (six messages in t
 controls reply pacing (700–1099 logical milliseconds). Acknowledgement defaults to
 400 ms and delivery to 900 ms; toggle them independently to 1200/2000 ms. Changes
 apply to newly scheduled work. **Reset** restores the selected seed/scenario and
-current delay settings. **Pause/Resume** freezes/restarts logical time; **Step** applies
+current delay settings, cancels queued work and restores the initial latest reading
+position. Starting another scenario also starts a fresh presentation session; ordinary
+arrivals and default/custom slot changes retain reader position. **Pause/Resume** freezes/restarts logical time; **Step** applies
 one queued event while paused, including events with the same deadline in insertion
 order. Closing the panel keeps the schedule running. All state is in memory.
 
