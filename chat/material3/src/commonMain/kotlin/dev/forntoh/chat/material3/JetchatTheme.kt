@@ -192,10 +192,13 @@ fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
     val history = content.history
     when (history.state.status) {
         HistoryStatus.Idle -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) { Text("Load earlier") }
+
         HistoryStatus.Loading -> Text("Loading messages…", Modifier.padding(12.dp))
+
         HistoryStatus.Error -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) {
             Text("Couldn't load messages · Retry")
         }
+
         HistoryStatus.Exhausted -> Text(
             if (content.empty) "No messages yet" else "Start of conversation",
             Modifier.padding(8.dp),

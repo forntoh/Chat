@@ -19,15 +19,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.rows
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.visible
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyLayoutScrollScope
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
@@ -35,11 +28,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Composer
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -64,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.ConversationEvent
 import dev.forntoh.chat.core.ConversationState
 import dev.forntoh.chat.core.Delivery
-import dev.forntoh.chat.core.Draft
 import dev.forntoh.chat.core.Message
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -199,6 +189,7 @@ fun Conversation(
                                 replyNavigationTarget = null
                                 navigation?.cancel()
                             }
+
                             is DragInteraction.Stop, is DragInteraction.Cancel -> followingLatest = !list.canScrollForward
                         }
                     }

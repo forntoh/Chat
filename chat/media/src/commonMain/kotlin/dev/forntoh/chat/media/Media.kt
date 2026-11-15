@@ -141,8 +141,11 @@ fun rememberMedia(
             val image = state.images[target] ?: ImageState()
             when (request.command) {
                 MediaCommand.Select -> if (target.draft == null || attachment != null) return@dispatch
+
                 MediaCommand.Remove -> if (target.draft == null || attachment == null) return@dispatch
+
                 MediaCommand.Retry -> if (target.message == null || image.status != ImageStatus.Failed) return@dispatch
+
                 MediaCommand.View -> {
                     if (target.message == null || image.status != ImageStatus.Ready) return@dispatch
                     if (attachment?.mediaType?.startsWith("image/") != true || attachment.contentReference.isNullOrBlank()) return@dispatch

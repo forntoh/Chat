@@ -81,8 +81,11 @@ class ConversationTest {
                             contentDescription = "Retry earlier messages"
                         },
                     ) { Text("Earlier messages unavailable") }
+
                     dev.forntoh.chat.ui.HistoryStatus.Loading -> Text("Fetching")
+
                     dev.forntoh.chat.ui.HistoryStatus.Exhausted -> Text(if (content.empty) "Begin here" else "Beginning")
+
                     dev.forntoh.chat.ui.HistoryStatus.Idle -> TextButton(
                         onClick = content.history.onLoadEarlier,
                         enabled = content.history.canLoadEarlier,

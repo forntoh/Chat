@@ -5,17 +5,21 @@ plugins {
 
 val detektCli by configurations.creating
 val ktlintCli by configurations.creating
+
 repositories { mavenCentral() }
 dependencies {
     detektCli("io.gitlab.arturbosch.detekt:detekt-cli:1.23.8")
-    ktlintCli("com.pinterest.ktlint:ktlint-cli:1.7.1:all")
+    ktlintCli("com.pinterest.ktlint:ktlint-cli:1.8.0:all")
 }
+
 val kotlinSources = fileTree(projectDir) {
     include("**/*.kt", "**/*.kts")
     exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.git/**", "evidence/**")
 }
+
 val qualityLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
 val reports = layout.buildDirectory.dir("reports/quality")
+
 tasks.register<JavaExec>("detekt") {
     javaLauncher.set(qualityLauncher)
     group = "verification"
@@ -32,6 +36,7 @@ tasks.register<JavaExec>("detekt") {
         "--report", "sarif:${reports.get().file("detekt.sarif").asFile}",
     )
 }
+
 fun registerKtlint(name: String, format: Boolean) = tasks.register<JavaExec>(name) {
     javaLauncher.set(qualityLauncher)
     group = if (format) "formatting" else "verification"
@@ -45,6 +50,10 @@ fun registerKtlint(name: String, format: Boolean) = tasks.register<JavaExec>(nam
     if (!format) args("--reporter=plain", "--reporter=checkstyle,output=${reports.get().file("ktlint.xml").asFile}")
     args("**/*.kt", "**/*.kts", "!**/build/**", "!**/.gradle/**", "!**/.kotlin/**", "!**/.git/**", "!evidence/**")
 }
+
 registerKtlint("ktlintCheck", false)
 registerKtlint("ktlintFormat", true)
-tasks.named("check") { dependsOn("detekt", "ktlintCheck") }
+
+tasks.named("check") {
+    dependsOn("detekt", "ktlintCheck")
+}

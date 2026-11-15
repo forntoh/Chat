@@ -54,7 +54,9 @@ tasks.register("verifySelection") {
             ) { "Unwanted optional or producer dependency" }
             val otherPlatforms = when (target) {
                 "jvm" -> listOf("-android", "-ios", "-wasm", "-js", "-linux", "-mingw", "-macos")
+
                 "android" -> listOf("-desktop", "-ios", "-wasm", "-js", "-linux", "-mingw", "-macos")
+
                 else -> listOf("-android", "-desktop", "-jvm", "-wasm", "-js", "-linux", "-mingw", "-macos") +
                     if (target == "iosarm64") listOf("-iossimulatorarm64", "-iosx64") else listOf("-iosarm64", "-iosx64")
             }

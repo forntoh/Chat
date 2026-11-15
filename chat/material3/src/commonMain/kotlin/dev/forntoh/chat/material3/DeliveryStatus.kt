@@ -4,7 +4,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,7 +40,9 @@ internal fun DeliveryStatus(delivery: Delivery) {
                     ) {
                         Text(status.name, style = style, modifier = Modifier.padding(horizontal = 4.dp))
                     }
+
                     Delivery.Sending -> Text(status.name, style = style)
+
                     Delivery.Sent -> Unit
                 }
             }
