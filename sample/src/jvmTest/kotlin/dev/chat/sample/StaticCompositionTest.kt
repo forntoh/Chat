@@ -50,7 +50,7 @@ class StaticCompositionTest {
         val host = FakeHost().apply { useChatFixture() }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
         compose.setContent {
-            Box(Modifier.size(width.value, 720.dp)) { SampleApp(host, manualService = true) }
+            Box(Modifier.size(width.value, 720.dp)) { DiagnosticSampleApp(host, manualService = true) }
         }
         capture("default-conversation")
         compose.runOnIdle { width.value = 1000.dp }
@@ -83,7 +83,7 @@ class StaticCompositionTest {
 
     @Test fun messageActionsAndPressFeedbackAreConfinedToBubble() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val message = host.state.messages.first()
         compose.onNodeWithTag("bubble-${message.id}").assertHasClickAction()
         compose.onNodeWithTag("message-${message.id}").performTouchInput {

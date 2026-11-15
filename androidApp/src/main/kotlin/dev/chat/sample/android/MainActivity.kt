@@ -6,18 +6,27 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import dev.chat.sample.BotHost
+import dev.chat.sample.DiagnosticSampleApp
 import dev.chat.sample.FakeHost
 import dev.chat.sample.SampleApp
 
 class RetainedHost : ViewModel() {
-    val host = FakeHost().apply { startSimulation() }
+    val host = BotHost()
+    val diagnosticHost by lazy { FakeHost().apply { startSimulation() } }
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val host = ViewModelProvider(this)[RetainedHost::class.java].host
-        setContent { SampleApp(host) }
+        val retained = ViewModelProvider(this)[RetainedHost::class.java]
+        setContent {
+            if (intent.getBooleanExtra("diagnostics", false)) {
+                DiagnosticSampleApp(retained.diagnosticHost)
+            } else {
+                SampleApp(retained.host)
+            }
+        }
     }
 }

@@ -41,6 +41,27 @@ class FakeMediaHost {
     private var serial = 1
     private val rooms = mutableMapOf<String, ConversationState>()
 
+    fun cancelPendingWork() {
+        state = state.copy(draft = state.draft.copy(revision = state.draft.revision + 1, submitting = false))
+        media = media.copy(revision = media.revision + 1, selecting = false, selectionError = null)
+        selection = null
+        submission = null
+        uploads = emptyList()
+        viewer = null
+    }
+
+    fun clearConversation() {
+        cancelPendingWork()
+        state = state.copy(draft = Draft(revision = state.draft.revision), messages = emptyList())
+        media = MediaState(revision = media.revision)
+        rooms.clear()
+    }
+
+    fun receive(message: Message) {
+        require(state.messages.none { it.id == message.id })
+        state = state.copy(messages = state.messages + message)
+    }
+
     fun resetSimulation() {
         val revision = state.draft.revision + 1
         state = ConversationState(
@@ -135,6 +156,7 @@ class FakeMediaHost {
                 selection = request
                 media = media.copy(selecting = true, selectionError = null)
             }
+
             MediaCommand.Remove -> if (!state.draft.submitting && !media.selecting) {
                 state = state.copy(
                     draft = state.draft.copy(
@@ -144,10 +166,12 @@ class FakeMediaHost {
                 )
                 media = media.copy(revision = media.revision + 1)
             }
+
             MediaCommand.Retry -> if (media.images[request.target]?.status == ImageStatus.Failed) {
                 uploads = uploads + request.target
                 updateUpload(request.target, ImageState(ImageStatus.Uploading, 0.25f))
             }
+
             MediaCommand.View -> if ((media.images[request.target]?.status ?: ImageStatus.Ready) ==
                 ImageStatus.Ready
             ) {
@@ -182,6 +206,7 @@ class FakeMediaHost {
         if (event.conversationId != state.conversationId || media.selecting) return
         when (event) {
             is ConversationEvent.DraftChanged -> if (submission == null) state = state.copy(draft = state.draft.copy(text = event.text))
+
             is ConversationEvent.SendDraft -> {
                 val available = submission == null && !state.draft.submitting && state.draft.hasContent
                 val matches = event.revision == state.draft.revision && event.text == state.draft.text &&
@@ -191,6 +216,7 @@ class FakeMediaHost {
                     state = state.copy(draft = state.draft.copy(submitting = true))
                 }
             }
+
             is ConversationEvent.RetryMessage -> Unit // Upload retries use the exact attachment target instead.
         }
     }

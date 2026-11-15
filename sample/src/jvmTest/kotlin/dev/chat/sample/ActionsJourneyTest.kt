@@ -83,7 +83,7 @@ class ActionsJourneyTest {
 
     @Test fun replyFocusesComposerSendRetainsFocusAndOutsideTapClearsIt() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val field = compose.onNodeWithTag("composer")
         compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
@@ -99,7 +99,7 @@ class ActionsJourneyTest {
 
     @Test fun ordinaryTapDoesNotOpenActionsButHoldDoesAndDismissesWithoutChangingDraft() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Keep this draft")
         val bubble = compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true)
         bubble.performClick()
@@ -121,7 +121,7 @@ class ActionsJourneyTest {
             accept()
             completeDelivery(Delivery.Sent)
         }
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val field = compose.onNodeWithTag("composer")
         field.performTextInput("Keep this draft")
         compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
@@ -135,7 +135,7 @@ class ActionsJourneyTest {
 
     @Test fun revokedMenuStaysDismissedWhenCapabilitiesReturn() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Unrelated draft")
         compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Copy").assertExists()
@@ -149,7 +149,7 @@ class ActionsJourneyTest {
 
     @Test fun quoteCancelRetainsDraftAndAcceptedReplyCarriesTarget() {
         val host = FakeHost()
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("My reply")
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         capture("01-copy-reply-menu")
@@ -177,7 +177,7 @@ class ActionsJourneyTest {
     @Test fun replyContextKeepsDismissBesidePreviewInsideComposer() {
         val host = FakeHost()
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val quote = compose.onNodeWithContentDescription(
             "Reply to Avery",
             substring = true,
@@ -209,7 +209,7 @@ class ActionsJourneyTest {
         )
         host.accept()
         host.completeDelivery(Delivery.Sent)
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val preview = compose.onNodeWithContentDescription("Reply to ${target.sender.displayName}", useUnmergedTree = true)
         val previewBounds = preview.fetchSemanticsNode().boundsInRoot
         val bubbleBounds = compose.onNodeWithTag(
@@ -250,7 +250,7 @@ class ActionsJourneyTest {
         host.accept()
         host.completeDelivery(Delivery.Sent)
         host.receiveMessage()
-        compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNode(
             hasContentDescription("Reply to Morgan Lee") and hasAnyAncestor(hasTestTag("message-studio-1")),
             useUnmergedTree = true,
@@ -279,7 +279,7 @@ class ActionsJourneyTest {
         host.accept()
         host.completeDelivery(Delivery.Sent)
         host.onEvent(ConversationEvent.DraftChanged("studio", "Unsent draft"))
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
@@ -314,7 +314,7 @@ class ActionsJourneyTest {
         host.onEvent(ConversationEvent.SendDraft("studio", 0, "Disposable"))
         host.accept()
         host.completeDelivery(Delivery.Sent)
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Edit").assertDoesNotExist()
         compose.onNodeWithText("Delete").assertDoesNotExist()

@@ -147,7 +147,7 @@ class MotionJourneyTest {
 
     @Test fun composerGrowthHasIntermediateFramesAndPreservesExactHostDraft() {
         val host = FakeHost().apply { useChatFixture() }
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
         val initial = compose.onNodeWithTag("composer-area").fetchSemanticsNode().boundsInRoot
         compose.mainClock.autoAdvance = false
         val text = "First line\nSecond line\nThird line\nFourth line"

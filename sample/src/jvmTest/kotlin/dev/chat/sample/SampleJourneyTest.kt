@@ -56,7 +56,7 @@ class SampleJourneyTest {
             pause(true)
         }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
-        compose.setContent { Box(Modifier.width(width.value).height(720.dp)) { SampleApp(host) } }
+        compose.setContent { Box(Modifier.width(width.value).height(720.dp)) { DiagnosticSampleApp(host) } }
         for (custom in listOf(false, true)) {
             val mode = if (custom) "custom" else "default"
             if (custom) demo("Custom UI")
@@ -122,7 +122,7 @@ class SampleJourneyTest {
             startSimulation(Scenario.LongConversation)
             pause(true)
         }
-        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
+        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { DiagnosticSampleApp(host) } }
         for (custom in listOf(false, true)) {
             if (custom) demo("Custom UI")
             compose.onNodeWithTag("message-history-999").assertIsDisplayed()
@@ -145,7 +145,7 @@ class SampleJourneyTest {
             startSimulation(Scenario.LongConversation)
             pause(true)
         }
-        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
+        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { DiagnosticSampleApp(host) } }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         capture("simulator-long-top")
         compose.mainClock.autoAdvance = false
@@ -167,7 +167,7 @@ class SampleJourneyTest {
             startSimulation()
             pause(true)
         }
-        compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
+        compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { DiagnosticSampleApp(host) } }
         compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).assertExists()
         capture("simulator-startup-replies")
         compose.onNodeWithTag("demo-menu").performClick()
@@ -189,7 +189,7 @@ class SampleJourneyTest {
             androidx.compose.foundation.layout.Box(
                 androidx.compose.ui.Modifier
                     .width(width.value).height(720.dp),
-            ) { SampleApp(host) }
+            ) { DiagnosticSampleApp(host) }
         }
         capture("pat254-01-default-groups")
         compose.onNodeWithText("History fixture").assertDoesNotExist()
@@ -231,7 +231,7 @@ class SampleJourneyTest {
             androidx.compose.foundation.layout.Box(
                 androidx.compose.ui.Modifier
                     .width(360.dp).height(720.dp),
-            ) { SampleApp(host, manualService = true) }
+            ) { DiagnosticSampleApp(host, manualService = true) }
         }
         capture("01-jetchat")
         compose.onNodeWithTag("composer").performTextInput(draft)
@@ -264,7 +264,7 @@ class SampleJourneyTest {
 
     @Test fun historyHostMergesOverlapRejectsLateResultsAndRetainsRoomDrafts() {
         val host = FakeHost()
-        compose.setContent { SampleApp(host, manualService = true) }
+        compose.setContent { DiagnosticSampleApp(host, manualService = true) }
         demo("History fixture")
         compose.runOnIdle {
             host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Keep studio"))
@@ -298,7 +298,7 @@ class SampleJourneyTest {
 
     @Test fun acceptedSendFailsAndRetriesWithoutDuplicatingTheTimelineRow() {
         val host = FakeHost()
-        compose.setContent { SampleApp(host, manualService = true) }
+        compose.setContent { DiagnosticSampleApp(host, manualService = true) }
         compose.onNodeWithTag("composer").performTextInput("Hello\n🌍")
         compose.onNodeWithContentDescription("Send").performClick()
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
@@ -317,7 +317,7 @@ class SampleJourneyTest {
     }
 
     @Test fun refusalAndNavigationPreserveTheHostDraft() {
-        compose.setContent { SampleApp(manualService = true) }
+        compose.setContent { DiagnosticSampleApp(manualService = true) }
         compose.onNodeWithTag("composer").performTextInput("Keep\nthis draft")
         compose.onNodeWithContentDescription("Send").performClick()
         demo("Keep draft")

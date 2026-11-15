@@ -3,6 +3,7 @@ import XCTest
 final class StaticCompositionJourney: XCTestCase {
     func testDefaultAndCustomComposerRetainsDraftAndUsesSingleSafeArea() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         let composer = app.textViews.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
@@ -30,6 +31,7 @@ final class StaticCompositionJourney: XCTestCase {
 
     func testLongPressFocusAndCustomSurfaceDismissal() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         let bubble = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Morning! I’ve added")).firstMatch
         XCTAssertTrue(bubble.waitForExistence(timeout: 15))
@@ -64,6 +66,7 @@ final class StaticCompositionJourney: XCTestCase {
 
     func testEmbeddedReplyAndLatestNavigation() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         let composer = app.textViews.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
@@ -101,6 +104,7 @@ final class StaticCompositionJourney: XCTestCase {
 
     func testKeyboardKeepsLatestAndSendReturnsFromHistory() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         let composer = app.textViews.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15))

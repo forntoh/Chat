@@ -4,6 +4,7 @@ import XCTest
 final class IntegratedResetJourney: XCTestCase {
     func testDefaultAndCustomResetReturnsToInitialLatest() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         XCTAssertTrue(app.buttons["Conversation options"].waitForExistence(timeout: 15))
         app.buttons["Conversation options"].tap()

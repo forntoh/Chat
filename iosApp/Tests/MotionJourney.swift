@@ -4,6 +4,7 @@ import XCTest
 final class MotionJourney: XCTestCase {
     func testDefaultAndCustomSendComposerAndPreviewMotion() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         let composer = app.textViews.firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15))

@@ -102,15 +102,19 @@ class FakeHost {
             dismissAction(request.command)
             true
         }
+
         ActionCommand.OpenMenu -> handleOpenMenu(target)
 
         ActionCommand.Copy -> handleCopy(request, target, copyText)
+
         ActionCommand.Quote -> handleQuote(target)
+
         ActionCommand.BeginEdit -> handleBeginEdit(target)
 
         ActionCommand.RequestDelete -> handleRequestDelete(target)
 
         ActionCommand.ConfirmDelete -> handleConfirmDelete(request, target)
+
         ActionCommand.SubmitEdit -> handleSubmitEdit(request, target)
 
         ActionCommand.SendQuote -> handleSendQuote(request)
@@ -358,21 +362,27 @@ class FakeHost {
         useChatFixture()
         when (scenario) {
             Scenario.IncomingBurst -> repeat(4) { n -> schedule(400L * (n + 1), "burst $n") { receiveMessage() } }
+
             Scenario.History -> useHistoryFixture()
+
             Scenario.EmptyHistory -> {
                 state = state.copy(messages = emptyList())
                 history =
                     HistoryState(HistoryStatus.Idle, history.revision + 1)
             }
+
             Scenario.LongConversation -> {
                 state = state.copy(messages = (0..999).map(::historyMessage))
                 history =
                     HistoryState(HistoryStatus.Exhausted, history.revision + 1)
             }
+
             Scenario.Replies -> actionState = actionState.copy(quotes = actionState.quotes + ("morgan" to "removed-target"))
+
             Scenario.Composer ->
                 state =
                     state.copy(draft = Draft("First line\nSecond line\nThird line\nFourth line\nFifth line", state.draft.revision))
+
             else -> Unit
         }
         record("start seed=$seed scenario=${scenario.name} ack=$acknowledgementMillis delivery=$deliveryMillis")
@@ -545,7 +555,9 @@ class FakeHost {
             is ConversationEvent.DraftChanged -> if (pendingDraft == null) {
                 state = state.copy(draft = state.draft.copy(text = event.text))
             }
+
             is ConversationEvent.SendDraft -> handleSendDraft(event)
+
             is ConversationEvent.RetryMessage -> handleRetryMessage(event)
         }
     }

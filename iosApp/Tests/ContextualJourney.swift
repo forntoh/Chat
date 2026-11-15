@@ -4,6 +4,7 @@ import XCTest
 final class ContextualJourney: XCTestCase {
     func testImagesFailureRetryRevocationAndCustomFallbacks() {
         let app = XCUIApplication()
+        app.launchArguments += ["--diagnostics"]
         app.launch()
         XCTAssertTrue(app.buttons["Conversation options"].waitForExistence(timeout: 15))
         app.buttons["Conversation options"].tap()

@@ -31,12 +31,19 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.top
 import androidx.compose.ui.test.width
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
 class ReplyNavigationJourney {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun openDiagnosticEntryPoint() {
+        compose.activity.intent.putExtra("diagnostics", true)
+        compose.activityRule.scenario.recreate()
+    }
 
     private fun capture(name: String) {
         compose.waitForIdle()
