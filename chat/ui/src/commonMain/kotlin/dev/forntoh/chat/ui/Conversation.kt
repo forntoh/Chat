@@ -507,7 +507,11 @@ private suspend fun LazyListState.animateToLatest() {
         }
         fun viewportStep(): Float = layoutInfo.viewportSize.height.toFloat().coerceAtLeast(1f)
         var previous = 0f
-        animate(initialValue = 0f, targetValue = 1f, animationSpec = tween(360)) { fraction, _ ->
+        animate(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = tween(360)
+        ) { fraction, _ ->
             val share = if (previous >= 1f) 1f else ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
             scrollBy((remaining() * share).coerceAtMost(viewportStep()))
             previous = fraction
