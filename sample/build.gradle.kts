@@ -1,6 +1,6 @@
 plugins { id("chat.compose") }
 kotlin {
-    android { namespace = "dev.chat.sample" }
+    android { namespace = "dev.chat.sample"; androidResources.enable = true }
     listOf(iosArm64(), iosSimulatorArm64()).forEach {
         it.binaries.framework { baseName = "ChatSample"; isStatic = true }
     }
