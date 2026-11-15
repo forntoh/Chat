@@ -3,8 +3,8 @@ import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult
 
 plugins {
-    kotlin("multiplatform")
-    id("com.android.kotlin.multiplatform.library")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
 }
 kotlin {
     jvmToolchain(21)
@@ -17,8 +17,8 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     sourceSets.commonMain.dependencies {
-        implementation("dev.forntoh.chat.candidate:chat-actions:0.1.0-local")
-        implementation("dev.forntoh.chat.candidate:chat-media:0.1.0-local")
+        implementation(libs.chat.actions)
+        implementation(libs.chat.media)
     }
 }
 
@@ -41,7 +41,7 @@ tasks.register("verifySelection") {
             val modules = components.mapNotNull { it.id as? ModuleComponentIdentifier }
             val chat = modules.filter { it.group == "dev.forntoh.chat.candidate" }
             val expected = setOf("chat-core", "chat-ui", "chat-actions", "chat-media")
-            check(chat.map { it.version }.toSet() == setOf("0.1.0-local"))
+            check(chat.map { it.version }.toSet() == setOf(libs.versions.chat.staging.get()))
             check(chat.map { it.module }.toSet() == expected + expected.map { "$it-$target" }) {
                 "Unexpected Chat target selection: $chat"
             }

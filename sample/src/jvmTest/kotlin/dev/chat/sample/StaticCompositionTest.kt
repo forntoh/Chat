@@ -47,10 +47,10 @@ class StaticCompositionTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun sampleDefaultAndCustomSlotsKeepMultilineDraftAndSendVisible() {
-        val host = FakeHost().apply { useChatFixture() }
+        val host = ContractFixture().apply { useChatFixture() }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
         compose.setContent {
-            Box(Modifier.size(width.value, 720.dp)) { DiagnosticSampleApp(host, manualService = true) }
+            Box(Modifier.size(width.value, 720.dp)) { ActionContractHarness(host) }
         }
         capture("default-conversation")
         compose.runOnIdle { width.value = 1000.dp }
@@ -59,13 +59,11 @@ class StaticCompositionTest {
         compose.onNodeWithTag("composer").performTextInput("First line\nSecond line\nThird line\nFourth line\nFifth line\nSixth line")
         compose.onNodeWithContentDescription("Send").assertIsDisplayed().assertIsEnabled()
         capture("default-multiline")
-        compose.onNodeWithTag("demo-menu").performClick()
-        compose.onNodeWithText("Custom UI").performClick()
+        compose.runOnIdle { host.custom = true }
         capture("custom-multiline")
         compose.runOnIdle { host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "")) }
         capture("custom-conversation")
-        compose.onNodeWithTag("demo-menu").performClick()
-        compose.onNodeWithText("Material3 UI").performClick()
+        compose.runOnIdle { host.custom = false }
         compose.onNodeWithTag("composer").performTextInput("OK")
         compose.onNodeWithContentDescription("Send").performClick()
         compose.runOnIdle { host.accept() }
@@ -82,8 +80,8 @@ class StaticCompositionTest {
     }
 
     @Test fun messageActionsAndPressFeedbackAreConfinedToBubble() {
-        val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture()
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { ActionContractHarness(host) } }
         val message = host.state.messages.first()
         compose.onNodeWithTag("bubble-${message.id}").assertHasClickAction()
         compose.onNodeWithTag("message-${message.id}").performTouchInput {
@@ -122,8 +120,7 @@ class StaticCompositionTest {
         compose.onNodeWithText("Reply").assertIsDisplayed()
         capture("bubble-actions-menu")
         compose.onNodeWithText("Close actions").performClick()
-        compose.onNodeWithTag("demo-menu").performClick()
-        compose.onNodeWithText("Custom UI").performClick()
+        compose.runOnIdle { host.custom = true }
         compose.onNodeWithTag("custom-incoming", true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").assertIsDisplayed()
     }

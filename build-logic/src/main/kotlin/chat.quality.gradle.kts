@@ -3,18 +3,19 @@ plugins {
     `java-base`
 }
 
+val libraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
 val detektCli by configurations.creating
 val ktlintCli by configurations.creating
 
 repositories { mavenCentral() }
 dependencies {
-    detektCli("io.gitlab.arturbosch.detekt:detekt-cli:1.23.8")
-    ktlintCli("com.pinterest.ktlint:ktlint-cli:1.8.0:all")
+    detektCli(libraries.findLibrary("detekt-cli").get())
+    ktlintCli(variantOf(libraries.findLibrary("ktlint-cli").get()) { classifier("all") })
 }
 
 val kotlinSources = fileTree(projectDir) {
     include("**/*.kt", "**/*.kts")
-    exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.git/**", "evidence/**")
+    exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.git/**", "evidence/**", "**/node_modules/**", "**/_build/**")
 }
 
 val qualityLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
@@ -30,7 +31,8 @@ tasks.register<JavaExec>("detekt") {
     inputs.file("config/quality/detekt.yml")
     outputs.upToDateWhen { false }
     args(
-        "--input", projectDir.absolutePath, "--excludes", "**/build/**,**/.gradle/**,**/.kotlin/**,**/.git/**,**/evidence/**",
+        "--input", projectDir.absolutePath,
+        "--excludes", "**/build/**,**/.gradle/**,**/.kotlin/**,**/.git/**,**/evidence/**,**/node_modules/**,**/_build/**",
         "--config", file("config/quality/detekt.yml").absolutePath, "--build-upon-default-config",
         "--report", "html:${reports.get().file("detekt.html").asFile}",
         "--report", "sarif:${reports.get().file("detekt.sarif").asFile}",
@@ -48,7 +50,10 @@ fun registerKtlint(name: String, format: Boolean) = tasks.register<JavaExec>(nam
     if (format) args("--format")
     doFirst { reports.get().asFile.mkdirs() }
     if (!format) args("--reporter=plain", "--reporter=checkstyle,output=${reports.get().file("ktlint.xml").asFile}")
-    args("**/*.kt", "**/*.kts", "!**/build/**", "!**/.gradle/**", "!**/.kotlin/**", "!**/.git/**", "!evidence/**")
+    args(
+        "**/*.kt", "**/*.kts", "!**/build/**", "!**/.gradle/**", "!**/.kotlin/**",
+        "!**/.git/**", "!evidence/**", "!**/node_modules/**", "!**/_build/**",
+    )
 }
 
 registerKtlint("ktlintCheck", false)

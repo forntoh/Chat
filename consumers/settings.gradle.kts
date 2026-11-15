@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("../build-logic")
     repositories {
         google()
         mavenCentral()
@@ -6,6 +7,7 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
+    versionCatalogs { create("libs") { from(files("../gradle/libs.versions.toml")) } }
     repositories {
         maven {
             url = uri(providers.gradleProperty("chatRepository").get())

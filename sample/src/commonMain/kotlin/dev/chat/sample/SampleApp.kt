@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,7 @@ fun SampleApp(host: BotHost = remember { BotHost() }) {
 
 @Composable
 private fun BotConversation(host: BotHost, alternateTheme: Boolean, onTheme: () -> Unit) {
+    var menuExpanded by remember { mutableStateOf(false) }
     val images = host.mediaHost
     val media = rememberMedia(host.state, images.media, images::onRequest, host::onEvent)
     val base = LocalConversationSlots.current
@@ -87,12 +90,27 @@ private fun BotConversation(host: BotHost, alternateTheme: Boolean, onTheme: () 
         },
         avatar = { SampleAvatar("S") },
         actions = {
-            TextButton(
-                onClick = onTheme,
-                modifier = Modifier.testTag("theme-switch").semantics {
-                    contentDescription = "Switch theme"
-                },
-            ) { Text(if (alternateTheme) "Classic theme" else "Forest theme") }
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.testTag("bot-menu").semantics { contentDescription = "Chat options" },
+            ) { Icon(ChatIcons.DotsVertical, null) }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(if (alternateTheme) "Classic theme" else "Forest theme") },
+                    onClick = {
+                        menuExpanded = false
+                        onTheme()
+                    },
+                    modifier = Modifier.testTag("theme-switch"),
+                )
+                DropdownMenuItem(
+                    text = { Text(if (host.paused) "Resume bot" else "Pause bot") },
+                    onClick = {
+                        menuExpanded = false
+                        if (host.paused) host.resume() else host.pause()
+                    },
+                )
+            }
         },
     ) {
         Conversation(

@@ -60,9 +60,16 @@ import javax.imageio.ImageIO
 import kotlin.test.assertEquals
 
 class ActionsJourneyTest {
-    private fun demo(label: String) {
-        compose.onNodeWithTag("demo-menu").performClick()
-        compose.onNodeWithText(label).performClick()
+    private fun demo(host: ContractFixture, label: String) = compose.runOnIdle {
+        when (label) {
+            "Host theme" -> host.alternateTheme = true
+            "Default chat theme" -> host.alternateTheme = false
+            "Custom UI" -> host.custom = true
+            "Accept" -> host.accept()
+            "Fail action" -> host.completeAction(false)
+            "Complete action" -> host.completeAction(true)
+            else -> error("Unknown fixture operation: $label")
+        }
     }
 
     @get:Rule val compose = createComposeRule()
@@ -82,8 +89,8 @@ class ActionsJourneyTest {
     }
 
     @Test fun replyFocusesComposerSendRetainsFocusAndOutsideTapClearsIt() {
-        val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { ActionContractHarness(host) } }
         val field = compose.onNodeWithTag("composer")
         compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
@@ -98,8 +105,8 @@ class ActionsJourneyTest {
     }
 
     @Test fun ordinaryTapDoesNotOpenActionsButHoldDoesAndDismissesWithoutChangingDraft() {
-        val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { ActionContractHarness(host) } }
         compose.onNodeWithTag("composer").performTextInput("Keep this draft")
         val bubble = compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true)
         bubble.performClick()
@@ -115,13 +122,13 @@ class ActionsJourneyTest {
     }
 
     @Test fun editSelectionAndCancellationReturnFocusToTheRetainedComposer() {
-        val host = FakeHost().apply {
+        val host = ContractFixture().apply {
             onEvent(ConversationEvent.DraftChanged("studio", "Original message"))
             onEvent(ConversationEvent.SendDraft("studio", 0, "Original message"))
             accept()
             completeDelivery(Delivery.Sent)
         }
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { ActionContractHarness(host) } }
         val field = compose.onNodeWithTag("composer")
         field.performTextInput("Keep this draft")
         compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
@@ -134,8 +141,8 @@ class ActionsJourneyTest {
     }
 
     @Test fun revokedMenuStaysDismissedWhenCapabilitiesReturn() {
-        val host = FakeHost()
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { ActionContractHarness(host) } }
         compose.onNodeWithTag("composer").performTextInput("Unrelated draft")
         compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Copy").assertExists()
@@ -148,8 +155,8 @@ class ActionsJourneyTest {
     }
 
     @Test fun quoteCancelRetainsDraftAndAcceptedReplyCarriesTarget() {
-        val host = FakeHost()
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture()
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { ActionContractHarness(host) } }
         compose.onNodeWithTag("composer").performTextInput("My reply")
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         capture("01-copy-reply-menu")
@@ -158,10 +165,10 @@ class ActionsJourneyTest {
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         capture("02-quoted-draft")
-        demo("Host theme")
+        demo(host, "Host theme")
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         capture("05-host-theme-quoted-draft")
-        demo("Default chat theme")
+        demo(host, "Default chat theme")
         compose.onNodeWithContentDescription("Cancel reply").performClick()
         compose.onNodeWithTag("composer").assertTextContains("My reply")
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
@@ -169,15 +176,15 @@ class ActionsJourneyTest {
         compose.onNodeWithContentDescription("Send").performClick()
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         compose.runOnIdle { assertEquals("welcome", host.pendingQuoteTarget) }
-        demo("Accept")
+        demo(host, "Accept")
         compose.runOnIdle { assertEquals("welcome", host.actions.quotes[host.state.messages.last().id]) }
         compose.onNodeWithTag("composer").assertTextContains("")
     }
 
     @Test fun replyContextKeepsDismissBesidePreviewInsideComposer() {
-        val host = FakeHost()
+        val host = ContractFixture()
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { ActionContractHarness(host) } }
         val quote = compose.onNodeWithContentDescription(
             "Reply to Avery",
             substring = true,
@@ -191,7 +198,7 @@ class ActionsJourneyTest {
     }
 
     @Test fun embeddedReplyIsInsideBubbleAndTappingCentersItsTarget() {
-        val host = FakeHost()
+        val host = ContractFixture()
         host.useHistoryFixture()
         val target = host.state.messages[20]
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, target.id))
@@ -209,7 +216,7 @@ class ActionsJourneyTest {
         )
         host.accept()
         host.completeDelivery(Delivery.Sent)
-        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { ActionContractHarness(host) } }
         val preview = compose.onNodeWithContentDescription("Reply to ${target.sender.displayName}", useUnmergedTree = true)
         val previewBounds = preview.fetchSemanticsNode().boundsInRoot
         val bubbleBounds = compose.onNodeWithTag(
@@ -225,7 +232,7 @@ class ActionsJourneyTest {
         val header = compose.onNodeWithTag("conversation-header").fetchSemanticsNode().boundsInRoot
         assertEquals((header.bottom + composer.top) / 2f, row.center.y, 2f)
         capture("reply-target-centered")
-        demo("Custom UI")
+        demo(host, "Custom UI")
         capture("reply-custom-target-centered")
         compose.onNodeWithContentDescription("Latest").performClick()
         capture("reply-custom-embedded")
@@ -234,7 +241,7 @@ class ActionsJourneyTest {
     }
 
     @Test fun shortConversationKeepsFollowingAfterReplyNavigationAndMultilineInput() {
-        val host = FakeHost().apply { useChatFixture() }
+        val host = ContractFixture().apply { useChatFixture() }
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, "morgan"))
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "A reply with an embedded preview"))
         host.onAction(
@@ -250,7 +257,7 @@ class ActionsJourneyTest {
         host.accept()
         host.completeDelivery(Delivery.Sent)
         host.receiveMessage()
-        compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { ActionContractHarness(host) } }
         compose.onNode(
             hasContentDescription("Reply to Morgan Lee") and hasAnyAncestor(hasTestTag("message-studio-1")),
             useUnmergedTree = true,
@@ -273,13 +280,13 @@ class ActionsJourneyTest {
     }
 
     @Test fun editCancelIsLosslessAndFailureDoesNotChangeAuthoritativeMessage() {
-        val host = FakeHost()
+        val host = ContractFixture()
         host.onEvent(ConversationEvent.DraftChanged("studio", "Original message"))
         host.onEvent(ConversationEvent.SendDraft("studio", 0, "Original message"))
         host.accept()
         host.completeDelivery(Delivery.Sent)
         host.onEvent(ConversationEvent.DraftChanged("studio", "Unsent draft"))
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { ActionContractHarness(host) } }
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
         compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
@@ -298,23 +305,23 @@ class ActionsJourneyTest {
         compose.onNodeWithText("Save edit").performClick()
         compose.onNodeWithText("Save edit").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals("Original message", host.state.messages.last().text) }
-        demo("Fail action")
+        demo(host, "Fail action")
         compose.onNodeWithText("Couldn't change message. Try again or cancel.").assertExists()
         capture("03-edit-failure")
         compose.onNodeWithText("Save edit").performClick()
-        demo("Complete action")
+        demo(host, "Complete action")
         compose.runOnIdle { assertEquals("Revised message", host.state.messages.last().text) }
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithContentDescription("Cancel reply").assertExists()
     }
 
     @Test fun deleteRequiresConfirmationAndRevalidatesCapabilityAndTarget() {
-        val host = FakeHost()
+        val host = ContractFixture()
         host.onEvent(ConversationEvent.DraftChanged("studio", "Disposable"))
         host.onEvent(ConversationEvent.SendDraft("studio", 0, "Disposable"))
         host.accept()
         host.completeDelivery(Delivery.Sent)
-        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { ActionContractHarness(host) } }
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Edit").assertDoesNotExist()
         compose.onNodeWithText("Delete").assertDoesNotExist()
@@ -342,10 +349,10 @@ class ActionsJourneyTest {
         compose.onNodeWithText("Delete").performClick()
         compose.onNodeWithText("Confirm delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
-        demo("Fail action")
+        demo(host, "Fail action")
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
         compose.onNodeWithText("Confirm delete").performClick()
-        demo("Complete action")
+        demo(host, "Complete action")
         compose.runOnIdle { assertEquals(listOf("welcome"), host.state.messages.map { it.id }) }
     }
 

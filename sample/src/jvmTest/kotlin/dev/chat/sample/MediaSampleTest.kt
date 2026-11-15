@@ -42,16 +42,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaSampleTest {
+    private val options = MediaTestOptions()
+
     @Test fun simulatedRenderFailureUsesPublicFallbackWithoutRevokingResourceOrChangingDraft() {
         val host = FakeMediaHost().apply { resetSimulation() }
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         val original = host.state.messages.first()
         compose.onNodeWithTag("composer").performTextInput("Preserve newer caption")
         compose.onNodeWithTag("message-${original.id}").performScrollTo()
         compose.onNodeWithContentDescription("Image attachment").performClick()
         compose.onNodeWithText("Shared image").assertExists()
         compose.onNodeWithText("Close viewer").performClick()
-        mediaDemo("Simulate image render failure")
+        mediaDemo(host, "Simulate image render failure")
         compose.onAllNodesWithText("Image unavailable").assertCountEquals(2)
         compose.onNodeWithText("View image").assertDoesNotExist()
         compose.onNodeWithTag("composer").assertTextContains("Preserve newer caption")
@@ -59,9 +61,19 @@ class MediaSampleTest {
         capture("15-render-failure")
     }
 
-    private fun mediaDemo(label: String) {
-        compose.onNodeWithTag("media-demo-menu").performClick()
-        compose.onNodeWithText(label).performClick()
+    private fun mediaDemo(host: FakeMediaHost, label: String) = compose.runOnIdle {
+        when (label) {
+            "Simulate image render failure" -> host.failRendering()
+            "Accept image draft" -> host.resolveDraft(true)
+            "Keep draft" -> host.resolveDraft(false)
+            "Fail upload" -> host.completeUpload(false)
+            "Complete upload" -> host.completeUpload(true)
+            "Finish image loading" -> host.finishLoading()
+            "Switch media room" -> host.switchRoom()
+            "Custom image UI" -> options.custom = true
+            "Deny next selection" -> options.denyNextSelection = true
+            else -> error("Unknown media fixture operation: $label")
+        }
     }
 
     @get:Rule val compose = createComposeRule()
@@ -81,7 +93,7 @@ class MediaSampleTest {
 
     @Test fun automaticServiceCompletesEveryAcceptedImage() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options) } }
         repeat(2) {
             compose.onNodeWithContentDescription("Attach image").performClick()
             compose.onNodeWithText("Choose bundled image").performClick()
@@ -96,7 +108,7 @@ class MediaSampleTest {
 
     @Test fun imageSupplementAlignsWithDirectionalBubbleAndOmitsUnsupportedRowRetry() {
         val host = FakeMediaHost().apply { resetSimulation() }
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithTag("message-${host.state.messages.first().id}").performScrollTo()
         fun bubble(row: Message) = compose.onNodeWithContentDescription(
             dev.forntoh.chat.material3.chatConversationSlots().messageDescription(row),
@@ -110,11 +122,11 @@ class MediaSampleTest {
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
-        mediaDemo("Fail upload")
+        mediaDemo(host, "Accept image draft")
+        mediaDemo(host, "Fail upload")
         compose.onNodeWithText("Retry").assertDoesNotExist()
         compose.onNodeWithText("Retry upload").assertIsDisplayed().performClick()
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         val outgoing = bubble(host.state.messages.single())
         val image = compose.onNodeWithContentDescription("Bundled mountain illustration").fetchSemanticsNode().boundsInRoot
         assertEquals(outgoing.right, image.right, 1f)
@@ -123,7 +135,7 @@ class MediaSampleTest {
 
     @Test fun manyAttachmentPreviewsKeepSendAndCaptionUsable() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(360.dp, 600.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(360.dp, 600.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Keep this caption")
         repeat(5) {
             compose.onNodeWithContentDescription("Attach image").performClick()
@@ -140,26 +152,26 @@ class MediaSampleTest {
 
     @Test fun everyImageInOneSubmissionResolvesAndFailedImageRetriesWithoutAnotherRow() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         repeat(2) {
             compose.onNodeWithContentDescription("Attach image").performClick()
             compose.onNodeWithText("Choose bundled image").performClick()
         }
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         val id = host.state.messages.single().id
         val attachments = host.state.messages.single().attachments
         compose.onAllNodesWithText("Uploading image · 25%").assertCountEquals(2)
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle {
             assertEquals(Delivery.Sending, host.state.messages.single().delivery)
             assertEquals(attachments[1], host.upload!!.attachment)
         }
-        mediaDemo("Fail upload")
+        mediaDemo(host, "Fail upload")
         compose.onNodeWithText("Couldn't upload image").assertExists()
         compose.runOnIdle { assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
         compose.onNodeWithText("Retry upload").performScrollTo().performClick()
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle {
             assertEquals(id, host.state.messages.single().id)
             assertEquals(attachments, host.state.messages.single().attachments)
@@ -172,13 +184,13 @@ class MediaSampleTest {
 
     @Test fun revokedResourceClosesViewerAndRejectsLateUploadWithoutChangingNewDraft() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         repeat(2) {
             compose.onNodeWithContentDescription("Attach image").performClick()
             compose.onNodeWithText("Choose bundled image").performClick()
         }
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         val oldUpload = host.upload!!
         compose.onNodeWithTag("composer").performTextInput("Newer unrelated draft")
         compose.runOnIdle { host.revokeResource(oldUpload) }
@@ -190,7 +202,7 @@ class MediaSampleTest {
             assertNull(host.upload)
         }
         compose.onNodeWithText("Retry upload").performScrollTo().performClick()
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle { assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
         compose.onNodeWithText("Image unavailable").assertExists()
         compose.runOnIdle { host.resetSimulation() }
@@ -206,7 +218,7 @@ class MediaSampleTest {
 
     @Test fun selectingAnotherImageAppendsWithoutReplacingTheExistingDraft() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Exact caption")
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
@@ -224,17 +236,17 @@ class MediaSampleTest {
 
     @Test fun customImageSlotsRetainLoadingFallbacksAndMissingMetadata() {
         val host = FakeMediaHost().apply { resetSimulation() }
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options) } }
         compose.onNodeWithTag("message-${host.state.messages.first().id}").performScrollTo()
         compose.onNodeWithContentDescription("Image attachment").assertExists()
         capture("12-default-loading-missing-metadata")
-        mediaDemo("Custom image UI")
+        mediaDemo(host, "Custom image UI")
         compose.onAllNodesWithText("Host attachment feedback").assertCountEquals(3)
         compose.onNodeWithText("Loading image…").assertExists()
         compose.onNodeWithText("Image unavailable").assertExists()
         compose.onNodeWithText("Unsupported attachment").assertExists()
         capture("13-custom-loading-fallbacks")
-        mediaDemo("Finish image loading")
+        mediaDemo(host, "Finish image loading")
         compose.onNodeWithText("Loading image…").assertDoesNotExist()
         compose.onNodeWithContentDescription("Loading fixture").assertExists()
         compose.runOnIdle {
@@ -246,7 +258,7 @@ class MediaSampleTest {
 
     @Test fun imageSimulatorRendersLoadingAndUnavailableFallbacks() {
         val host = FakeMediaHost().apply { resetSimulation() }
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options) } }
         compose.onNodeWithText("Unsupported attachment").assertExists()
         compose.onNodeWithText("Image unavailable").assertExists()
         capture("08-simulator-fallbacks")
@@ -254,12 +266,12 @@ class MediaSampleTest {
 
     @Test fun bundledImageJourneyRetainsDraftOnCancelDenyAndFailureThenRetriesSameIdentity() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Caption")
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Cancel selection").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Caption")
-        mediaDemo("Deny next selection")
+        mediaDemo(host, "Deny next selection")
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Permission denied by fake host").assertExists()
         compose.onNodeWithContentDescription("Attach image").performClick()
@@ -275,18 +287,18 @@ class MediaSampleTest {
         compose.onNodeWithContentDescription("Send").performClick().performClick()
         capture("02-pending-submission")
         compose.onNodeWithText("Remove image").assertIsNotEnabled()
-        mediaDemo("Keep draft")
+        mediaDemo(host, "Keep draft")
         compose.onNodeWithTag("composer").assertTextContains("Caption")
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         compose.onNodeWithText("Uploading image · 25%").assertExists()
         capture("03-upload-progress")
-        mediaDemo("Fail upload")
+        mediaDemo(host, "Fail upload")
         capture("04-upload-failure")
         val id = host.state.messages.single().id
         compose.runOnIdle { assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
         compose.onNodeWithText("Retry upload").performClick()
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle {
             assertEquals(id, host.state.messages.single().id)
             assertEquals(Delivery.Sent, host.state.messages.single().delivery)
@@ -299,7 +311,7 @@ class MediaSampleTest {
 
     @Test fun oldSelectionAndUploadResultsCannotAffectAnotherRoomOrRemovedDraft() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithTag("composer").performTextInput("Retained")
         compose.onNodeWithContentDescription("Attach image").performClick()
         val oldSelection = host.selection
@@ -323,14 +335,14 @@ class MediaSampleTest {
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         val oldUpload = host.upload
-        mediaDemo("Switch media room")
+        mediaDemo(host, "Switch media room")
         compose.runOnIdle {
             host.completeUpload(true, oldUpload)
             assertTrue(host.state.messages.isEmpty())
         }
-        mediaDemo("Switch media room")
+        mediaDemo(host, "Switch media room")
         compose.runOnIdle {
             host.completeUpload(true, oldUpload)
             assertEquals(Delivery.Failed, host.state.messages.single().delivery)
@@ -340,16 +352,16 @@ class MediaSampleTest {
 
     @Test fun laterTextImageAndRetryDoNotReplaceAnUnresolvedUpload() {
         val host = FakeMediaHost()
-        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaContractHarness(host, options, manualService = true) } }
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         val first = host.upload!!
 
         compose.onNodeWithTag("composer").performTextInput("A later text message")
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         compose.runOnIdle {
             assertEquals(first, host.upload, "Text acceptance must retain the earlier upload controls")
             assertEquals(Delivery.Sent, host.state.messages.last().delivery)
@@ -359,24 +371,24 @@ class MediaSampleTest {
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
         compose.onNodeWithContentDescription("Send").performClick()
-        mediaDemo("Accept image draft")
+        mediaDemo(host, "Accept image draft")
         val secondId = host.state.messages.last().id
         compose.runOnIdle { assertEquals(first, host.upload, "Image acceptance must retain the earlier upload") }
         capture("06-overlapping-uploads")
-        mediaDemo("Fail upload")
+        mediaDemo(host, "Fail upload")
         compose.runOnIdle {
             assertEquals(secondId, host.upload!!.message!!.id)
             assertEquals(Delivery.Failed, host.state.messages.first().delivery)
         }
         compose.onNodeWithText("Retry upload").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(secondId, host.upload!!.message!!.id, "Retry must not replace another active upload") }
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle {
             assertEquals(first.attachment!!.id, host.upload!!.attachment!!.id)
             assertEquals(first.message!!.id, host.upload!!.message!!.id)
             assertEquals(Delivery.Sent, host.state.messages.last().delivery)
         }
-        mediaDemo("Complete upload")
+        mediaDemo(host, "Complete upload")
         compose.runOnIdle {
             assertNull(host.upload)
             assertEquals(3, host.state.messages.size)

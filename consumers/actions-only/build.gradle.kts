@@ -1,8 +1,9 @@
 plugins {
-    kotlin("multiplatform")
-    id("com.android.kotlin.multiplatform.library")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.compose")
+    id("chat.desktop-runtime")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.compose)
 }
 kotlin {
     jvmToolchain(21)
@@ -15,11 +16,11 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     sourceSets {
-        commonMain.dependencies { implementation("dev.forntoh.chat.candidate:chat-actions:0.1.0-local") }
+        commonMain.dependencies { implementation(libs.chat.actions) }
         jvmTest.dependencies {
-            implementation(kotlin("test"))
-            implementation(compose.desktop.currentOs)
-            implementation("org.jetbrains.compose.ui:ui-test-junit4:1.11.1")
+            implementation(libs.kotlin.test)
+            implementation(checkNotNull(project.extensions.extraProperties["chatDesktopRuntime"]))
+            implementation(libs.compose.test)
         }
     }
 }

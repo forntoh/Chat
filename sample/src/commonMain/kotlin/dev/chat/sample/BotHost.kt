@@ -17,6 +17,9 @@ class BotHost(private val seed: Int = 42) {
     private var random = Random(seed)
     private var elapsed = 0L
     private var running = false
+    var paused by mutableStateOf(false)
+        private set
+    private var remainingArrivals = 0
     private var generation = 0L
     private var serial = 0L
     private var arrival = 0
@@ -31,7 +34,23 @@ class BotHost(private val seed: Int = 42) {
     fun start() {
         if (running) return
         running = true
-        scheduleArrival()
+        paused = false
+        scheduleArrival(newBurst = true)
+    }
+
+    fun pause() {
+        if (!running || paused) return
+        paused = true
+        generation++
+        pending.clear()
+        remainingArrivals = 0
+    }
+
+    fun resume() {
+        if (!running) return
+        if (!paused && remainingArrivals > 0) return
+        paused = false
+        scheduleArrival(newBurst = true)
     }
 
     fun reset() {
@@ -48,15 +67,14 @@ class BotHost(private val seed: Int = 42) {
     }
 
     fun stop() {
+        pause()
         running = false
-        generation++
-        pending.clear()
         mediaHost.cancelPendingWork()
     }
 
     fun advanceBy(millis: Long) {
         require(millis in 0..MAX_ADVANCE_MILLIS)
-        if (!running) return
+        if (!running || paused) return
         val until = elapsed + millis
         while (true) {
             val next = pending.minByOrNull { it.due }?.takeIf { it.due <= until } ?: break
@@ -73,7 +91,8 @@ class BotHost(private val seed: Int = 42) {
         val submission = mediaHost.submission ?: return
         mediaHost.resolveDraft(true)
         while (mediaHost.upload != null) mediaHost.completeUpload(true)
-        if (submission.text.isNotBlank()) {
+        if (!paused && remainingArrivals == 0) scheduleArrival(newBurst = true)
+        if (!paused && submission.text.isNotBlank()) {
             schedule(random.nextLong(MIN_REPLY_MILLIS, MAX_REPLY_MILLIS)) {
                 receive("That sounds lovely. We can keep it relaxed and leave time to explore.")
             }
@@ -94,7 +113,8 @@ class BotHost(private val seed: Int = 42) {
         mediaHost.receive(Message(id, Participant("bot", "Scout"), serial, "Now", text, Delivery.Sent, attachments))
     }
 
-    private fun scheduleArrival() {
+    private fun scheduleArrival(newBurst: Boolean = false) {
+        if (newBurst) remainingArrivals = ARRIVAL_KINDS
         schedule(random.nextLong(MIN_ARRIVAL_MILLIS, MAX_ARRIVAL_MILLIS)) {
             when (arrival++ % ARRIVAL_KINDS) {
                 0 -> receive("A small adventure can fit into an ordinary weekend. A walk, a good view, and something warm to drink.")
@@ -110,12 +130,13 @@ class BotHost(private val seed: Int = 42) {
                     ),
                 )
             }
-            scheduleArrival()
+            remainingArrivals--
+            if (remainingArrivals > 0) scheduleArrival()
         }
     }
 
     private fun schedule(delay: Long, action: () -> Unit) {
-        if (running) pending += Scheduled(elapsed + delay, generation, action)
+        if (running && !paused) pending += Scheduled(elapsed + delay, generation, action)
     }
 
     private data class Scheduled(
@@ -135,8 +156,8 @@ data class TrailSuggestion(
     val description: String,
 )
 
-private const val MIN_ARRIVAL_MILLIS = 4_500L
-private const val MAX_ARRIVAL_MILLIS = 7_500L
+private const val MIN_ARRIVAL_MILLIS = 15_000L
+private const val MAX_ARRIVAL_MILLIS = 30_001L
 private const val ARRIVAL_KINDS = 3
 
 private const val WELCOME = "Hi, I'm Scout. Let's plan a little time outside. Where would you like to go?"

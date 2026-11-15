@@ -1,7 +1,6 @@
 package dev.chat.sample
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.forntoh.chat.actions.ActionCommand
@@ -19,13 +18,11 @@ import dev.forntoh.chat.ui.HistoryRequest
 import dev.forntoh.chat.ui.HistoryState
 import dev.forntoh.chat.ui.HistoryStatus
 
-/**
- * In-memory sample adapter, called on the UI thread. A seeded logical clock schedules
- * separate submission, delivery and incoming-reply snapshots; manual mode remains available. Retention lasts only as long as this
- * instance; there is no network, persistence or production authorization implementation.
- */
-@Suppress("TooManyFunctions") // Retained diagnostic host exposes each simulated service outcome.
-class FakeHost {
+/** Manual action/history snapshots for public contract checks; no scheduler or application routing. */
+@Suppress("TooManyFunctions") // Test driver resolves independent public action/history requests.
+class ContractFixture {
+    var custom by mutableStateOf(false)
+    var alternateTheme by mutableStateOf(false)
     var state by mutableStateOf(initialState("studio"))
         private set
     var pendingDraft by mutableStateOf<ConversationEvent.SendDraft?>(null)
@@ -86,15 +83,6 @@ class FakeHost {
         }
         if (!applyAction(request, target, copyText)) return
         actionState = actionState.copy(revision = actionState.revision + 1)
-        if (simulationEnabled && pendingAction == request) {
-            schedule(700, "action ${request.command}") {
-                if (pendingAction == request) {
-                    val success = !failActionNext
-                    failActionNext = false
-                    completeAction(success)
-                }
-            }
-        }
     }
 
     private fun applyAction(request: ActionRequest, target: Message?, copyText: (String) -> Unit): Boolean = when (request.command) {
@@ -246,194 +234,6 @@ class FakeHost {
         actionState = actionState.copy(pending = false, revision = actionState.revision + 1)
     }
 
-    var simulationEnabled by mutableStateOf(false)
-        private set
-    var paused by mutableStateOf(false)
-        private set
-    var clockMillis by mutableStateOf(0L)
-        private set
-    var trace by mutableStateOf<List<String>>(emptyList())
-        private set
-    var acknowledgementMillis by mutableStateOf(400L)
-        private set
-    var deliveryMillis by mutableStateOf(900L)
-        private set
-
-    /** Applies to newly scheduled work; already queued deadlines remain reproducible. */
-    fun configureDelays(acknowledgement: Long, delivery: Long) {
-        require(acknowledgement in 0..5_000 && delivery in 0..5_000)
-        acknowledgementMillis = acknowledgement
-        deliveryMillis = delivery
-        record("delays ack=$acknowledgement delivery=$delivery")
-    }
-
-    var selectedScenario by mutableStateOf(Scenario.Exchange)
-        private set
-    var selectedSeed by mutableStateOf(42)
-        private set
-    private var failNext = false
-    private var refuseNext = false
-    var connected by mutableStateOf(true)
-        private set
-    private var failHistoryNext = false
-    private var failActionNext = false
-
-    /** Simulated connection state only; queued deliveries observe it when they resolve. */
-    fun changeConnection(value: Boolean) {
-        connected = value
-        record("connected=$value")
-    }
-
-    /** Capability mutation is deliberately exposed in debug controls for stale-menu cases. */
-    fun changeSelectedCapabilities(allowed: Boolean) {
-        val id = actions.menuTargetId ?: state.messages.lastOrNull()?.id ?: return
-        if (allowed) allowActions(id) else revokeActions(id)
-        record("capability id=$id allowed=$allowed")
-    }
-
-    fun removeQuotedTarget() {
-        val id = actions.quoteTargetId ?: actions.quotes.values.firstOrNull { target -> state.messages.any { it.id == target } } ?: return
-        removeMessage(id)
-        record("removed quote target=$id")
-    }
-
-    fun removeFirstVisibleFixtureRow() {
-        state.messages.firstOrNull()?.let {
-            removeMessage(it.id)
-            record("removed anchor id=${it.id}")
-        }
-    }
-    private var sequence = 0L
-
-    /** Changes only when a scenario starts or resets, so the sample remounts its public
-     * conversation and restores the fixture's initial reading position without changing IDs. */
-    var simulationSession by mutableLongStateOf(0L)
-        private set
-    private var generation = 0L
-    private var random = kotlin.random.Random(42)
-    private data class Scheduled(
-        val due: Long,
-        val order: Long,
-        val generation: Long,
-        val room: String,
-        val label: String,
-        val apply: () -> Unit,
-    )
-    private val scheduled = mutableListOf<Scheduled>()
-
-    /**
-     * Restart from fixture data with deterministic logical time. Action and history revisions
-     * advance beyond all retained rooms before those snapshots are discarded, so old public
-     * requests cannot match the new session after a room switch followed by reset.
-     */
-    fun startSimulation(scenario: Scenario = Scenario.Exchange, seed: Int = 42) {
-        simulationSession++
-        selectedScenario = scenario
-        selectedSeed = seed
-        paused = false
-        val revision = state.draft.revision + 1
-        pendingDraft = null
-        pendingHistory = null
-        pendingAction = null
-        pendingQuoteTarget = null
-        val actionRevision = maxOf(actionState.revision, roomActions.values.maxOfOrNull { it.first.revision } ?: 0) + 1
-        actionState = ActionState(revision = actionRevision)
-        revoked = emptyMap()
-        val historyRevision = maxOf(history.revision, rooms.values.maxOfOrNull { it.second.revision } ?: 0) + 1
-        history = HistoryState(revision = historyRevision)
-        rooms.clear()
-        roomSubmissions.clear()
-        roomActions.clear()
-        roomPendingActions.clear()
-        failNext = scenario == Scenario.Failure
-        refuseNext = scenario == Scenario.Refusal
-        connected = scenario != Scenario.Disconnected
-        failHistoryNext = scenario == Scenario.History
-        failActionNext = scenario == Scenario.Actions
-        simulationEnabled = true
-        generation++
-        scheduled.clear()
-        sequence = 0
-        clockMillis = 0
-        random = kotlin.random.Random(seed)
-        trace = emptyList()
-        state = initialState("studio").copy(draft = Draft(revision = revision))
-        nextMessage = 1
-        useChatFixture()
-        when (scenario) {
-            Scenario.IncomingBurst -> repeat(4) { n -> schedule(400L * (n + 1), "burst $n") { receiveMessage() } }
-
-            Scenario.History -> useHistoryFixture()
-
-            Scenario.EmptyHistory -> {
-                state = state.copy(messages = emptyList())
-                history =
-                    HistoryState(HistoryStatus.Idle, history.revision + 1)
-            }
-
-            Scenario.LongConversation -> {
-                state = state.copy(messages = (0..999).map(::historyMessage))
-                history =
-                    HistoryState(HistoryStatus.Exhausted, history.revision + 1)
-            }
-
-            Scenario.Replies -> actionState = actionState.copy(quotes = actionState.quotes + ("morgan" to "removed-target"))
-
-            Scenario.Composer ->
-                state =
-                    state.copy(draft = Draft("First line\nSecond line\nThird line\nFourth line\nFifth line", state.draft.revision))
-
-            else -> Unit
-        }
-        record("start seed=$seed scenario=${scenario.name} ack=$acknowledgementMillis delivery=$deliveryMillis")
-    }
-
-    /** Cancel prior-session work and restore the selected seed and scenario. */
-    fun resetSimulation() = startSimulation(selectedScenario, selectedSeed)
-
-    private fun record(label: String) {
-        trace = (trace + "$clockMillis #$sequence ${state.conversationId} $label").takeLast(80)
-    }
-
-    private fun schedule(delay: Long, label: String, apply: () -> Unit) {
-        scheduled += Scheduled(clockMillis + delay, sequence++, generation, state.conversationId, label, apply)
-        record("scheduled $label")
-    }
-
-    /** Advance one event even while paused, ordering equal deadlines by insertion sequence. */
-    fun step() {
-        val next = scheduled.minWithOrNull(compareBy<Scheduled> { it.due }.thenBy { it.order }) ?: return
-        clockMillis = maxOf(clockMillis, next.due)
-        scheduled.remove(next)
-        if (next.generation == generation && next.room == state.conversationId) {
-            next.apply()
-            record("applied ${next.label} rows=${state.messages.size} draft=${state.draft.revision}")
-        }
-    }
-
-    /** Interactive pacing calls this with elapsed ticks; checks advance directly without sleeps. */
-    fun advanceBy(millis: Long) {
-        require(millis >= 0)
-        if (paused) return
-        val target = clockMillis + millis
-        while (scheduled.any { it.due <= target }) step()
-        clockMillis = target
-    }
-
-    fun pause(value: Boolean) {
-        paused = value
-    }
-
-    private fun scheduleDelivery(id: String) {
-        schedule(deliveryMillis, "delivery id=$id") {
-            if (state.messages.none { it.id == id && it.delivery == Delivery.Sending }) return@schedule
-            val failed = failNext || !connected
-            failNext = false
-            completeDelivery(if (failed) Delivery.Failed else Delivery.Sent, id)
-            if (!failed) schedule(700 + random.nextLong(400), "reply to=$id") { receiveMessage() }
-        }
-    }
-
     private var nextMessage = 1
     var history by mutableStateOf(HistoryState())
         private set
@@ -460,20 +260,6 @@ class FakeHost {
         }
         pendingHistory = request
         history = history.copy(status = HistoryStatus.Loading)
-        if (simulationEnabled) {
-            schedule(700, "history revision=${request.revision}") {
-                if (pendingHistory != request) return@schedule
-                if (failHistoryNext) {
-                    failHistoryNext = false
-                    failHistory()
-                } else if (selectedScenario == Scenario.EmptyHistory) {
-                    pendingHistory = null
-                    history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
-                } else {
-                    completeHistory(request)
-                }
-            }
-        }
     }
 
     fun failHistory() {
@@ -506,18 +292,6 @@ class FakeHost {
 
     /** Switching invalidates in-flight work even when returning to the same room later. */
     fun switchRoom() {
-        if (simulationEnabled) {
-            generation++
-            scheduled.clear()
-            if (pendingDraft != null) refuse()
-            if (pendingAction != null) completeAction(false)
-            state = state.copy(
-                messages = state.messages.map {
-                    if (it.delivery == Delivery.Sending) it.copy(delivery = Delivery.Failed) else it
-                },
-            )
-            record("cancel on switch")
-        }
         pendingHistory = null
         history = HistoryState(if (history.status == HistoryStatus.Loading) HistoryStatus.Idle else history.status, history.revision + 1)
         actionState = actionState.copy(revision = actionState.revision + 1, menuTargetId = null)
@@ -569,22 +343,8 @@ class FakeHost {
         ) {
             return
         }
-        record("intent send revision=${event.revision}")
         pendingDraft = event
         state = state.copy(draft = state.draft.copy(submitting = true))
-        if (simulationEnabled) {
-            schedule(acknowledgementMillis, "ack revision=${event.revision}") {
-                if (pendingDraft == event) {
-                    if (refuseNext) {
-                        refuseNext = false
-                        refuse()
-                    } else {
-                        accept()
-                        scheduleDelivery(state.messages.last().id)
-                    }
-                }
-            }
-        }
     }
 
     private fun handleRetryMessage(event: ConversationEvent.RetryMessage) {
@@ -593,7 +353,6 @@ class FakeHost {
                 it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed
         }
         if (!eligible) return
-        record("intent retry id=${event.messageId}")
         state = state.copy(
             messages = state.messages.map {
                 if (it.id == event.messageId && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed) {
@@ -603,7 +362,6 @@ class FakeHost {
                 }
             },
         )
-        if (simulationEnabled) scheduleDelivery(event.messageId)
     }
 
     fun accept(expected: ConversationEvent.SendDraft? = pendingDraft) {

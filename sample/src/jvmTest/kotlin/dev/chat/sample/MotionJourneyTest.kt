@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.visible
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
@@ -33,7 +32,7 @@ class MotionJourneyTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun replyPreviewFadesInAndCancellationRetainsUnrelatedText() {
-        val host = FakeHost().apply { useChatFixture() }
+        val host = ContractFixture().apply { useChatFixture() }
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Retained text"))
         compose.setContent {
             SampleTheme(false) {
@@ -92,7 +91,7 @@ class MotionJourneyTest {
     }
 
     @Test fun editCancellationRetainsExitPixelsAndDropsThemOnConversationSwitch() {
-        val host = FakeHost().apply { useChatFixture() }
+        val host = ContractFixture().apply { useChatFixture() }
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Retained text"))
         compose.setContent {
             SampleTheme(false) {
@@ -146,8 +145,8 @@ class MotionJourneyTest {
     }
 
     @Test fun composerGrowthHasIntermediateFramesAndPreservesExactHostDraft() {
-        val host = FakeHost().apply { useChatFixture() }
-        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { DiagnosticSampleApp(host, manualService = true) } }
+        val host = ContractFixture().apply { useChatFixture() }
+        compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { ActionContractHarness(host) } }
         val initial = compose.onNodeWithTag("composer-area").fetchSemanticsNode().boundsInRoot
         compose.mainClock.autoAdvance = false
         val text = "First line\nSecond line\nThird line\nFourth line"

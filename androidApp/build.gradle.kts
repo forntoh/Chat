@@ -1,6 +1,6 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.compose.compiler)
 }
 android {
     namespace = "dev.chat.sample.android"
@@ -21,10 +21,10 @@ android {
 }
 dependencies {
     implementation(project(":sample"))
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel:2.11.0")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.2")
+    implementation(libs.activity.compose)
+    implementation(libs.lifecycle.viewmodel)
+    androidTestImplementation(libs.android.compose.test)
     // API 37 removed the reflective InputManager API used by Espresso 3.7.
-    androidTestImplementation("androidx.test:runner:1.8.0-alpha04")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.8.0-alpha04")
+    androidTestImplementation(libs.android.test.runner)
+    androidTestImplementation(libs.espresso.core)
 }

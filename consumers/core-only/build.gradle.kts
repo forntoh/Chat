@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform")
-    id("com.android.kotlin.multiplatform.library")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
 }
 kotlin {
     jvmToolchain(21)
@@ -13,7 +13,7 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
     sourceSets {
-        commonMain.dependencies { implementation("dev.forntoh.chat.candidate:chat-core:0.1.0-local") }
+        commonMain.dependencies { implementation(libs.chat.core) }
     }
 }
 tasks.register("verifySelection") {

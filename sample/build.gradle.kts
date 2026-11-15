@@ -15,10 +15,10 @@ kotlin {
             implementation(project(":chat:material3"))
             implementation(project(":chat:actions"))
             implementation(project(":chat:media"))
-            implementation(compose.components.resources)
+            implementation(libs.compose.resources)
             implementation(libs.material3)
         }
-        jvmMain.dependencies { implementation(compose.desktop.currentOs) }
+        jvmMain.dependencies { implementation(checkNotNull(project.extensions.extraProperties["chatDesktopRuntime"])) }
     }
 }
 compose.desktop { application { mainClass = "dev.chat.sample.MainKt" } }

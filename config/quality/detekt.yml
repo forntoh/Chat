@@ -27,6 +27,6 @@ style:
     ignoreCompanionObjectPropertyDeclaration: true
     ignoreAnnotated: ['Composable']
     ignoreNamedArgument: true
-    excludes: ['**/commonTest/**', '**/jvmTest/**', '**/androidTest/**', '**/*.gradle.kts', '**/FakeHost.kt', '**/FakeMediaHost.kt', '**/consumers/**']
+    excludes: ['**/commonTest/**', '**/jvmTest/**', '**/androidTest/**', '**/*.gradle.kts', '**/FakeMediaHost.kt', '**/consumers/**']
   MaxLineLength:
     active: false

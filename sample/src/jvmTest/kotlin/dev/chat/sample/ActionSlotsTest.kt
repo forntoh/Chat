@@ -76,7 +76,7 @@ class ActionSlotsTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun defaultReplyDismissUsesIconAndPreservesDraft() {
-        val host = FakeHost()
+        val host = ContractFixture()
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "Retain my draft"))
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
         compose.setContent {

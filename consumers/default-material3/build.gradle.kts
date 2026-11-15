@@ -1,8 +1,9 @@
 plugins {
-    kotlin("multiplatform")
-    id("com.android.kotlin.multiplatform.library")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.compose")
+    id("chat.desktop-runtime")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.compose)
 }
 kotlin {
     jvmToolchain(21)
@@ -16,14 +17,14 @@ kotlin {
     iosSimulatorArm64()
     sourceSets {
         commonMain.dependencies {
-            implementation("dev.forntoh.chat.candidate:chat-material3:0.1.0-local")
+            implementation(libs.chat.material3)
             // Host-authored slots use Material3 controls explicitly, as the sample does.
-            implementation("org.jetbrains.compose.material3:material3:1.11.0-alpha07")
+            implementation(libs.material3)
         }
         jvmTest.dependencies {
-            implementation(kotlin("test-junit"))
-            implementation(compose.desktop.currentOs)
-            implementation("org.jetbrains.compose.ui:ui-test-junit4:1.11.1")
+            implementation(libs.kotlin.test.junit)
+            implementation(checkNotNull(project.extensions.extraProperties["chatDesktopRuntime"]))
+            implementation(libs.compose.test)
         }
     }
 }

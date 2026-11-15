@@ -26,10 +26,36 @@ class BotJourneyTest {
     fun normalLaunchKeepsDraftWhenThemeChangesWithoutDiagnosticControls() {
         compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp() } }
         compose.onNodeWithTag("demo-menu").assertDoesNotExist()
-        compose.onNodeWithTag("theme-switch").assertIsDisplayed()
+        compose.onNodeWithTag("bot-menu").assertIsDisplayed()
         compose.onNodeWithTag("composer").performTextInput("Meet by the lake")
+        compose.onNodeWithTag("bot-menu").performClick()
         compose.onNodeWithTag("theme-switch").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Meet by the lake")
+    }
+
+    @Test
+    fun overflowPausesPendingWorkAndResumesWithoutDiscardingTheDraft() {
+        val host = BotHost(42)
+        compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
+        compose.onNodeWithTag("composer").performTextInput("While paused")
+        compose.onNodeWithTag("bot-menu").performClick()
+        compose.onNodeWithText("Pause bot").performClick()
+        compose.runOnIdle {
+            assertTrue(host.paused)
+            host.advanceBy(60_000)
+            assertEquals(1, host.state.messages.size)
+        }
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.runOnIdle {
+            assertEquals("While paused", host.state.messages.last().text)
+            host.advanceBy(60_000)
+            assertEquals(2, host.state.messages.size)
+        }
+        compose.onNodeWithTag("composer").performTextInput("Keep this draft")
+        compose.onNodeWithTag("bot-menu").performClick()
+        compose.onNodeWithText("Resume bot").performClick()
+        compose.onNodeWithTag("composer").assertTextContains("Keep this draft")
+        compose.runOnIdle { assertTrue(!host.paused) }
     }
 
     @Test
@@ -37,7 +63,7 @@ class BotJourneyTest {
         val host = BotHost(42)
         compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
         compose.runOnIdle {
-            repeat(225) { if (host.suggestions.isEmpty()) host.advanceBy(100) }
+            repeat(900) { if (host.suggestions.isEmpty()) host.advanceBy(100) }
             assertTrue(host.suggestions.isNotEmpty())
         }
         compose.onNodeWithTag("trail-suggestion").assertIsDisplayed()
@@ -63,10 +89,23 @@ class BotJourneyTest {
         val host = BotHost(42)
         val shown = mutableStateOf(true)
         compose.setContent { if (shown.value) Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
-        compose.runOnIdle { repeat(3) { host.advanceBy(60_000) } }
+        compose.runOnIdle {
+            repeat(12) { n ->
+                host.onEvent(dev.forntoh.chat.core.ConversationEvent.DraftChanged(host.state.conversationId, "Walk idea $n"))
+                host.onEvent(
+                    dev.forntoh.chat.core.ConversationEvent.SendDraft(
+                        host.state.conversationId,
+                        host.state.draft.revision,
+                        host.state.draft.text,
+                    ),
+                )
+                host.advanceBy(2_000)
+            }
+        }
         compose.onNodeWithTag("timeline").performScrollToIndex(2)
         val anchor = "message-${host.state.messages[1].id}"
         val before = compose.onNodeWithTag(anchor).fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithTag("bot-menu").performClick()
         compose.onNodeWithTag("theme-switch").performClick()
         val after = compose.onNodeWithTag(anchor).fetchSemanticsNode().boundsInRoot.top
         assertEquals(before, after, 1f)

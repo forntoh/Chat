@@ -1,6 +1,9 @@
 plugins { `maven-publish` }
+
 group = "dev.forntoh.chat.candidate"
-version = "0.1.0-local"
+val libraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
+version = libraries.findVersion("chat-staging").get().requiredVersion
+
 publishing {
     publications.withType<MavenPublication>().configureEach {
         artifactId = "chat-${project.name}" + artifactId.removePrefix(project.name)
