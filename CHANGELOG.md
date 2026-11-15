@@ -4,6 +4,7 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
+- Keep the input and keyboard focused through Send, dismiss focus on timeline taps, and focus the input on explicit Reply. Pending edits remain guarded; custom fields can observe ComposerContent.focusRequest.
 - Cap the entire return-to-latest animation at 360ms, using virtualized positions for long histories so unseen rows do not block each frame.
 - Expand the sample simulator with the remaining conversation scenarios, startup reply examples, and a controllable image-state gallery.
 - iOS floating composer bottom and side gutters match at 26pt to follow the screen corner curve; the explicit keyboard gap remains.

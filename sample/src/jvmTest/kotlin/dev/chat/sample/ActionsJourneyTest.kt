@@ -39,6 +39,22 @@ class ActionsJourneyTest {
         ImageIO.write(scaled, "png", File(directory, "$name.png"))
     }
 
+    @Test fun replyFocusesComposerSendRetainsFocusAndOutsideTapClearsIt() {
+        val host = FakeHost()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        val field = compose.onNodeWithTag("composer")
+        compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
+        compose.onNodeWithText("Reply").performClick()
+        field.assertIsFocused()
+        field.performTextInput("Focus survives send")
+        compose.onNodeWithContentDescription("Send").performClick()
+        field.assertIsFocused()
+        field.performTextInput("ignored while pending")
+        compose.runOnIdle { assertEquals("Focus survives send", host.state.draft.text) }
+        compose.onNodeWithTag("timeline").performTouchInput { click(androidx.compose.ui.geometry.Offset(4f, 250f)) }
+        field.assertIsNotFocused()
+    }
+
     @Test fun ordinaryTapDoesNotOpenActionsButHoldDoesAndDismissesWithoutChangingDraft() {
         val host = FakeHost()
         compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }

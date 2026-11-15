@@ -76,7 +76,7 @@ class MediaContent internal constructor(
     fun imageState(target: MediaTarget) = state.images[target] ?: ImageState()
 
     fun composer(content: ComposerContent) = ComposerContent(content.draft, content.pending || state.selecting,
-        content.onTextChange, content.onSend, content.onDraftAction)
+        content.onTextChange, content.onSend, content.onDraftAction, content.focusRequest)
 
     fun request(command: MediaCommand, target: MediaTarget = draftTarget(), composer: ComposerContent? = null) {
         dispatch(MediaRequest(command, state.revision, target), composer)

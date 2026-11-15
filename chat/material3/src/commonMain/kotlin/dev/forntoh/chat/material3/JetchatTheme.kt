@@ -12,6 +12,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextLayoutResult
 import kotlin.math.ceil
 import kotlin.math.floor
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -85,16 +88,18 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     },
     retry = { TextButton(onClick = it.onRetry) { Text("Retry") } },
     composerField = {
+        val requester = remember { FocusRequester() }
+        LaunchedEffect(it.focusRequest) { if (it.focusRequest != 0L) requester.requestFocus() }
         BasicTextField(
             value = it.draft.text,
-            onValueChange = it.onTextChange,
-            enabled = !it.pending,
+            onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
             minLines = 1,
             maxLines = 5,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(requester)
                 .testTag("composer").semantics { contentDescription = "Message" },
             decorationBox = { field ->
                 Box(
@@ -116,11 +121,13 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             },
         ) },
     composerSend = {
+        val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
         FilledIconButton(
             enabled = it.canSend,
             onClick = it.onSend,
             modifier = Modifier
                 .size(ChatGeometry.Control)
+                .focusProperties { canFocus = inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard }
                 .semantics { contentDescription = "Send" }
         ) {
             Icon(

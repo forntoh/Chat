@@ -1,6 +1,12 @@
 package dev.forntoh.chat.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
@@ -53,7 +59,14 @@ class ComposerContent(
     val onTextChange: (String) -> Unit,
     val onSend: () -> Unit,
     val onDraftAction: (() -> Unit) -> Unit,
+    /** Incremented on explicit Reply activation. Custom inputs request focus in an effect keyed
+     * by this value when nonzero; ordinary draft updates and Send do not request focus. */
+    val focusRequest: Long = 0,
 ) {
+    constructor(draft: Draft, pending: Boolean, onTextChange: (String) -> Unit,
+        onSend: () -> Unit, onDraftAction: (() -> Unit) -> Unit
+    ) : this(draft, pending, onTextChange, onSend, onDraftAction, 0)
+
     constructor(
         draft: Draft,
         pending: Boolean,
@@ -349,7 +362,16 @@ fun Conversation(
                         }
                     }
                 }
-                Box(Modifier.fillMaxSize()) {
+                val focusManager = LocalFocusManager.current
+                Box(Modifier.fillMaxSize().pointerInput(focusManager) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                        if (up != null && up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
+                            focusManager.clearFocus()
+                        }
+                    }
+                }) {
                     LazyColumn(
                         Modifier.fillMaxSize().testTag("timeline"),
                         state = list,

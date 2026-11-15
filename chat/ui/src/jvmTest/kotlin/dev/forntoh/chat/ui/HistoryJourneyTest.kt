@@ -91,7 +91,9 @@ class HistoryJourneyTest {
         val target = compose.onNodeWithTag("message-m12").fetchSemanticsNode().boundsInRoot
         assertEquals(viewport.center.y, target.center.y, 2f)
         compose.runOnIdle { assertTrue("m12" in highlighted) }
-        compose.onNodeWithTag("message-m29").assertIsNotDisplayed()
+        compose.onAllNodesWithTag("message-m29").fetchSemanticsNodes().forEach { row ->
+            assertTrue(row.boundsInRoot.bottom <= viewport.top || row.boundsInRoot.top >= viewport.bottom)
+        }
     }
 
     @Test fun replyNavigationTracksStableTargetWhenHistoryIsPrependedDuringTravel() {

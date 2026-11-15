@@ -92,6 +92,31 @@ class ReplyNavigationJourney {
         capture("long-latest")
     }
 
+    @Test fun replyFocusAndKeyboardSurviveSendUntilTimelineTap() {
+        val field = compose.onNodeWithTag("composer")
+        compose.onNodeWithTag("bubble-morgan", useUnmergedTree = true).performTouchInput { longClick() }
+        compose.onNodeWithText("Reply").performClick()
+        field.assertIsFocused()
+        compose.waitUntil(5000) {
+            compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        field.performTextInput("Reply without closing keyboard")
+        compose.onNodeWithContentDescription("Send").performTouchInput { click() }
+        field.assertIsFocused()
+        compose.waitUntil(10000) {
+            field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+        }
+        field.assertIsFocused()
+        org.junit.Assert.assertTrue(compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()))
+        capture("focus-after-send")
+        compose.onNodeWithTag("timeline").performTouchInput { click(androidx.compose.ui.geometry.Offset(4f, 250f)) }
+        field.assertIsNotFocused()
+        compose.waitUntil(5000) {
+            !compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime())
+        }
+        capture("focus-outside-dismissed")
+    }
+
     @Test fun composerKeepsGapAboveVisibleKeyboard() {
         capture("composer-default")
         val field = compose.onNodeWithTag("composer")

@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
@@ -64,9 +67,11 @@ class ConversationSlots(
     val messageDescription: (Message) -> String = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${it.delivery.name}" },
     val retry: @Composable (RetryContent) -> Unit = { NeutralControl(it.onRetry) { BasicText("Retry") } },
     val composerField: @Composable (ComposerContent) -> Unit = {
+        val requester = remember { FocusRequester() }
+        LaunchedEffect(it.focusRequest) { if (it.focusRequest != 0L) requester.requestFocus() }
         BasicTextField(
-            value = it.draft.text, onValueChange = it.onTextChange, enabled = !it.pending,
-            modifier = Modifier.fillMaxWidth().testTag("composer")
+            value = it.draft.text, onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
+            modifier = Modifier.fillMaxWidth().focusRequester(requester).testTag("composer")
                 .semantics { contentDescription = "Message" })
     },
     val composerSend: @Composable (ComposerContent) -> Unit = {
@@ -317,8 +322,10 @@ private fun NeutralControl(
     enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
     Box(
         Modifier
+            .focusProperties { canFocus = inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard }
             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clickable(
                 enabled = enabled,

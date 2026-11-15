@@ -64,6 +64,7 @@ class ActionsContent internal constructor(
     val state: ActionState,
     private val dispatch: (ActionRequest) -> Unit,
     private val conversationEvent: (ConversationEvent) -> Unit,
+    internal val composerFocus: Long,
 ) {
     val canEdit: Boolean get() = state.editing?.let { edit ->
         conversation.messages.find { it.id == edit.original.id } == edit.original &&
@@ -76,7 +77,7 @@ class ActionsContent internal constructor(
      * UI's synchronous send latch. Cancel stays available through [ActionComposerStatus].
      */
     fun composer(content: ComposerContent): ComposerContent = ComposerContent(content.draft,
-        content.pending || state.pending || (state.editing != null && !canEdit), content.onTextChange, content.onSend, content.onDraftAction)
+        content.pending || state.pending || (state.editing != null && !canEdit), content.onTextChange, content.onSend, content.onDraftAction, composerFocus)
 
     /** Emit only explicit user activation; targets/capabilities and current context are revalidated. */
     fun request(command: ActionCommand, targetId: String? = null) {
@@ -124,12 +125,14 @@ fun rememberMessageActions(
     onAction: (ActionRequest) -> Unit,
     onEvent: (ConversationEvent) -> Unit,
 ): ActionsContent {
+    var composerFocus by remember(conversation.conversationId) { mutableStateOf(0L) }
     val latestConversation by rememberUpdatedState(conversation)
     val latestState by rememberUpdatedState(state)
     val latestAction by rememberUpdatedState(onAction)
     val latestEvent by rememberUpdatedState(onEvent)
     var emitted by remember(conversation.conversationId, state.revision) { mutableStateOf(false) }
     return ActionsContent(
+        composerFocus = composerFocus,
         conversation = conversation,
         state = state,
         dispatch = dispatch@{ request ->
@@ -170,6 +173,7 @@ fun rememberMessageActions(
                         request.draftRevision != now.draft.revision || request.targetId != actions.quoteTargetId)
             ) return@dispatch
             emitted = true
+            if (request.command == ActionCommand.Quote) composerFocus++
             latestAction(request)
         },
         conversationEvent = { event ->
