@@ -84,7 +84,7 @@ class ReplyNavigationJourney {
         compose.onNodeWithText("Message 0").assertIsDisplayed()
         compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty() }
         capture("long-top")
-        compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        compose.onNodeWithContentDescription("Latest", substring = true).performTouchInput { click() }
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("Message 999").fetchSemanticsNodes().any { it.boundsInRoot.height > 0 }
         }

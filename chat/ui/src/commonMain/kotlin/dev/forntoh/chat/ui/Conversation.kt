@@ -368,6 +368,7 @@ fun Conversation(
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
                         if (up != null && up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
+                            awaitPointerEvent(PointerEventPass.Final)
                             focusManager.clearFocus()
                         }
                     }
