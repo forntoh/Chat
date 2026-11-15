@@ -131,7 +131,7 @@ fun MessageActionFocus(
             }.onPreviewKeyEvent {
                 if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { dismiss(); true } else false
             }.focusRequester(focus).focusable()) {
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .40f * progress))
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .65f * progress))
                     .clickable(interactionSource = null, indication = null, onClick = dismiss)
                     .semantics { contentDescription = "Dismiss message actions" })
                 // Scrim spans the window; only interactive content observes native safe areas.
