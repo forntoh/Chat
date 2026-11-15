@@ -70,7 +70,6 @@ val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() 
  * [messageAvatar] and [messageSpacing] are 14 and 15. The trailing constructor/copy lambda remains
  * [latestLabel] for source compatibility.
  */
-// Compatibility constructors and data-class operations preserve the published slot contract.
 @Suppress("LongParameterList", "TooManyFunctions")
 class ConversationSlots(
     val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry ->
