@@ -90,6 +90,30 @@ fun MessageBubble(
     }
 }
 
+/**
+ * Content below a default bubble, aligned to its sender edge and bounded by the same row geometry.
+ * Use for optional attachment/status controls that need their own accessible semantics outside
+ * the bubble. Incoming content reserves the avatar gutter even without an avatar; outgoing
+ * content aligns to the trailing edge. This renderer has no action/media dependency or state.
+ */
+@Composable
+fun MessageSupplement(
+    isCurrentParticipant: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    BoxWithConstraints(modifier.fillMaxWidth(),
+        contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart) {
+        val rowWidth = minOf(maxWidth * if (isCurrentParticipant) ChatGeometry.OutgoingRowWidthFraction else
+            ChatGeometry.IncomingRowWidthFraction, ChatGeometry.BubbleMaxWidth)
+        Row(Modifier.widthIn(max = rowWidth)) {
+            if (!isCurrentParticipant) Spacer(Modifier.width(ChatGeometry.Avatar + ChatGeometry.AvatarGap))
+            Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start,
+                content = content)
+        }
+    }
+}
+
 @Composable
 private fun AvatarGutter(message: Message, visible: Boolean, slots: ConversationSlots) {
     Box(

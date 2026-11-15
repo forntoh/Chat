@@ -62,3 +62,11 @@ selection denial, room switch, acceptance/refusal and upload success/failure. At
 cancel or remove it, send, advance progress, fail, and retry the same logical row. These are explicit
 manual fake-service steps; no upload/network timer or production reliability is implied. Reset and
 switch invalidate saved media targets. The normal image sample still offers automatic completion.
+
+The image options also expose **Custom image UI** (host palette and typed feedback slot) and
+**Revoke first image**. Revocation changes the public resource descriptor and invalidates the
+viewer/upload target; old completions do nothing. The seeded gallery includes absent image
+description, timestamp and sender name to show existing fallbacks. Multiple selected images
+share the bounded preview viewport; each accepted image has its own upload progress/failure
+and exact-target retry. A row remains pending until all uploads settle. These controls and
+outcomes are fixture simulation, not real resource authorization or service reliability.

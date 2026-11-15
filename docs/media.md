@@ -89,3 +89,24 @@ Existing shared UI/sample regressions remain. Native builds and the outside cons
 resources and artifact boundaries. Screen-reader campaigns, RTL/locale, orientation, font scaling,
 dark mode, exhaustive keyboard/device/configuration and every-module-combination runtime suites
 remain owner-deferred; they are not claimed as covered.
+
+## Contextual presentation
+
+`MediaDraft` caps its preview viewport at 184 dp and scrolls multiple attachments in host order.
+The input and Send remain outside that viewport. Removal retains the existing finite exit and
+exact caption; conversation changes dispose the old preview context. Material3 integrations can
+place this public component in `MessageComposer.headerContent`, with Select in `leadingContent`.
+Use `MessageSupplement(outgoing)` for message attachments: it shares the default bubble's width
+limits and avatar gutter while keeping image/retry/view semantics outside the merged bubble.
+A host that handles only exact attachment retries should pass no generic row Retry callback.
+
+The existing `MediaTheme(slots, content)` overload remains available. The typography overload
+`MediaTheme(textStyle = hostTextStyle) { ... }` styles default feedback, controls and selection
+errors through `LocalMediaTextStyle`, without a Material3 dependency. A Material3 host maps its
+ordinary `bodyMedium`/`onSurfaceVariant` style, as the sample does. Custom slots own typography
+and can read that local. This presentation never resolves a resource or authorizes a request.
+
+The sample now queues every attachment in an accepted row independently. One image succeeding
+cannot mark the row Sent while another uploads; failure/retry retains the row and all image IDs.
+Resource revocation changes the descriptor, closes the affected viewer and invalidates pending
+upload targets. A late result cannot restore the revoked resource or clear a newer draft.

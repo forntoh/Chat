@@ -179,3 +179,8 @@ same inset/ellipsis/fallback presentation. `ReplyMessageBody(preview, body)` mea
 together so the inset spans the content width without stretching unrelated bubbles. A deleted/unloaded target renders “Message unavailable”
 without activation. Preview navigation is UI-only; reply submission and target validation remain
 host-owned. The default sample uses the same library renderers in default and custom modes.
+
+Selecting or cancelling a reply/edit requests focus through the existing adapted
+`ComposerContent.focusRequest`; no input or draft is retained by the actions adapter.
+The sample clears a selected menu on target removal or capability revocation, so restoring
+capabilities cannot reopen an obsolete overlay. Host invalidation does not emit an action.

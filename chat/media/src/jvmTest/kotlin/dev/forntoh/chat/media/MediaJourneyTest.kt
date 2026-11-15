@@ -19,6 +19,26 @@ class MediaJourneyTest {
     @get:Rule val compose = createComposeRule()
     private val image = Attachment("photo", "image/png", "bundled:mountain", "Mountain")
 
+    @Test fun themedFallbackAndSelectionErrorRemainLegibleWithoutReplacingSlots() {
+        val state = ConversationState("room", "me")
+        val target = MediaTarget("room", image.copy(contentReference = null), draft = state.draft)
+        compose.setContent {
+            MediaTheme(textStyle = androidx.compose.ui.text.TextStyle(color = Color.Red)) {
+                Column(Modifier.background(Color.Black)) {
+                    DefaultMediaFeedback(MediaFeedbackContent(target, ImageState(ImageStatus.Missing)))
+                    LocalMediaSlots.current.selectionError("Selection refused")
+                }
+            }
+        }
+        listOf("Image unavailable", "Selection refused").forEach { label ->
+            val pixels = compose.onNodeWithText(label).captureToImage().toPixelMap()
+            assertTrue((0 until pixels.height).any { y -> (0 until pixels.width).any { x ->
+                val color = pixels[x, y]
+                color.red > .5f && color.green < .1f && color.blue < .1f
+            } }, "Default $label must inherit the host's text color")
+        }
+    }
+
     @Test fun imageOnlyAndTextWithImageUseOneGuardedSubmissionSnapshot() {
         var state by mutableStateOf(ConversationState("room", "me", Draft(attachments = listOf(image))))
         val events = mutableListOf<ConversationEvent>()

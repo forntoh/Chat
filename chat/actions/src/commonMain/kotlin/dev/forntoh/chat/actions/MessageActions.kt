@@ -174,7 +174,8 @@ fun rememberMessageActions(
                         request.draftRevision != now.draft.revision || request.targetId != actions.quoteTargetId)
             ) return@dispatch
             emitted = true
-            if (request.command == ActionCommand.Quote) composerFocus++
+            if (request.command in setOf(ActionCommand.Quote, ActionCommand.BeginEdit,
+                    ActionCommand.CancelEdit, ActionCommand.CancelQuote)) composerFocus++
             latestAction(request)
         },
         conversationEvent = { event ->
@@ -228,7 +229,8 @@ fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots 
  * sit beside context; pending/error/delete feedback remains below it. [slots] replaces the
  * ambient bundle, including nested quote/confirmation content. Pending/errors describe actions,
  * separately from message delivery. The host restores the retained pre-edit draft on cancellation;
- * this component only emits guarded intents. It renders no input and retains no second draft.
+ * this component only emits guarded intents. Selecting/cancelling reply or edit requests focus
+ * through the adapted composer. It renders no input and retains no second draft.
  */
 @Composable
 fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {

@@ -26,20 +26,22 @@ fun MediaSample(
     manualService: Boolean = false,
     onBack: (() -> Unit)? = null
 ) {
+    var custom by remember { mutableStateOf(false) }
     var denyNextSelection by remember { mutableStateOf(false) }
     var manualCompletion by remember { mutableStateOf(manualService || host.state.messages.isNotEmpty()) }
+    fun finishUploads() { while (host.upload != null) host.completeUpload(true) }
     val media = rememberMedia(host.state, host.media, { request ->
         host.onRequest(request)
         if (request.command == MediaCommand.Select && denyNextSelection) {
             denyNextSelection = false
             host.resolveSelection(denied = true)
         }
-        if (!manualCompletion && request.command == MediaCommand.Retry) host.completeUpload(true)
+        if (!manualCompletion && request.command == MediaCommand.Retry) finishUploads()
     }, { event ->
         host.onEvent(event)
         if (!manualCompletion && host.submission != null) {
             host.resolveDraft(true)
-            host.completeUpload(true)
+            finishUploads()
         }
     })
     val renderer: @Composable (MediaTarget) -> Unit = { target ->
@@ -47,8 +49,14 @@ fun MediaSample(
             Image(painterResource(Res.drawable.mountain), null, Modifier.size(240.dp, 120.dp).clip(RoundedCornerShape(16.dp)))
     }
     var menu by remember { mutableStateOf(false) }
-    SampleTheme(false) {
-        MediaTheme(slots = LocalMediaSlots.current.copy(control = { button ->
+    SampleTheme(custom) {
+        MediaTheme(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+            slots = LocalMediaSlots.current.copy(feedback = { feedback ->
+                Column {
+                    if (custom) Text("Host attachment feedback", style = MaterialTheme.typography.labelSmall)
+                    DefaultMediaFeedback(feedback)
+                }
+            }, control = { button ->
             if (button.command == MediaCommand.Select) {
                 IconButton(onClick = button.onClick, enabled = button.enabled,
                     modifier = Modifier.semantics { contentDescription = "Attach image" }) { Icon(ChatIcons.Paperclip, null) }
@@ -80,8 +88,10 @@ fun MediaSample(
                     @Composable fun entry(label: String, action: () -> Unit) {
                         DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
                     }
+                    entry(if (custom) "Default image UI" else "Custom image UI") { custom = !custom }
                     entry("Reset image simulator", host::resetSimulation)
                     entry("Finish image loading", host::finishLoading)
+                    entry("Revoke first image") { host.revokeResource() }
                     entry("Advance upload progress", host::advanceUpload)
                     entry("Switch media room", host::switchRoom)
                     entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
@@ -100,11 +110,10 @@ fun MediaSample(
             val base = LocalConversationSlots.current
             Conversation(host.state, media.onConversationEvent, modifier = Modifier.weight(1f),
                 slots = base.copy(
-                    message = { row, outgoing, retry ->
+                    message = { row, outgoing, _ ->
                         Column {
-                            base.message(row, outgoing, retry)
-                            Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                contentAlignment = if (outgoing) androidx.compose.ui.Alignment.CenterEnd else androidx.compose.ui.Alignment.CenterStart) {
+                            base.message(row, outgoing, null)
+                            dev.forntoh.chat.material3.MessageSupplement(outgoing) {
                                 MediaAttachments(media, row, renderer)
                             }
                         }
@@ -113,19 +122,17 @@ fun MediaSample(
                         Column {
                             val mediaSlots = LocalMediaSlots.current
                             val adapted = media.composer(content)
-                            Column(Modifier.padding(horizontal = 16.dp)) {
-                                MediaDraft(media, content, renderer, mediaSlots.copy(control = {
-                                    if (it.command != MediaCommand.Select) mediaSlots.control(it)
-                                }))
-                            }
-                            MessageComposer(adapted, base.copy(composerField = { field ->
-                                Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                            MessageComposer(adapted, base,
+                                headerContent = {
+                                    MediaDraft(media, content, renderer, mediaSlots.copy(control = {
+                                        if (it.command != MediaCommand.Select) mediaSlots.control(it)
+                                    }))
+                                },
+                                leadingContent = {
                                     mediaSlots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
                                         media.request(MediaCommand.Select, composer = adapted)
                                     })
-                                    Box(Modifier.weight(1f)) { base.composerField(field) }
-                                }
-                            }))
+                                })
                         }
                     },
                 ))

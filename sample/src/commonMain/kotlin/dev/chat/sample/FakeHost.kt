@@ -34,9 +34,14 @@ class FakeHost {
     private val roomActions = mutableMapOf<String, Pair<ActionState, String?>>()
 
     /** Fake capability changes/removal are explicit host snapshots, never service authorization. */
-    fun revokeActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() + messageId)); actionState = actionState.copy(revision = actionState.revision + 1) }
+    fun revokeActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() + messageId)); actionState = actionState.copy(revision = actionState.revision + 1,
+        menuTargetId = actionState.menuTargetId.takeUnless { it == messageId }) }
     fun allowActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() - messageId)); actionState = actionState.copy(revision = actionState.revision + 1) }
-    fun removeMessage(messageId: String) { state = state.copy(messages = state.messages.filterNot { it.id == messageId }) }
+    fun removeMessage(messageId: String) {
+        state = state.copy(messages = state.messages.filterNot { it.id == messageId })
+        actionState = actionState.copy(revision = actionState.revision + 1,
+            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId })
+    }
 
     /** Validate the current host snapshot again; copy is an explicit platform callback. */
     fun onAction(request: ActionRequest, copyText: (String) -> Unit = {}) {

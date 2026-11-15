@@ -1,10 +1,13 @@
 package dev.forntoh.chat.media
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.Message
@@ -24,15 +27,26 @@ data class MediaSlots(
     val control: @Composable (MediaControlContent) -> Unit = { DefaultMediaControl(it) },
     val feedback: @Composable (MediaFeedbackContent) -> Unit = { DefaultMediaFeedback(it) },
     val description: (MediaTarget) -> String = { it.attachment?.description?.takeIf(String::isNotBlank) ?: "Image attachment" },
-    val selectionError: @Composable (String) -> Unit = { BasicText(it) },
+    val selectionError: @Composable (String) -> Unit = { BasicText(it, style = LocalMediaTextStyle.current) },
 )
 
 val LocalMediaSlots = staticCompositionLocalOf { MediaSlots() }
 
-/** Installs presentation only. Explicit slots override this theme; host state and guards are retained. */
+/** Foundation typography/color bridge; optional host themes supply their ordinary content style. */
+val LocalMediaTextStyle = staticCompositionLocalOf { TextStyle.Default }
+
+/** Installs presentation only. Explicit slots override this theme; host state and guards are retained.
+ * The text-style overload applies to default feedback, controls and errors without a Material3 dependency.
+ * Custom slots own their typography; derive from [LocalMediaTextStyle] to retain the host bridge. */
 @Composable
 fun MediaTheme(slots: MediaSlots = LocalMediaSlots.current, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalMediaSlots provides slots, content = content)
+    MediaTheme(LocalMediaTextStyle.current, slots, content)
+}
+
+/** Host typography bridge for the foundation defaults; existing slot-only calls retain their signature. */
+@Composable
+fun MediaTheme(textStyle: TextStyle, slots: MediaSlots = LocalMediaSlots.current, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalMediaSlots provides slots, LocalMediaTextStyle provides textStyle, content = content)
 }
 
 /** Foundation control usable for delegation from custom slots; minimum target is 48 dp. */
@@ -45,7 +59,7 @@ fun DefaultMediaControl(content: MediaControlContent) {
             MediaCommand.Remove -> "Remove image"
             MediaCommand.Retry -> "Retry upload"
             MediaCommand.View -> "View image"
-        })
+        }, style = LocalMediaTextStyle.current)
     }
 }
 
@@ -58,13 +72,15 @@ fun DefaultMediaFeedback(content: MediaFeedbackContent) {
         ImageStatus.Failed -> "Couldn't upload image"
         ImageStatus.Missing -> "Image unavailable"
         ImageStatus.Unsupported -> "Unsupported attachment"
-    })
+    }, style = LocalMediaTextStyle.current)
 }
 
 /**
  * Draft affordance and previews, composed above the effective Conversation composer. Always pass
  * the shared [composer], including its pending latch. Select/remove emit host requests and never
- * alter content themselves. [renderer] draws only supplied ready image resources, never fetches
+ * alter content themselves. Previews share a scrollable viewport capped at 184 dp so multiple
+ * attachments cannot displace the input and Send control. Host renderers keep their natural size.
+ * [renderer] draws only supplied ready image resources, never fetches
  * implicitly in this module. Omitted renderer produces Unsupported fallback. Report renderer load
  * failure as ImageState(Missing) for the exact target. Explicit [slots] override MediaTheme.
  */
@@ -87,16 +103,18 @@ fun MediaDraft(media: MediaContent, composer: ComposerContent,
                         media.request(MediaCommand.Remove, target, adapted)
                     })
             }
-            (previews.keys + retainedIds.filterNot { it in previews }).forEach { id ->
-                key(id) {
-                    ChatMotionVisibility(previews[id], initiallyVisible = id in initialIds) { shown ->
-                        DisposableEffect(id) {
-                            retainedIds.add(id)
-                            onDispose { retainedIds.remove(id) }
-                        }
-                        Column {
-                            MediaImage(media, shown.target, renderer, slots, shown.image)
-                            slots.control(shown.remove)
+            Column(Modifier.heightIn(max = 184.dp).verticalScroll(rememberScrollState())) {
+                (previews.keys + retainedIds.filterNot { it in previews }).forEach { id ->
+                    key(id) {
+                        ChatMotionVisibility(previews[id], initiallyVisible = id in initialIds) { shown ->
+                            DisposableEffect(id) {
+                                retainedIds.add(id)
+                                onDispose { retainedIds.remove(id) }
+                            }
+                            Column {
+                                MediaImage(media, shown.target, renderer, slots, shown.image)
+                                slots.control(shown.remove)
+                            }
                         }
                     }
                 }

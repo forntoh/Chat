@@ -27,6 +27,56 @@ class SampleJourneyTest {
 
     @get:Rule val compose = createComposeRule()
 
+    @Test fun contextualHistoryAndMissingQuotesRemainReadableInDefaultAndCustomModes() {
+        val host = FakeHost().apply { startSimulation(Scenario.EmptyHistory); pause(true) }
+        val width = androidx.compose.runtime.mutableStateOf(360.dp)
+        compose.setContent { Box(Modifier.width(width.value).height(720.dp)) { SampleApp(host) } }
+        for (custom in listOf(false, true)) {
+            val mode = if (custom) "custom" else "default"
+            if (custom) demo("Custom UI")
+            compose.runOnIdle { host.startSimulation(Scenario.EmptyHistory); host.pause(true) }
+            compose.runOnIdle { host.loadEarlier(HistoryRequest("studio", host.history.revision)) }
+            compose.onNodeWithText("Loading messages…").assertExists()
+            capture("pat269-$mode-empty-loading")
+            compose.runOnIdle { host.step() }
+            compose.onNodeWithText("No messages yet").assertExists()
+            capture("pat269-$mode-empty-exhausted")
+            compose.runOnIdle {
+                host.startSimulation(Scenario.History); host.pause(true)
+                host.loadEarlier(HistoryRequest("studio", host.history.revision))
+            }
+            compose.onNodeWithTag("timeline").performScrollToIndex(0)
+            compose.onNodeWithText("Loading messages…").assertExists()
+            compose.onNodeWithTag("message-history-950").assertIsDisplayed()
+            capture("pat269-$mode-history-loading")
+            compose.runOnIdle { host.step() }
+            compose.onNodeWithText("Couldn't load messages · Retry").assertExists()
+            compose.onNodeWithTag("message-history-950").assertIsDisplayed()
+            capture("pat269-$mode-history-error")
+            if (!custom) {
+                compose.runOnIdle { width.value = 1000.dp }
+                capture("pat269-desktop-history-error")
+                compose.runOnIdle { width.value = 360.dp }
+            }
+            compose.onNodeWithText("Couldn't load messages · Retry").performClick()
+            compose.runOnIdle { host.step(); assertEquals(100, host.state.messages.size) }
+            compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+            compose.onNodeWithTag("message-history-999").assertIsDisplayed()
+            compose.runOnIdle {
+                host.startSimulation(Scenario.Replies); host.pause(true)
+                host.onEvent(ConversationEvent.DraftChanged("studio", "Retain unrelated text"))
+                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
+                    dev.forntoh.chat.actions.ActionCommand.Quote, "welcome"))
+                host.removeMessage("welcome")
+            }
+            compose.onNodeWithTag("composer").assertTextContains("Retain unrelated text")
+            compose.onAllNodesWithContentDescription("Message unavailable", useUnmergedTree = true).assertCountEquals(2)
+            capture("pat269-$mode-missing-quote")
+            compose.onNodeWithContentDescription("Cancel reply").performClick()
+            compose.onNodeWithTag("composer").assertIsFocused().assertTextContains("Retain unrelated text")
+        }
+    }
+
     @Test fun longScenarioReturnsFromFirstRowToNewest() {
         val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
         compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }

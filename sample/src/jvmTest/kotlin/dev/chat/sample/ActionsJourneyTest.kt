@@ -72,6 +72,39 @@ class ActionsJourneyTest {
         compose.onNodeWithTag("composer").assertTextContains("Keep this draft")
     }
 
+    @Test fun editSelectionAndCancellationReturnFocusToTheRetainedComposer() {
+        val host = FakeHost().apply {
+            onEvent(ConversationEvent.DraftChanged("studio", "Original message"))
+            onEvent(ConversationEvent.SendDraft("studio", 0, "Original message"))
+            accept()
+            completeDelivery(Delivery.Sent)
+        }
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        val field = compose.onNodeWithTag("composer")
+        field.performTextInput("Keep this draft")
+        compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithText("Edit").performScrollTo().performClick()
+        field.assertIsFocused()
+        field.performTextReplacement("Unsent edit")
+        compose.onNodeWithContentDescription("Cancel edit").performClick()
+        field.assertIsFocused().assertTextContains("Keep this draft")
+        compose.runOnIdle { assertEquals("Original message", host.state.messages.last().text) }
+    }
+
+    @Test fun revokedMenuStaysDismissedWhenCapabilitiesReturn() {
+        val host = FakeHost()
+        compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
+        compose.onNodeWithTag("composer").performTextInput("Unrelated draft")
+        compose.onNodeWithTag("bubble-welcome", useUnmergedTree = true).performTouchInput { longClick() }
+        compose.onNodeWithText("Copy").assertExists()
+        compose.runOnIdle { host.revokeActions("welcome") }
+        compose.onNodeWithText("Copy").assertDoesNotExist()
+        compose.runOnIdle { host.allowActions("welcome") }
+        compose.onNodeWithText("Copy").assertDoesNotExist()
+        compose.onNodeWithTag("composer").assertTextContains("Unrelated draft")
+        compose.runOnIdle { assertEquals(null, host.actions.menuTargetId) }
+    }
+
     @Test fun quoteCancelRetainsDraftAndAcceptedReplyCarriesTarget() {
         val host = FakeHost()
         compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
