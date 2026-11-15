@@ -358,15 +358,21 @@ fun Conversation(
                         } else if (wasAtBottom && appended) {
                             if (navigation?.isActive != true) returnToLatest()
                         } else if (!wasAtBottom && navigation?.isActive != true && anchor != null && previousIds.isNotEmpty()) {
-                            val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
-                                ?: (1..previousIds.size).firstNotNullOfOrNull { distance ->
-                                    val later = previousIds.getOrNull(anchor.index - 1 + distance)
-                                        ?.let(ids::indexOf)
-                                    val earlier = previousIds.getOrNull(anchor.index - 1 - distance)
-                                        ?.let(ids::indexOf)
-                                    later?.takeIf { it >= 0 } ?: earlier?.takeIf { it >= 0 }
-                                }
-                            if (surviving != null) list.scrollToItem(surviving + 1, anchorOffset)
+                            // The start marker is a real scroll anchor too. Preserve it when
+                            // the first row survives; prepend/removal still uses message fallback.
+                            if (anchor.key == HistoryMarker && ids.firstOrNull() == previousIds.firstOrNull()) {
+                                list.scrollToItem(0, anchorOffset)
+                            } else {
+                                val surviving = ids.indexOf(anchor.key).takeIf { it >= 0 }
+                                    ?: (1..previousIds.size).firstNotNullOfOrNull { distance ->
+                                        val later = previousIds.getOrNull(anchor.index - 1 + distance)
+                                            ?.let(ids::indexOf)
+                                        val earlier = previousIds.getOrNull(anchor.index - 1 - distance)
+                                            ?.let(ids::indexOf)
+                                        later?.takeIf { it >= 0 } ?: earlier?.takeIf { it >= 0 }
+                                    }
+                                if (surviving != null) list.scrollToItem(surviving + 1, anchorOffset)
+                            }
                         }
                     }
                     if (appended && !wasAtBottom) newMessages = true

@@ -64,9 +64,13 @@ class HistoryJourneyTest {
         compose.onNodeWithText("Start of conversation").assertDoesNotExist()
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         compose.onNodeWithText("Start of conversation").assertIsDisplayed()
-        compose.onNodeWithText("Latest").performClick()
-        compose.onNodeWithTag("message-m29").assertIsDisplayed()
-        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + (30..34).map(::message)) }
+        val startTop = compose.onNodeWithTag("message-m0").fetchSemanticsNode().boundsInRoot.top
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(30)) }
+        compose.onNodeWithText("Start of conversation").assertIsDisplayed()
+        assertEquals(startTop, compose.onNodeWithTag("message-m0").fetchSemanticsNode().boundsInRoot.top, 1f)
+        compose.onNodeWithText("New messages", substring = true).performClick()
+        compose.onNodeWithTag("message-m30").assertIsDisplayed()
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + (31..34).map(::message)) }
         compose.onNodeWithTag("message-m34").assertIsDisplayed()
         compose.onNodeWithTag("timeline").performScrollToIndex(5)
         val top = compose.onNodeWithTag("message-m5").fetchSemanticsNode().boundsInRoot.top
