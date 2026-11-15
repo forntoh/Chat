@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import kotlin.test.assertTrue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -23,9 +24,11 @@ import kotlin.test.assertEquals
 class ChatScaffoldTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun transparentHeaderOverlaysTimelineAndFirstContentStartsBelowIt() {
+    @Test fun materialHeaderOverlaysTimelineAndFirstContentStartsBelowIt() {
+        var expectedHeaderColor = Color.Unspecified
         val rows = (0..25).map { Message("m$it", Participant("other", "Avery"), 0, "now", "Message $it", Delivery.Sent) }
         compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { ChatTheme {
+            expectedHeaderColor = TopAppBarDefaults.topAppBarColors().containerColor
             ChatScaffold(title = { Text("Conversation", Modifier.testTag("header-title")) }) {
                 Conversation(ConversationState("room", "me", messages = rows), {},
                     messageContent = { row, _, _ -> Box(Modifier.fillMaxWidth().height(60.dp).background(Color.Cyan)) { Text(row.text) } })
@@ -39,7 +42,8 @@ class ChatScaffoldTest {
         assertTrue(first.top > header.bottom, "First message must clear the overlaid header")
         compose.onNodeWithTag("timeline").performScrollToIndex(10).performTouchInput { swipeUp() }
         val pixels = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
-        assertTrue((0 until 64).count { pixels[330, it] == Color.Cyan } > 20, "Header must leave timeline content visible through its background")
+        assertEquals(expectedHeaderColor, pixels[330, 32],
+            "Header must retain the ambient Material background over scrolling content")
     }
 
     @Test fun bottomSafeAreaReplacesDecorativeComposerMargin() {

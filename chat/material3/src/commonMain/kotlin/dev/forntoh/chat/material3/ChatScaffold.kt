@@ -19,7 +19,8 @@ import androidx.compose.ui.unit.dp
  *
  * Content receives a bounded Column with horizontal padding applied and all Scaffold insets
  * consumed. Vertical chrome is supplied through [LocalConversationViewportPadding]: Conversation
- * extends behind the transparent default header and keeps its initial content/composer clear.
+ * extends behind the default Material header and keeps its initial content/composer clear.
+ * The header uses the ambient Material top-app-bar background; replace [topBar] to customize it.
  * Custom non-conversation content must apply that local padding itself; custom [topBar] and
  * [bottomBar] retain their own backgrounds. The header handles its top safe inset, and
  * Conversation handles the unconsumed IME inset. This shell owns no chat/navigation/service state

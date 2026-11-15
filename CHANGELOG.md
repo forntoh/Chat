@@ -10,7 +10,8 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
 - Expand the sample simulator with the remaining conversation scenarios, startup reply examples, and a controllable image-state gallery.
 - iOS floating composer bottom and side gutters match at 26pt to follow the screen corner curve; the explicit keyboard gap remains.
   Reply context omits the redundant label and centers dismiss beside the preview, aligned with Send.
-- The default navigation header is transparent with timeline content scrolling behind it.
+- The default navigation header uses the ambient Material background, per the owner’s final header choice;
+  timeline content continues scrolling behind the overlaid header.
   Shared viewport padding keeps initial content, reply centering and bottom safe areas clear;
   system bottom spacing replaces the extra decorative composer margin when the keyboard is
   closed, while an explicit 8dp gap remains above the visible keyboard.
