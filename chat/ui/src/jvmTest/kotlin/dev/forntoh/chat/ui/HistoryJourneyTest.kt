@@ -246,17 +246,17 @@ class HistoryJourneyTest {
             }).fetchSemanticsNodes().first { it.boundsInRoot.bottom > viewport.top }
             val number = node.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag].removePrefix("message-m").toInt()
             // Rows are 48dp, at the test density of 1. The absolute origin is irrelevant.
-            return number * 48f - node.boundsInRoot.top
+            return number * 48f - node.positionInRoot.y
         }
         var previous = position()
         var movingFrames = 0
         compose.onNodeWithText("Latest").performClick()
-        repeat(60) {
+        repeat(240) {
             compose.mainClock.advanceTimeByFrame()
             compose.waitForIdle()
             val current = position()
             assertTrue(current >= previous - 1f, "Return travel must not reverse")
-            assertTrue(current - previous < 12000f, "Return travel must not teleport across history")
+            assertTrue(current - previous <= 400f + 1f, "Each frame must measure at most one viewport of travel: ${current - previous}")
             if (current > previous + 1f) movingFrames++
             previous = current
         }

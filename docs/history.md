@@ -27,7 +27,7 @@ multiline composer/bottom-follow and start-marker regressions plus targeted nati
 History feedback is the first keyed timeline item, so “Start of conversation” scrolls away.
 The Material3 Latest control is a 48dp chevron button over the lower-right timeline, with a
 180ms fade/slide entrance and exit. It appears whenever newer content is outside the viewport.
-Its callback uses one 360ms eased scroll session with frame-by-frame distance estimates for unmeasured rows and exact trailing-edge placement once visible. It does not use the framework’s long-distance item teleport. New arrivals during travel update that session’s destination without restarting it. User scrolling can interrupt travel; conversation changes cancel it. Host latest
+Its callback uses one scroll session with an initial 360ms easing. Each frame advances at most one viewport, using updated distance estimates for unmeasured rows. Longer journeys continue in bounded steps and settle against the exact trailing edge once visible. It does not use the framework’s long-distance item teleport. New arrivals during travel update that session’s destination without restarting it. User scrolling can interrupt travel; conversation changes cancel it. Host latest
 slots retain the same callback and new-message flag. Bottom-follow records the prior reader
 position before a changed snapshot is measured; arrivals while reading history preserve identity/offset.
 Composer/safe-area viewport changes keep an existing bottom reader pinned instead of changing

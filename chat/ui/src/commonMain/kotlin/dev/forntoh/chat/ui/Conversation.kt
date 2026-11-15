@@ -496,21 +496,28 @@ private data class TimelineObservation(
 private suspend fun LazyListState.animateToLatest() {
     scroll {
         val lazyScope = LazyLayoutScrollScope(this@animateToLatest, this)
-        var previous = 0f
-        animate(0f, 1f, animationSpec = tween(360)) { fraction, _ ->
+        fun remaining(): Float {
             val layout = layoutInfo
             val lastIndex = layout.totalItemsCount - 1
+            if (lastIndex < 0 || !canScrollForward) return 0f
             val last = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex }
-            val remaining = if (last != null) {
+            return (if (last != null) {
                 (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).toFloat()
-            } else {
-                lazyScope.calculateDistanceTo(lastIndex).toFloat()
-            }
-            if (canScrollForward && lastIndex >= 0) {
-                val share = ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
-                scrollBy(remaining.coerceAtLeast(0f) * share)
-            }
+            } else lazyScope.calculateDistanceTo(lastIndex).toFloat()).coerceAtLeast(0f)
+        }
+        fun viewportStep(): Float = layoutInfo.viewportSize.height.toFloat().coerceAtLeast(1f)
+        var previous = 0f
+        animate(initialValue = 0f, targetValue = 1f, animationSpec = tween(360)) { fraction, _ ->
+            val share = if (previous >= 1f) 1f else ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
+            scrollBy((remaining() * share).coerceAtMost(viewportStep()))
             previous = fraction
+        }
+        while (canScrollForward) {
+            withFrameNanos { }
+            val distance = remaining()
+            if (distance <= 0f) break
+            val consumed = scrollBy((distance * .35f).coerceAtLeast(1f).coerceAtMost(viewportStep()))
+            if (consumed < .5f) break
         }
     }
 }

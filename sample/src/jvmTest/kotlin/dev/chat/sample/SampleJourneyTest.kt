@@ -27,6 +27,18 @@ class SampleJourneyTest {
 
     @get:Rule val compose = createComposeRule()
 
+    @Test fun longScenarioReturnsFromFirstRowToNewest() {
+        val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
+        compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
+        compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        capture("simulator-long-top")
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        repeat(240) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithText("Message 999").assertIsDisplayed()
+        capture("simulator-long-latest")
+    }
     @Test fun simulationPanelListsScenarioCasesAndStartupReplyExamples() {
         val host = FakeHost().apply { startSimulation(); pause(true) }
         compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }

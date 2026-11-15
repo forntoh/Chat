@@ -70,6 +70,23 @@ class ReplyNavigationJourney {
         capture("composer-custom-multiline")
     }
 
+    @Test fun longSimulationReturnsFromTopWithoutStalling() {
+        compose.onNodeWithTag("demo-menu").performClick()
+        compose.onNodeWithText("Simulation debug panel").performClick()
+        compose.onNodeWithText("Normal exchange").performClick()
+        compose.onNodeWithText("Long conversation").performScrollTo().performClick()
+        compose.onNodeWithText("Start selected scenario").performScrollTo().performClick()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithTag("timeline").performScrollToIndex(0)
+        capture("long-top")
+        compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("Message 999").fetchSemanticsNodes().any { it.boundsInRoot.height > 0 }
+        }
+        compose.onNodeWithText("Message 999").assertIsDisplayed()
+        capture("long-latest")
+    }
+
     @Test fun composerKeepsGapAboveVisibleKeyboard() {
         capture("composer-default")
         val field = compose.onNodeWithTag("composer")

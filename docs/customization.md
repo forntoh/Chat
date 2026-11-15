@@ -200,3 +200,5 @@ Reply context omits the redundant “Replying to” label. `ActionStyle.composer
 16dp start, 8dp top and 4dp end, aligning the dismiss control's center with Send while centering
 it vertically on the quote preview. Hosts can replace the quote/control slots or adjust that
 padding without affecting cancel guards or draft retention.
+
+Return-to-latest retains its initial 360ms easing, caps travel to one viewport per frame, and continues longer journeys in bounded steps before settling. This avoids forcing hundreds of default bubbles to compose in a single frame. Reader interruption still cancels the active scroll.
