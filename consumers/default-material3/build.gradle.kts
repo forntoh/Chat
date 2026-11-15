@@ -6,7 +6,11 @@ plugins {
 }
 kotlin {
     jvmToolchain(21)
-    android { namespace = "dev.chat.consumer.material3"; compileSdk = 37; minSdk = 24 }
+    android {
+        namespace = "dev.chat.consumer.material3"
+        compileSdk = 37
+        minSdk = 24
+    }
     jvm()
     iosArm64()
     iosSimulatorArm64()
@@ -25,13 +29,14 @@ kotlin {
 }
 tasks.register("verifySelection") {
     doLast {
-        val targetConfigurations = listOf("jvmRuntimeClasspath", "androidCompileClasspath", "iosArm64CompileKlibraries", "iosSimulatorArm64CompileKlibraries")
+        val targetConfigurations =
+            listOf("jvmRuntimeClasspath", "androidCompileClasspath", "iosArm64CompileKlibraries", "iosSimulatorArm64CompileKlibraries")
         for (configurationName in targetConfigurations) {
-        println("$path $configurationName")
-        val modules = configurations.getByName(configurationName).incoming.resolutionResult.allComponents
-            .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}" }.sorted()
-        check(modules.none { it.contains("chat-actions") || it.contains("chat-media") || it.contains("chat-sample") })
-        println(modules.joinToString("\n"))
+            println("$path $configurationName")
+            val modules = configurations.getByName(configurationName).incoming.resolutionResult.allComponents
+                .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}" }.sorted()
+            check(modules.none { it.contains("chat-actions") || it.contains("chat-media") || it.contains("chat-sample") })
+            println(modules.joinToString("\n"))
         }
     }
 }

@@ -4,15 +4,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.ui.*
-import dev.forntoh.chat.actions.*
+import dev.forntoh.chat.actions.ActionCommand
+import dev.forntoh.chat.actions.ActionRequest
+import dev.forntoh.chat.actions.ActionState
+import dev.forntoh.chat.actions.EditingMessage
+import dev.forntoh.chat.actions.MessageAction
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
+import dev.forntoh.chat.ui.HistoryRequest
+import dev.forntoh.chat.ui.HistoryState
+import dev.forntoh.chat.ui.HistoryStatus
 
 /**
  * In-memory sample adapter, called on the UI thread. A seeded logical clock schedules
  * separate submission, delivery and incoming-reply snapshots; manual mode remains available. Retention lasts only as long as this
  * instance; there is no network, persistence or production authorization implementation.
  */
+@Suppress("TooManyFunctions") // Retained diagnostic host exposes each simulated service outcome.
 class FakeHost {
     var state by mutableStateOf(initialState("studio"))
         private set
@@ -21,8 +33,13 @@ class FakeHost {
     private var revoked by mutableStateOf<Map<String, Set<String>>>(emptyMap())
     private var actionState by mutableStateOf(ActionState())
     val actions: ActionState get() = actionState.copy(
-        capabilities = state.messages.filterNot { it.id in revoked[state.conversationId].orEmpty() }.associate { it.id to (setOf(MessageAction.Copy, MessageAction.Quote) +
-            if (it.sender.id == state.currentParticipantId) setOf(MessageAction.Edit, MessageAction.Delete) else emptySet()) },
+        capabilities = state.messages.filterNot { it.id in revoked[state.conversationId].orEmpty() }.associate {
+            it.id to
+                (
+                    setOf(MessageAction.Copy, MessageAction.Quote) +
+                        if (it.sender.id == state.currentParticipantId) setOf(MessageAction.Edit, MessageAction.Delete) else emptySet()
+                    )
+        },
         pending = actionState.pending || state.draft.submitting,
     )
     var pendingAction by mutableStateOf<ActionRequest?>(null)
@@ -37,16 +54,25 @@ class FakeHost {
     /** Fake capability changes/removal are explicit host snapshots, never service authorization. */
     fun revokeActions(messageId: String) {
         revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() + messageId))
-        actionState = actionState.copy(revision = actionState.revision + 1,
-            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId })
+        actionState = actionState.copy(
+            revision = actionState.revision + 1,
+            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId },
+        )
         // Invalidate the in-flight operation now so restoring capability cannot revive it.
         if (pendingAction?.targetId == messageId) completeAction(false)
     }
-    fun allowActions(messageId: String) { revoked = revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() - messageId)); actionState = actionState.copy(revision = actionState.revision + 1) }
+    fun allowActions(messageId: String) {
+        revoked =
+            revoked + (state.conversationId to (revoked[state.conversationId].orEmpty() - messageId))
+        actionState =
+            actionState.copy(revision = actionState.revision + 1)
+    }
     fun removeMessage(messageId: String) {
         state = state.copy(messages = state.messages.filterNot { it.id == messageId })
-        actionState = actionState.copy(revision = actionState.revision + 1,
-            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId })
+        actionState = actionState.copy(
+            revision = actionState.revision + 1,
+            menuTargetId = actionState.menuTargetId.takeUnless { it == messageId },
+        )
     }
 
     /** Validate the current host snapshot again; copy is an explicit platform callback. */
@@ -54,64 +80,134 @@ class FakeHost {
         if (request.conversationId != state.conversationId || request.revision != actions.revision || actions.pending) return
         val target = state.messages.find { it.id == request.targetId }
         if (request.command in setOf(ActionCommand.OpenMenu, ActionCommand.Quote, ActionCommand.BeginEdit, ActionCommand.RequestDelete) &&
-            (actionState.editing != null || actionState.deleting != null)) return
-        when (request.command) {
-            ActionCommand.OpenMenu -> {
-                if (target == null || actions.capabilities[target.id].isNullOrEmpty()) return
-                actionState = actionState.copy(menuTargetId = target.id, error = null)
-            }
-            ActionCommand.CloseMenu -> actionState = actionState.copy(menuTargetId = null)
-            ActionCommand.Copy -> {
-                if (target == null || MessageAction.Copy !in actions.capabilities[target.id].orEmpty() || request.text != target.text) return
-                copiedText = target.text
-                copyText(target.text)
-                actionState = actionState.copy(menuTargetId = null)
-            }
-            ActionCommand.Quote -> {
-                if (target == null || MessageAction.Quote !in actions.capabilities[target.id].orEmpty()) return
-                actionState = actionState.copy(menuTargetId = null, quoteTargetId = target.id, error = null)
-            }
-            ActionCommand.BeginEdit -> {
-                if (target == null || MessageAction.Edit !in actions.capabilities[target.id].orEmpty() || actionState.editing != null) return
-                actionState = actionState.copy(menuTargetId = null, quoteTargetId = null, error = null,
-                    editing = EditingMessage(target, state.draft, actionState.quoteTargetId))
-                state = state.copy(draft = Draft(target.text, state.draft.revision + 1))
-            }
-            ActionCommand.CancelEdit -> restoreComposer()
-            ActionCommand.RequestDelete -> {
-                if (target == null || MessageAction.Delete !in actions.capabilities[target.id].orEmpty()) return
-                actionState = actionState.copy(menuTargetId = null, deleting = target, error = null)
-            }
-            ActionCommand.CancelDelete -> actionState = actionState.copy(deleting = null, error = null)
-            ActionCommand.ConfirmDelete -> {
-                if (target == null || target != actionState.deleting || MessageAction.Delete !in actions.capabilities[target.id].orEmpty()) return
-                pendingAction = request
-                actionState = actionState.copy(pending = true, error = null)
-            }
-            ActionCommand.SubmitEdit -> {
-                if (target == null || target != actionState.editing?.original ||
-                    MessageAction.Edit !in actions.capabilities[target.id].orEmpty() ||
-                    request.text != state.draft.text || request.text.isNullOrBlank() || request.draftRevision != state.draft.revision) return
-                pendingAction = request
-                actionState = actionState.copy(pending = true, error = null)
-                state = state.copy(draft = state.draft.copy(submitting = true))
-            }
-            ActionCommand.CancelQuote -> actionState = actionState.copy(quoteTargetId = null)
-            ActionCommand.SendQuote -> {
-                if (request.targetId != actionState.quoteTargetId || request.text != state.draft.text ||
-                    request.draftRevision != state.draft.revision || !state.draft.hasContent || request.attachments != state.draft.attachments) return
-                onEvent(ConversationEvent.SendDraft(state.conversationId, state.draft.revision, state.draft.text, request.attachments))
-                pendingQuoteTarget = request.targetId
-            }
+            (actionState.editing != null || actionState.deleting != null)
+        ) {
+            return
         }
+        if (!applyAction(request, target, copyText)) return
         actionState = actionState.copy(revision = actionState.revision + 1)
-        if (simulationEnabled && pendingAction == request) schedule(700, "action ${request.command}") {
-            if (pendingAction == request) {
-                val success = !failActionNext
-                failActionNext = false
-                completeAction(success)
+        if (simulationEnabled && pendingAction == request) {
+            schedule(700, "action ${request.command}") {
+                if (pendingAction == request) {
+                    val success = !failActionNext
+                    failActionNext = false
+                    completeAction(success)
+                }
             }
         }
+    }
+
+    private fun applyAction(request: ActionRequest, target: Message?, copyText: (String) -> Unit): Boolean = when (request.command) {
+        ActionCommand.CloseMenu, ActionCommand.CancelEdit, ActionCommand.CancelDelete, ActionCommand.CancelQuote -> {
+            dismissAction(request.command)
+            true
+        }
+        ActionCommand.OpenMenu -> handleOpenMenu(target)
+
+        ActionCommand.Copy -> handleCopy(request, target, copyText)
+        ActionCommand.Quote -> handleQuote(target)
+        ActionCommand.BeginEdit -> handleBeginEdit(target)
+
+        ActionCommand.RequestDelete -> handleRequestDelete(target)
+
+        ActionCommand.ConfirmDelete -> handleConfirmDelete(request, target)
+        ActionCommand.SubmitEdit -> handleSubmitEdit(request, target)
+
+        ActionCommand.SendQuote -> handleSendQuote(request)
+    }
+
+    private fun dismissAction(command: ActionCommand) {
+        when (command) {
+            ActionCommand.CloseMenu -> actionState = actionState.copy(menuTargetId = null)
+            ActionCommand.CancelEdit -> restoreComposer()
+            ActionCommand.CancelDelete -> actionState = actionState.copy(deleting = null, error = null)
+            ActionCommand.CancelQuote -> actionState = actionState.copy(quoteTargetId = null)
+            else -> error("Expected a dismissal command")
+        }
+    }
+
+    private fun handleOpenMenu(target: Message?): Boolean {
+        if (target == null || actions.capabilities[target.id].isNullOrEmpty()) return false
+        actionState = actionState.copy(menuTargetId = target.id, error = null)
+        return true
+    }
+
+    private fun handleCopy(request: ActionRequest, target: Message?, copyText: (String) -> Unit): Boolean {
+        if (target == null || MessageAction.Copy !in actions.capabilities[target.id].orEmpty() ||
+            request.text != target.text
+        ) {
+            return false
+        }
+        copiedText = target.text
+        copyText(target.text)
+        actionState = actionState.copy(menuTargetId = null)
+        return true
+    }
+
+    private fun handleQuote(target: Message?): Boolean {
+        if (target == null || MessageAction.Quote !in actions.capabilities[target.id].orEmpty()) return false
+        actionState = actionState.copy(menuTargetId = null, quoteTargetId = target.id, error = null)
+        return true
+    }
+
+    private fun handleBeginEdit(target: Message?): Boolean {
+        if (target == null || MessageAction.Edit !in actions.capabilities[target.id].orEmpty() ||
+            actionState.editing != null
+        ) {
+            return false
+        }
+        actionState = actionState.copy(
+            menuTargetId = null,
+            quoteTargetId = null,
+            error = null,
+            editing = EditingMessage(target, state.draft, actionState.quoteTargetId),
+        )
+        state = state.copy(draft = Draft(target.text, state.draft.revision + 1))
+        return true
+    }
+
+    private fun handleRequestDelete(target: Message?): Boolean {
+        if (target == null || MessageAction.Delete !in actions.capabilities[target.id].orEmpty()) return false
+        actionState = actionState.copy(menuTargetId = null, deleting = target, error = null)
+        return true
+    }
+
+    private fun handleConfirmDelete(request: ActionRequest, target: Message?): Boolean {
+        if (target == null || target != actionState.deleting ||
+            MessageAction.Delete !in actions.capabilities[target.id].orEmpty()
+        ) {
+            return false
+        }
+        pendingAction = request
+        actionState = actionState.copy(pending = true, error = null)
+        return true
+    }
+
+    private fun handleSubmitEdit(request: ActionRequest, target: Message?): Boolean {
+        if (target == null || target != actionState.editing?.original ||
+            MessageAction.Edit !in actions.capabilities[target.id].orEmpty()
+        ) {
+            return false
+        }
+        if (request.text != state.draft.text || request.text.isNullOrBlank() || request.draftRevision != state.draft.revision) {
+            return false
+        }
+        pendingAction = request
+        actionState = actionState.copy(pending = true, error = null)
+        state = state.copy(draft = state.draft.copy(submitting = true))
+        return true
+    }
+
+    private fun handleSendQuote(request: ActionRequest): Boolean {
+        if (request.targetId != actionState.quoteTargetId || !state.draft.hasContent) return false
+        if (request.text != state.draft.text || request.draftRevision != state.draft.revision ||
+            request.attachments != state.draft.attachments
+        ) {
+            return false
+        }
+        onEvent(ConversationEvent.SendDraft(state.conversationId, state.draft.revision, state.draft.text, request.attachments))
+        pendingQuoteTarget = request.targetId
+        return true
     }
 
     private fun restoreComposer() {
@@ -126,9 +222,12 @@ class FakeHost {
         if (request.conversationId != state.conversationId) return
         val target = state.messages.find { it.id == request.targetId }
         val deleting = request.command == ActionCommand.ConfirmDelete
-        val valid = target != null && if (deleting) target == actionState.deleting &&
-            MessageAction.Delete in actions.capabilities[target.id].orEmpty()
-            else target == actionState.editing?.original && MessageAction.Edit in actions.capabilities[target.id].orEmpty()
+        val valid = target != null && if (deleting) {
+            target == actionState.deleting &&
+                MessageAction.Delete in actions.capabilities[target.id].orEmpty()
+        } else {
+            target == actionState.editing?.original && MessageAction.Edit in actions.capabilities[target.id].orEmpty()
+        }
         if (success && valid && deleting) {
             removeMessage(request.targetId!!)
             actionState = actionState.copy(deleting = null, error = null)
@@ -176,7 +275,10 @@ class FakeHost {
     private var failActionNext = false
 
     /** Simulated connection state only; queued deliveries observe it when they resolve. */
-    fun changeConnection(value: Boolean) { connected = value; record("connected=$value") }
+    fun changeConnection(value: Boolean) {
+        connected = value
+        record("connected=$value")
+    }
 
     /** Capability mutation is deliberately exposed in debug controls for stale-menu cases. */
     fun changeSelectedCapabilities(allowed: Boolean) {
@@ -192,17 +294,27 @@ class FakeHost {
     }
 
     fun removeFirstVisibleFixtureRow() {
-        state.messages.firstOrNull()?.let { removeMessage(it.id); record("removed anchor id=${it.id}") }
+        state.messages.firstOrNull()?.let {
+            removeMessage(it.id)
+            record("removed anchor id=${it.id}")
+        }
     }
     private var sequence = 0L
+
     /** Changes only when a scenario starts or resets, so the sample remounts its public
      * conversation and restores the fixture's initial reading position without changing IDs. */
     var simulationSession by mutableLongStateOf(0L)
         private set
     private var generation = 0L
     private var random = kotlin.random.Random(42)
-    private data class Scheduled(val due: Long, val order: Long, val generation: Long,
-        val room: String, val label: String, val apply: () -> Unit)
+    private data class Scheduled(
+        val due: Long,
+        val order: Long,
+        val generation: Long,
+        val room: String,
+        val label: String,
+        val apply: () -> Unit,
+    )
     private val scheduled = mutableListOf<Scheduled>()
 
     /**
@@ -247,10 +359,20 @@ class FakeHost {
         when (scenario) {
             Scenario.IncomingBurst -> repeat(4) { n -> schedule(400L * (n + 1), "burst $n") { receiveMessage() } }
             Scenario.History -> useHistoryFixture()
-            Scenario.EmptyHistory -> { state = state.copy(messages = emptyList()); history = HistoryState(HistoryStatus.Idle, history.revision + 1) }
-            Scenario.LongConversation -> { state = state.copy(messages = (0..999).map(::historyMessage)); history = HistoryState(HistoryStatus.Exhausted, history.revision + 1) }
+            Scenario.EmptyHistory -> {
+                state = state.copy(messages = emptyList())
+                history =
+                    HistoryState(HistoryStatus.Idle, history.revision + 1)
+            }
+            Scenario.LongConversation -> {
+                state = state.copy(messages = (0..999).map(::historyMessage))
+                history =
+                    HistoryState(HistoryStatus.Exhausted, history.revision + 1)
+            }
             Scenario.Replies -> actionState = actionState.copy(quotes = actionState.quotes + ("morgan" to "removed-target"))
-            Scenario.Composer -> state = state.copy(draft = Draft("First line\nSecond line\nThird line\nFourth line\nFifth line", state.draft.revision))
+            Scenario.Composer ->
+                state =
+                    state.copy(draft = Draft("First line\nSecond line\nThird line\nFourth line\nFifth line", state.draft.revision))
             else -> Unit
         }
         record("start seed=$seed scenario=${scenario.name} ack=$acknowledgementMillis delivery=$deliveryMillis")
@@ -288,7 +410,9 @@ class FakeHost {
         clockMillis = target
     }
 
-    fun pause(value: Boolean) { paused = value }
+    fun pause(value: Boolean) {
+        paused = value
+    }
 
     private fun scheduleDelivery(id: String) {
         schedule(deliveryMillis, "delivery id=$id") {
@@ -320,17 +444,25 @@ class FakeHost {
 
     /** Synchronously latch one request; a real host would now start its service call. */
     fun loadEarlier(request: HistoryRequest) {
-        if (request.conversationId != state.conversationId || request.revision != history.revision ||
-            pendingHistory != null || history.status !in listOf(HistoryStatus.Idle, HistoryStatus.Error)) return
+        if (request.conversationId != state.conversationId || request.revision != history.revision) return
+        if (pendingHistory != null || history.status !in listOf(HistoryStatus.Idle, HistoryStatus.Error)) {
+            return
+        }
         pendingHistory = request
         history = history.copy(status = HistoryStatus.Loading)
-        if (simulationEnabled) schedule(700, "history revision=${request.revision}") {
-            if (pendingHistory != request) return@schedule
-            if (failHistoryNext) { failHistoryNext = false; failHistory() }
-            else if (selectedScenario == Scenario.EmptyHistory) {
-                pendingHistory = null
-                history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
-            } else completeHistory(request)
+        if (simulationEnabled) {
+            schedule(700, "history revision=${request.revision}") {
+                if (pendingHistory != request) return@schedule
+                if (failHistoryNext) {
+                    failHistoryNext = false
+                    failHistory()
+                } else if (selectedScenario == Scenario.EmptyHistory) {
+                    pendingHistory = null
+                    history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
+                } else {
+                    completeHistory(request)
+                }
+            }
         }
     }
 
@@ -345,13 +477,17 @@ class FakeHost {
      * deliberately: new page content wins by identity, and host numeric order is preserved.
      */
     fun completeHistory(request: HistoryRequest? = pendingHistory) {
-        if (request == null || request != pendingHistory || request.conversationId != state.conversationId ||
-            request.revision != history.revision) return
+        if (request == null || request != pendingHistory) return
+        if (request.conversationId != state.conversationId || request.revision != history.revision) {
+            return
+        }
         val first = state.messages.firstOrNull()?.id?.substringAfter("history-")?.toIntOrNull() ?: 1000
         val start = (first - 50).coerceAtLeast(0)
-        val page = (start..first.coerceAtMost(999)).map { historyMessage(it).let { row ->
-            if (it == first) row.copy(text = "Message $it · refreshed") else row
-        } }
+        val page = (start..first.coerceAtMost(999)).map {
+            historyMessage(it).let { row ->
+                if (it == first) row.copy(text = "Message $it · refreshed") else row
+            }
+        }
         val latest = page.associateBy { it.id }
         state = state.copy(messages = page + state.messages.filterNot { it.id in latest })
         pendingHistory = null
@@ -365,9 +501,11 @@ class FakeHost {
             scheduled.clear()
             if (pendingDraft != null) refuse()
             if (pendingAction != null) completeAction(false)
-            state = state.copy(messages = state.messages.map {
-                if (it.delivery == Delivery.Sending) it.copy(delivery = Delivery.Failed) else it
-            })
+            state = state.copy(
+                messages = state.messages.map {
+                    if (it.delivery == Delivery.Sending) it.copy(delivery = Delivery.Failed) else it
+                },
+            )
             record("cancel on switch")
         }
         pendingHistory = null
@@ -389,8 +527,16 @@ class FakeHost {
     }
 
     fun receiveMessage() {
-        state = state.copy(messages = state.messages + Message("arrival-${nextMessage++}", Participant("avery", "Avery"),
-            2_000L + nextMessage, "09:43", "A new message arrived", Delivery.Sent))
+        state = state.copy(
+            messages = state.messages + Message(
+                "arrival-${nextMessage++}",
+                Participant("avery", "Avery"),
+                2_000L + nextMessage,
+                "09:43",
+                "A new message arrived",
+                Delivery.Sent,
+            ),
+        )
     }
 
     fun onEvent(event: ConversationEvent) {
@@ -399,36 +545,53 @@ class FakeHost {
             is ConversationEvent.DraftChanged -> if (pendingDraft == null) {
                 state = state.copy(draft = state.draft.copy(text = event.text))
             }
-            is ConversationEvent.SendDraft -> {
-                if (pendingDraft != null || event.revision != state.draft.revision ||
-                    event.text != state.draft.text || event.attachments != state.draft.attachments || !state.draft.hasContent) return
-                record("intent send revision=${event.revision}")
-                pendingDraft = event
-                state = state.copy(draft = state.draft.copy(submitting = true))
-                if (simulationEnabled) schedule(acknowledgementMillis, "ack revision=${event.revision}") {
-                    if (pendingDraft == event) {
-                        if (refuseNext) {
-                            refuseNext = false
-                            refuse()
-                        } else {
-                            accept()
-                            scheduleDelivery(state.messages.last().id)
-                        }
+            is ConversationEvent.SendDraft -> handleSendDraft(event)
+            is ConversationEvent.RetryMessage -> handleRetryMessage(event)
+        }
+    }
+
+    private fun handleSendDraft(event: ConversationEvent.SendDraft) {
+        if (pendingDraft != null || !state.draft.hasContent) return
+        if (event.revision != state.draft.revision || event.text != state.draft.text ||
+            event.attachments != state.draft.attachments
+        ) {
+            return
+        }
+        record("intent send revision=${event.revision}")
+        pendingDraft = event
+        state = state.copy(draft = state.draft.copy(submitting = true))
+        if (simulationEnabled) {
+            schedule(acknowledgementMillis, "ack revision=${event.revision}") {
+                if (pendingDraft == event) {
+                    if (refuseNext) {
+                        refuseNext = false
+                        refuse()
+                    } else {
+                        accept()
+                        scheduleDelivery(state.messages.last().id)
                     }
                 }
             }
-            is ConversationEvent.RetryMessage -> {
-                val eligible = state.messages.any { it.id == event.messageId &&
-                    it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed }
-                if (!eligible) return
-                record("intent retry id=${event.messageId}")
-                state = state.copy(messages = state.messages.map {
-                    if (it.id == event.messageId && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed)
-                        it.copy(delivery = Delivery.Sending) else it
-                })
-                if (simulationEnabled) scheduleDelivery(event.messageId)
-            }
         }
+    }
+
+    private fun handleRetryMessage(event: ConversationEvent.RetryMessage) {
+        val eligible = state.messages.any {
+            it.id == event.messageId &&
+                it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed
+        }
+        if (!eligible) return
+        record("intent retry id=${event.messageId}")
+        state = state.copy(
+            messages = state.messages.map {
+                if (it.id == event.messageId && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Failed) {
+                    it.copy(delivery = Delivery.Sending)
+                } else {
+                    it
+                }
+            },
+        )
+        if (simulationEnabled) scheduleDelivery(event.messageId)
     }
 
     fun accept(expected: ConversationEvent.SendDraft? = pendingDraft) {
@@ -437,19 +600,39 @@ class FakeHost {
         val id = "${state.conversationId}-${nextMessage++}"
         state = state.copy(
             draft = Draft(revision = pending.revision + 1),
-            messages = state.messages + Message(id, Participant("me", "You"), 1_000L + nextMessage, "09:42", pending.text, Delivery.Sending, pending.attachments),
+            messages =
+            state.messages +
+                Message(
+                    id,
+                    Participant("me", "You"),
+                    1_000L + nextMessage,
+                    "09:42",
+                    pending.text,
+                    Delivery.Sending,
+                    pending.attachments,
+                ),
         )
-        actionState = actionState.copy(revision = actionState.revision + 1, quoteTargetId = null,
-            quotes = pendingQuoteTarget?.let { actionState.quotes + (id to it) } ?: actionState.quotes)
+        actionState = actionState.copy(
+            revision = actionState.revision + 1,
+            quoteTargetId = null,
+            quotes = pendingQuoteTarget?.let { actionState.quotes + (id to it) } ?: actionState.quotes,
+        )
         pendingQuoteTarget = null
         pendingDraft = null
     }
 
     fun completeDelivery(delivery: Delivery, messageId: String? = null) {
         require(delivery != Delivery.Sending)
-        state = state.copy(messages = state.messages.map {
-            if ((messageId == null || it.id == messageId) && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Sending) it.copy(delivery = delivery) else it
-        })
+        state = state.copy(
+            messages = state.messages.map {
+                val matchesId = messageId == null || it.id == messageId
+                if (matchesId && it.sender.id == state.currentParticipantId && it.delivery == Delivery.Sending) {
+                    it.copy(delivery = delivery)
+                } else {
+                    it
+                }
+            },
+        )
     }
 
     fun refuse() {
@@ -461,14 +644,44 @@ class FakeHost {
     }
 
     fun useChatFixture() {
-        state = state.copy(messages = listOf(
-            Message("welcome", Participant("avery", "Avery Chen"), 1_000, "09:41", "Morning! I’ve added the latest sketches for the shared space.", Delivery.Sent),
-            Message("sketches", Participant("avery", "Avery Chen"), 1_001, "09:41", "The quieter corner by the window could work well for reading.", Delivery.Sent),
-            Message("response", Participant("me", "You"), 1_002, "09:42", "Love that idea. Let’s keep the materials warm and simple.", Delivery.Sent),
-            Message("morgan", Participant("morgan", "Morgan Lee"), 1_003, "09:43", "I’ll bring a few samples to our afternoon review ☀️", Delivery.Sent),
-            Message("morgan-2", Participant("morgan", "Morgan Lee"), 1_004, "09:43", "Does 2:30 work for everyone?", Delivery.Sent),
-            Message("confirmed", Participant("me", "You"), 1_005, "09:44", "Perfect — see you both there!", Delivery.Sent),
-        ))
+        state = state.copy(
+            messages = listOf(
+                Message(
+                    "welcome",
+                    Participant("avery", "Avery Chen"),
+                    1_000,
+                    "09:41",
+                    "Morning! I’ve added the latest sketches for the shared space.",
+                    Delivery.Sent,
+                ),
+                Message(
+                    "sketches",
+                    Participant("avery", "Avery Chen"),
+                    1_001,
+                    "09:41",
+                    "The quieter corner by the window could work well for reading.",
+                    Delivery.Sent,
+                ),
+                Message(
+                    "response",
+                    Participant("me", "You"),
+                    1_002,
+                    "09:42",
+                    "Love that idea. Let’s keep the materials warm and simple.",
+                    Delivery.Sent,
+                ),
+                Message(
+                    "morgan",
+                    Participant("morgan", "Morgan Lee"),
+                    1_003,
+                    "09:43",
+                    "I’ll bring a few samples to our afternoon review ☀️",
+                    Delivery.Sent,
+                ),
+                Message("morgan-2", Participant("morgan", "Morgan Lee"), 1_004, "09:43", "Does 2:30 work for everyone?", Delivery.Sent),
+                Message("confirmed", Participant("me", "You"), 1_005, "09:44", "Perfect — see you both there!", Delivery.Sent),
+            ),
+        )
         actionState = actionState.copy(quotes = mapOf("response" to "sketches", "confirmed" to "morgan-2"))
         history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
     }
@@ -480,7 +693,7 @@ class FakeHost {
             timestampEpochMillis = n.toLong(),
             displayTime = "09:41",
             text = "Message $n",
-            delivery = Delivery.Sent
+            delivery = Delivery.Sent,
         )
         private fun initialState(id: String) = ConversationState(
             conversationId = id,
@@ -492,9 +705,9 @@ class FakeHost {
                     timestampEpochMillis = 1_000,
                     displayTime = "09:41",
                     text = "Welcome! Send a message to start a simulated exchange.",
-                    delivery = Delivery.Sent
+                    delivery = Delivery.Sent,
                 ),
-            )
+            ),
         )
     }
 }

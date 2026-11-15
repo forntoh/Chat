@@ -1,0 +1,32 @@
+# Syntax analysis only; compiler dependencies are isolated in the chat.quality convention.
+# ktlint owns formatting and line length. No baseline or ignored failures.
+config:
+  validation: true
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][A-Za-z0-9]*|[A-Z][_A-Z0-9]*'
+complexity:
+  # Declarative Compose trees retain guard checks but do not use method-size totals.
+  TooManyFunctions:
+    ignoreAnnotatedFunctions: ['Composable']
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    ignoreAnnotated: ['Composable', 'Test']
+style:
+  ReturnCount:
+    excludeGuardClauses: true
+  # Literal appearance values, canned fixtures, SDK versions and test expectations remain readable.
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreAnnotated: ['Composable']
+    ignoreNamedArgument: true
+    excludes: ['**/commonTest/**', '**/jvmTest/**', '**/androidTest/**', '**/*.gradle.kts', '**/FakeHost.kt', '**/FakeMediaHost.kt', '**/consumers/**']
+  MaxLineLength:
+    active: false

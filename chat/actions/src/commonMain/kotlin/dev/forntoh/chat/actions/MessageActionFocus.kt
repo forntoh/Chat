@@ -1,35 +1,91 @@
 package dev.forntoh.chat.actions
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.focusable
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.copy
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.visible
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.layout.*
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.unit.*
-import androidx.compose.ui.window.*
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.dismiss
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.requestFocus
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.coerceAtMost
+import androidx.compose.ui.unit.coerceIn
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.max
+import androidx.compose.ui.unit.min
+import androidx.compose.ui.unit.offset
+import androidx.compose.ui.unit.size
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.unit.width
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import kotlin.math.roundToInt
 
 /**
@@ -77,28 +133,35 @@ fun MessageActionFocus(
     val layer = rememberGraphicsLayer()
     val presentation = remember(content.conversation.conversationId, messageId) { FocusPresentation(above, below) }
     SideEffect {
-        if (visible) { presentation.above = above; presentation.below = below }
+        if (visible) {
+            presentation.above = above
+            presentation.below = below
+        }
     }
     var anchor by remember { mutableStateOf(Rect.Zero) }
     var rowBounds by remember { mutableStateOf(Rect.Zero) }
     val safeTarget = allowed && target == openedTarget
     val presenting = safeTarget && (visible || transition.currentState || transition.targetState)
-    Box(modifier.onGloballyPositioned {
-        rowBounds = Rect(it.localToScreen(Offset.Zero), it.size.toSize())
-    }.drawWithContent {
-        if (!presenting || !popupReady) layer.record { this@drawWithContent.drawContent() }
-        if (presenting && popupReady) {
-            clipRect(
-                left = anchor.left - rowBounds.left,
-                top = anchor.top - rowBounds.top,
-                right = anchor.right - rowBounds.left,
-                bottom = anchor.bottom - rowBounds.top,
-                clipOp = ClipOp.Difference
-            ) {
+    Box(
+        modifier.onGloballyPositioned {
+            rowBounds = Rect(it.localToScreen(Offset.Zero), it.size.toSize())
+        }.drawWithContent {
+            if (!presenting || !popupReady) layer.record { this@drawWithContent.drawContent() }
+            if (presenting && popupReady) {
+                clipRect(
+                    left = anchor.left - rowBounds.left,
+                    top = anchor.top - rowBounds.top,
+                    right = anchor.right - rowBounds.left,
+                    bottom = anchor.bottom - rowBounds.top,
+                    clipOp = ClipOp.Difference,
+                ) {
+                    drawLayer(layer)
+                }
+            } else {
                 drawLayer(layer)
             }
-        } else drawLayer(layer)
-    }) {
+        },
+    ) {
         bubble(
             Modifier
                 .onGloballyPositioned { anchor = Rect(it.localToScreen(Offset.Zero), it.size.toSize()) }
@@ -106,16 +169,23 @@ fun MessageActionFocus(
                     enabled = allowed,
                     onClick = {},
                     onLongClickLabel = "Message actions",
-                    onLongClick = { openedTarget = target; content.request(ActionCommand.OpenMenu, messageId) },
-                )
+                    onLongClick = {
+                        openedTarget = target
+                        content.request(ActionCommand.OpenMenu, messageId)
+                    },
+                ),
         )
     }
     if (presenting && anchor.width > 0 && anchor.height > 0) {
         val dismiss = { content.request(ActionCommand.CloseMenu) }
         Popup(
             popupPositionProvider = object : PopupPositionProvider {
-                override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
-                    layoutDirection: LayoutDirection, popupContentSize: IntSize) = IntOffset.Zero
+                override fun calculatePosition(
+                    anchorBounds: IntRect,
+                    windowSize: IntSize,
+                    layoutDirection: LayoutDirection,
+                    popupContentSize: IntSize,
+                ) = IntOffset.Zero
             },
             onDismissRequest = dismiss,
             properties = focusPopupProperties(),
@@ -125,32 +195,45 @@ fun MessageActionFocus(
             var focusScale by remember { mutableFloatStateOf(1f) }
             LaunchedEffect(Unit) { focus.requestFocus() }
             var popupOrigin by remember { mutableStateOf(Offset.Zero) }
-            Box(Modifier.fillMaxSize().onGloballyPositioned {
-                popupOrigin = it.localToScreen(Offset.Zero)
-                popupReady = true
-            }.onPreviewKeyEvent {
-                if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) { dismiss(); true } else false
-            }.focusRequester(focus).focusable()) {
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .65f * progress))
-                    .clickable(interactionSource = null, indication = null, onClick = dismiss)
-                    .semantics { contentDescription = "Dismiss message actions" })
+            Box(
+                Modifier.fillMaxSize().onGloballyPositioned {
+                    popupOrigin = it.localToScreen(Offset.Zero)
+                    popupReady = true
+                }.onPreviewKeyEvent {
+                    if (it.key == Key.Escape && it.type == KeyEventType.KeyUp) {
+                        dismiss()
+                        true
+                    } else {
+                        false
+                    }
+                }.focusRequester(focus).focusable(),
+            ) {
+                Box(
+                    Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f * progress))
+                        .clickable(interactionSource = null, indication = null, onClick = dismiss)
+                        .semantics { contentDescription = "Dismiss message actions" },
+                )
                 // Scrim spans the window; only interactive content observes native safe areas.
                 val safeInsets = WindowInsets.safeDrawing
                 Layout(content = {
                     FocusActionSlot(progress) { if (visible) above() else presentation.above() }
-                    Box(Modifier.graphicsLayer {
-                        scaleX = 1f + (focusScale - 1f) * progress
-                        scaleY = scaleX
-                        transformOrigin = TransformOrigin(if (outgoing) 1f else 0f, .5f)
-                    }.verticalScroll(rememberScrollState())) {
+                    Box(
+                        Modifier.graphicsLayer {
+                            scaleX = 1f + (focusScale - 1f) * progress
+                            scaleY = scaleX
+                            transformOrigin = TransformOrigin(if (outgoing) 1f else 0f, 0.5f)
+                        }.verticalScroll(rememberScrollState()),
+                    ) {
                         val density = androidx.compose.ui.platform.LocalDensity.current
                         Canvas(
                             Modifier
                                 .size(with(density) { anchor.width.toDp() }, with(density) { anchor.height.toDp() })
-                                .semantics { contentDescription = "${target.sender.displayName}, ${target.text}, ${target.displayTime}" }
+                                .semantics { contentDescription = "${target.sender.displayName}, ${target.text}, ${target.displayTime}" },
                         ) {
-                            if (popupReady) clipRect {
-                                translate(rowBounds.left - anchor.left, rowBounds.top - anchor.top) { drawLayer(layer) }
+                            if (popupReady) {
+                                clipRect {
+                                    translate(rowBounds.left - anchor.left, rowBounds.top - anchor.top) { drawLayer(layer) }
+                                }
                             }
                         }
                     }
@@ -167,27 +250,36 @@ fun MessageActionFocus(
                     val bubbleWidth = anchor.width.roundToInt().coerceAtLeast(1)
                     val fittedScale = minOf(1.05f, availableWidth.toFloat() / bubbleWidth)
                     focusScale = fittedScale
-                    val menuConstraints = Constraints(maxWidth = availableWidth,
-                        maxHeight = safeHeight / 2)
+                    val menuConstraints = Constraints(
+                        maxWidth = availableWidth,
+                        maxHeight = safeHeight / 2,
+                    )
                     val top = children[0].measure(menuConstraints.copy(maxHeight = safeHeight / 4))
                     val bottom = children[2].measure(menuConstraints)
                     val topGap = if (top.height > 0) 8.dp.roundToPx() else 0
                     val bottomGap = if (bottom.height > 0) 8.dp.roundToPx() else 0
                     val bubbleHeight = anchor.height.roundToInt().coerceAtMost(
-                        ((safeHeight - top.height - bottom.height - topGap - bottomGap) / fittedScale.coerceAtLeast(.001f)).roundToInt().coerceAtLeast(0))
-                    val selectedBubble = children[1].measure(Constraints.fixed(
-                        bubbleWidth, bubbleHeight))
+                        (
+                            (safeHeight - top.height - bottom.height - topGap - bottomGap) / fittedScale.coerceAtLeast(
+                                0.001f,
+                            )
+                            ).roundToInt().coerceAtLeast(0),
+                    )
+                    val selectedBubble = children[1].measure(Constraints.fixed(bubbleWidth, bubbleHeight))
                     val growthY = selectedBubble.height * (fittedScale - 1f) / 2f
                     val minimumY = topMargin + top.height + topGap + kotlin.math.ceil(growthY).toInt()
-                    val maximumY = maxOf(minimumY, constraints.maxHeight - bottomMargin - bottom.height - bottomGap - selectedBubble.height - kotlin.math.ceil(growthY).toInt())
+                    val maximumY = maxOf(
+                        minimumY,
+                        constraints.maxHeight - bottomMargin - bottom.height - bottomGap - selectedBubble.height -
+                            kotlin.math.ceil(growthY).toInt(),
+                    )
                     val y = localAnchor.top.roundToInt().coerceIn(minimumY, maximumY)
                     val growthX = kotlin.math.ceil(selectedBubble.width * (fittedScale - 1f)).toInt()
                     val minimumX = leftInset + if (outgoing) growthX else 0
                     val maximumX = maxOf(minimumX, constraints.maxWidth - rightInset - selectedBubble.width - if (outgoing) 0 else growthX)
                     val x = localAnchor.left.roundToInt().coerceIn(minimumX, maximumX)
-                    fun menuX(width: Int, bubbleX: Int) =
-                        (if (outgoing) bubbleX + selectedBubble.width - width else bubbleX)
-                            .coerceIn(leftInset, maxOf(leftInset, constraints.maxWidth - rightInset - width))
+                    fun menuX(width: Int, bubbleX: Int) = (if (outgoing) bubbleX + selectedBubble.width - width else bubbleX)
+                        .coerceIn(leftInset, maxOf(leftInset, constraints.maxWidth - rightInset - width))
                     if (visible) presentation.position = IntOffset(x, y)
                     layout(constraints.maxWidth, constraints.maxHeight) {
                         val destination = presentation.position
@@ -195,7 +287,10 @@ fun MessageActionFocus(
                         val bubbleY = (localAnchor.top + (destination.y - localAnchor.top) * progress).roundToInt()
                         top.place(menuX(top.width, bubbleX), (bubbleY - growthY * progress).roundToInt() - topGap - top.height)
                         selectedBubble.place(bubbleX, bubbleY)
-                        bottom.place(menuX(bottom.width, bubbleX), (bubbleY + selectedBubble.height + growthY * progress).roundToInt() + bottomGap)
+                        bottom.place(
+                            menuX(bottom.width, bubbleX),
+                            (bubbleY + selectedBubble.height + growthY * progress).roundToInt() + bottomGap,
+                        )
                     }
                 }
             }
@@ -212,9 +307,12 @@ private fun FocusActionSlot(progress: Float, content: @Composable () -> Unit) {
                 val items = children.map { it.measure(constraints.offset(-2 * clearance, -2 * clearance)) }
                 val width = items.maxOfOrNull { it.width } ?: 0
                 val height = items.maxOfOrNull { it.height } ?: 0
-                if (width == 0 || height == 0) layout(0, 0) {}
-                else layout(width + 2 * clearance, height + 2 * clearance) {
-                    items.forEach { it.place(clearance, clearance) }
+                if (width == 0 || height == 0) {
+                    layout(0, 0) {}
+                } else {
+                    layout(width + 2 * clearance, height + 2 * clearance) {
+                        items.forEach { it.place(clearance, clearance) }
+                    }
                 }
             }
         }
@@ -227,7 +325,10 @@ private fun FocusActionSlot(progress: Float, content: @Composable () -> Unit) {
     }
 }
 
-private class FocusPresentation(var above: @Composable () -> Unit, var below: @Composable () -> Unit) {
+private class FocusPresentation(
+    var above: @Composable () -> Unit,
+    var below: @Composable () -> Unit,
+) {
     var position = IntOffset.Zero
 }
 
@@ -239,16 +340,28 @@ fun MessageActionMenu(content: ActionsContent, messageId: String, slots: ActionS
     if (content.state.menuTargetId != messageId || content.conversation.messages.none { it.id == messageId } || enabled.isEmpty()) return
     ActionTheme(slots = slots) {
         val style = LocalActionStyle.current
-        Column(Modifier.widthIn(min = 192.dp, max = 240.dp).shadow(8.dp, style.menuShape).background(style.menuBackground, style.menuShape)
-            .padding(vertical = 4.dp)) {
-            listOf(MessageAction.Copy to ActionCommand.Copy, MessageAction.Quote to ActionCommand.Quote,
-                MessageAction.Edit to ActionCommand.BeginEdit, MessageAction.Delete to ActionCommand.RequestDelete).forEach { (capability, command) ->
-                if (capability in enabled) Box(Modifier.fillMaxWidth(), propagateMinConstraints = true) {
-                    slots.control(ActionControlContent(command, !content.state.pending) { content.request(command, messageId) })
+        Column(
+            Modifier.widthIn(min = 192.dp, max = 240.dp).shadow(8.dp, style.menuShape).background(style.menuBackground, style.menuShape)
+                .padding(vertical = 4.dp),
+        ) {
+            listOf(
+                MessageAction.Copy to ActionCommand.Copy,
+                MessageAction.Quote to ActionCommand.Quote,
+                MessageAction.Edit to ActionCommand.BeginEdit,
+                MessageAction.Delete to ActionCommand.RequestDelete,
+            ).forEach { (capability, command) ->
+                if (capability in enabled) {
+                    Box(Modifier.fillMaxWidth(), propagateMinConstraints = true) {
+                        slots.control(ActionControlContent(command, !content.state.pending) { content.request(command, messageId) })
+                    }
                 }
             }
             Box(Modifier.fillMaxWidth(), propagateMinConstraints = true) {
-                slots.control(ActionControlContent(ActionCommand.CloseMenu, !content.state.pending) { content.request(ActionCommand.CloseMenu) })
+                slots.control(
+                    ActionControlContent(ActionCommand.CloseMenu, !content.state.pending) {
+                        content.request(ActionCommand.CloseMenu)
+                    },
+                )
             }
         }
     }

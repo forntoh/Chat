@@ -1,8 +1,35 @@
 package dev.chat.sample.android
 
 import android.graphics.Bitmap
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.height
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToKey
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.top
+import androidx.compose.ui.test.width
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
@@ -18,8 +45,15 @@ class ReplyNavigationJourney {
         val bitmap = Bitmap.createBitmap(window.decorView.width, window.decorView.height, Bitmap.Config.ARGB_8888)
         val completed = java.util.concurrent.CountDownLatch(1)
         var result = -1
-        android.view.PixelCopy.request(window, bitmap, { status -> result = status; completed.countDown() },
-            android.os.Handler(android.os.Looper.getMainLooper()))
+        android.view.PixelCopy.request(
+            window,
+            bitmap,
+            { status ->
+                result = status
+                completed.countDown()
+            },
+            android.os.Handler(android.os.Looper.getMainLooper()),
+        )
         check(completed.await(5, java.util.concurrent.TimeUnit.SECONDS) && result == android.view.PixelCopy.SUCCESS)
         File(instrumentation.targetContext.filesDir, "$name.png").outputStream().use {
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
@@ -59,7 +93,10 @@ class ReplyNavigationJourney {
         compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToIndex(2)
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue("Timeline continues behind the floating input", viewport.bottom > field.fetchSemanticsNode().boundsInRoot.bottom)
+        org.junit.Assert.assertTrue(
+            "Timeline continues behind the floating input",
+            viewport.bottom > field.fetchSemanticsNode().boundsInRoot.bottom,
+        )
         capture("composer-history-behind")
         field.performClick().performTextInput("One\nTwo\nThree\nFour\nFive\nSix")
         compose.onNodeWithContentDescription("Send").assertIsDisplayed().assertIsEnabled()
@@ -79,7 +116,7 @@ class ReplyNavigationJourney {
         compose.onNodeWithText("Close").performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Message 999").fetchSemanticsNodes().isNotEmpty() }
         // Establish real reader intent before the test accelerates the long manual scroll.
-        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * .25f, endY = height * .55f) }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         compose.onNodeWithText("Message 0").assertIsDisplayed()
         compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty() }
@@ -184,24 +221,36 @@ class ReplyNavigationJourney {
         capture("composer-reply")
         compose.onNodeWithContentDescription("Send").performClick()
         compose.waitUntil(10000) { compose.onAllNodesWithTag("bubble-studio-1", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
-        if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())
+        if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty()) {
             compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        }
         for (n in 1..2) {
             compose.waitUntil(10000) {
-                compose.onNodeWithTag("composer").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+                compose.onNodeWithTag(
+                    "composer",
+                ).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
             }
-            compose.onNodeWithTag("composer").performTextInput("Native follow message $n. This keeps the conversation readable while new messages arrive.")
+            compose.onNodeWithTag(
+                "composer",
+            ).performTextInput("Native follow message $n. This keeps the conversation readable while new messages arrive.")
             compose.onNodeWithContentDescription("Send").performClick()
             compose.waitUntil(10000) {
-                compose.onNodeWithTag("composer").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
+                compose.onNodeWithTag(
+                    "composer",
+                ).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text.isEmpty()
             }
-            compose.onNodeWithText("Native follow message $n. This keeps the conversation readable while new messages arrive.").assertIsDisplayed()
+            compose.onNodeWithText(
+                "Native follow message $n. This keeps the conversation readable while new messages arrive.",
+            ).assertIsDisplayed()
         }
         compose.onNodeWithTag("timeline").performTouchInput { swipeDown(startY = height * 0.25f, endY = height * 0.55f) }
         compose.onNodeWithTag("timeline").performScrollToKey("studio-1")
         compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).assertIsDisplayed()
         capture("reply-default")
-        compose.onNode(hasContentDescription("Reply to Morgan Lee", substring = true) and hasAnyAncestor(hasTestTag("message-studio-1")), useUnmergedTree = true).performClick()
+        compose.onNode(
+            hasContentDescription("Reply to Morgan Lee", substring = true) and hasAnyAncestor(hasTestTag("message-studio-1")),
+            useUnmergedTree = true,
+        ).performClick()
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         val target = compose.onNodeWithTag("message-morgan").fetchSemanticsNode().boundsInRoot
         org.junit.Assert.assertTrue(target.top >= viewport.top && target.bottom <= viewport.bottom)

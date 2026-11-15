@@ -8,15 +8,32 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.height
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.width
 import androidx.compose.ui.unit.dp
-import dev.forntoh.chat.core.*
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
+import org.junit.Rule
+import org.junit.Test
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
-import org.junit.Rule
-import org.junit.Test
 import kotlin.test.assertEquals
 
 /** Uses staged artifacts only; no producer source, sample renderers or custom conversation slots. */
@@ -24,24 +41,44 @@ class DefaultArtifactTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun defaultArtifactGroupsAndComposerWorkWithoutConsumerRenderers() {
-        val a = Message("a", Participant("avery", "Avery Chen"), 1, "09:41", "Morning! The sketches are ready for our review.", Delivery.Sent)
-        val state = mutableStateOf(ConversationState("room", "me", messages = listOf(a,
-            a.copy(id = "b", text = "I’ve kept the materials warm and simple."),
-            a.copy(id = "c", sender = Participant("me", "You"), text = "Looks great. See you this afternoon!"))))
+        val a =
+            Message("a", Participant("avery", "Avery Chen"), 1, "09:41", "Morning! The sketches are ready for our review.", Delivery.Sent)
+        val state = mutableStateOf(
+            ConversationState(
+                "room",
+                "me",
+                messages = listOf(
+                    a,
+                    a.copy(id = "b", text = "I’ve kept the materials warm and simple."),
+                    a.copy(id = "c", sender = Participant("me", "You"), text = "Looks great. See you this afternoon!"),
+                ),
+            ),
+        )
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { MaterialTheme { Surface {
-            DefaultConversation(state.value) { event ->
-                events += event
-                if (event is ConversationEvent.DraftChanged) state.value = state.value.copy(draft = Draft(event.text, state.value.draft.revision + 1))
+        compose.setContent {
+            Box(Modifier.size(360.dp, 640.dp)) {
+                MaterialTheme {
+                    Surface {
+                        DefaultConversation(state.value) { event ->
+                            events += event
+                            if (event is ConversationEvent.DraftChanged) {
+                                state.value =
+                                    state.value.copy(draft = Draft(event.text, state.value.draft.revision + 1))
+                            }
+                        }
+                    }
+                }
             }
-        } } } }
+        }
         compose.onNodeWithText("Design team").assertIsDisplayed()
         compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(3)
         capture("default-artifact")
         compose.onNodeWithTag("composer").performTextInput("Exact text\nSecond line  ")
         compose.onNodeWithContentDescription("Send").performClick()
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled().performClick()
-        compose.runOnIdle { assertEquals("Exact text\nSecond line  ", events.filterIsInstance<ConversationEvent.SendDraft>().single().text) }
+        compose.runOnIdle {
+            assertEquals("Exact text\nSecond line  ", events.filterIsInstance<ConversationEvent.SendDraft>().single().text)
+        }
         capture("default-artifact-pending")
     }
 
@@ -51,10 +88,12 @@ class DefaultArtifactTest {
             messageSpacing = { 19.dp },
         )
         val bundles = legacySlotCalls(base)
-        compose.setContent { androidx.compose.foundation.layout.Column {
-            bundles.forEach { it.latestLabel(dev.forntoh.chat.ui.LatestContent(false) {}) }
-            bundles[1].messageAvatar(Message("a", Participant("peer", "Avery"), 1, "Now", "Hi", Delivery.Sent))
-        } }
+        compose.setContent {
+            androidx.compose.foundation.layout.Column {
+                bundles.forEach { it.latestLabel(dev.forntoh.chat.ui.LatestContent(false) {}) }
+                bundles[1].messageAvatar(Message("a", Participant("peer", "Avery"), 1, "Now", "Hi", Delivery.Sent))
+            }
+        }
         compose.onAllNodesWithText("Latest").assertCountEquals(5)
         compose.onAllNodesWithText("Newest").assertCountEquals(3)
         compose.onNodeWithText("Host avatar").assertExists()
@@ -67,9 +106,11 @@ class DefaultArtifactTest {
             androidx.compose.material3.Text(if (it.hasNewMessages) "Read arrivals" else "Read latest")
         })
         val labels = legacyLatestLabelComponents(base)
-        compose.setContent { androidx.compose.foundation.layout.Column {
-            labels.forEach { it(dev.forntoh.chat.ui.LatestContent(arrivals.value) {}) }
-        } }
+        compose.setContent {
+            androidx.compose.foundation.layout.Column {
+                labels.forEach { it(dev.forntoh.chat.ui.LatestContent(arrivals.value) {}) }
+            }
+        }
         compose.onAllNodesWithText("Read latest").assertCountEquals(2)
         compose.runOnIdle { arrivals.value = true }
         compose.onAllNodesWithText("Read arrivals").assertCountEquals(2)

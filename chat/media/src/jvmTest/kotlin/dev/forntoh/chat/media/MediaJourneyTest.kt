@@ -1,19 +1,51 @@
 package dev.forntoh.chat.media
 
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.height
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.ui.*
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.top
+import androidx.compose.ui.test.width
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.Attachment
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
+import dev.forntoh.chat.ui.ChatMotion
+import dev.forntoh.chat.ui.ComposerContent
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.DefaultComposer
+import dev.forntoh.chat.ui.DefaultMessage
+import dev.forntoh.chat.ui.LocalChatMotion
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MediaJourneyTest {
     @get:Rule val compose = createComposeRule()
@@ -32,10 +64,15 @@ class MediaJourneyTest {
         }
         listOf("Image unavailable", "Selection refused").forEach { label ->
             val pixels = compose.onNodeWithText(label).captureToImage().toPixelMap()
-            assertTrue((0 until pixels.height).any { y -> (0 until pixels.width).any { x ->
-                val color = pixels[x, y]
-                color.red > .5f && color.green < .1f && color.blue < .1f
-            } }, "Default $label must inherit the host's text color")
+            assertTrue(
+                (0 until pixels.height).any { y ->
+                    (0 until pixels.width).any { x ->
+                        val color = pixels[x, y]
+                        color.red > 0.5f && color.green < 0.1f && color.blue < 0.1f
+                    }
+                },
+                "Default $label must inherit the host's text color",
+            )
         }
     }
 
@@ -54,6 +91,7 @@ class MediaJourneyTest {
             assertEquals(2, events.size)
         }
     }
+
     @Test fun selectionRemovalAndStaleTargetsAreHostIntentsThatPreserveText() {
         var state by mutableStateOf(ConversationState("room", "me", Draft("Caption", attachments = listOf(image))))
         var mediaState by mutableStateOf(MediaState())
@@ -64,9 +102,24 @@ class MediaJourneyTest {
         var current: MediaContent? = null
         compose.setContent {
             val media = rememberMedia(state, mediaState, requests::add)
-            SideEffect { current = media; if (old == null) old = media }
+            SideEffect {
+                current = media
+                if (old == null) old = media
+            }
             Box(Modifier.size(360.dp, 600.dp)) {
-                Conversation(state, events::add, composerContent = { SideEffect { if (oldComposer == null) oldComposer = it }; Column { MediaDraft(media, it); DefaultComposer(it) } })
+                Conversation(state, events::add, composerContent = {
+                    SideEffect {
+                        if (oldComposer ==
+                            null
+                        ) {
+                            oldComposer = it
+                        }
+                    }
+                    Column {
+                        MediaDraft(media, it)
+                        DefaultComposer(it)
+                    }
+                })
             }
         }
         compose.onNodeWithText("Remove image").performClick()
@@ -90,14 +143,18 @@ class MediaJourneyTest {
         compose.runOnIdle {
             state = state.copy(conversationId = "other")
         }
-        compose.runOnIdle { current = null; old!!.request(MediaCommand.Select); assertEquals(2, requests.size) }
+        compose.runOnIdle {
+            current = null
+            old!!.request(MediaCommand.Select)
+            assertEquals(2, requests.size)
+        }
     }
 
     @Test fun uploadFailureRetryViewerAndFallbackRemainSeparateFromDelivery() {
         val message = Message("sent-photo", Participant("me", "You"), 0, "Now", "Caption", Delivery.Sending, listOf(image))
         var state by mutableStateOf(ConversationState("room", "me", messages = listOf(message)))
         val target = MediaTarget("room", image, message = message)
-        var status by mutableStateOf(MediaState(images = mapOf(target to ImageState(ImageStatus.Uploading, .5f))))
+        var status by mutableStateOf(MediaState(images = mapOf(target to ImageState(ImageStatus.Uploading, 0.5f))))
         val requests = mutableListOf<MediaRequest>()
         var old: MediaContent? = null
         var renderer by mutableStateOf(true)
@@ -106,8 +163,18 @@ class MediaJourneyTest {
             SideEffect { old = media }
             Box(Modifier.size(360.dp, 600.dp)) {
                 Conversation(state, {}, messageContent = { row, _, _ ->
-                    Column { DefaultMessage(row, null); MediaAttachments(media, row,
-                        renderer = if (renderer) { { androidx.compose.foundation.text.BasicText("Bundled pixels") } } else null) }
+                    Column {
+                        DefaultMessage(row, null)
+                        MediaAttachments(
+                            media,
+                            row,
+                            renderer = if (renderer) {
+                                { androidx.compose.foundation.text.BasicText("Bundled pixels") }
+                            } else {
+                                null
+                            },
+                        )
+                    }
                 })
             }
         }
@@ -127,7 +194,11 @@ class MediaJourneyTest {
             stale = old
             state = state.copy(messages = listOf(message.copy(text = "Replacement")))
         }
-        compose.runOnIdle { stale!!.request(MediaCommand.View, target); assertEquals(2, requests.size); renderer = false }
+        compose.runOnIdle {
+            stale!!.request(MediaCommand.View, target)
+            assertEquals(2, requests.size)
+            renderer = false
+        }
         compose.onNodeWithText("Unsupported attachment").assertExists()
         compose.runOnIdle {
             state = state.copy(messages = listOf(message.copy(attachments = listOf(image.copy(contentReference = null)))))
@@ -188,13 +259,20 @@ class MediaJourneyTest {
         fun ink(red: Boolean): Float {
             val pixels = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
             var sum = 0f
-            for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
-                val c = pixels[x,y]
-                sum += (if (red) c.red - c.blue else c.blue - c.red).coerceAtLeast(0f)
+            for (y in 0 until pixels.height) {
+                for (x in 0 until pixels.width) {
+                    val c = pixels[x, y]
+                    sum += (if (red) c.red - c.blue else c.blue - c.red).coerceAtLeast(0f)
+                }
             }
             return sum
         }
-        fun frames() { repeat(3) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() } }
+        fun frames() {
+            repeat(3) {
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+            }
+        }
         compose.mainClock.autoAdvance = false
         compose.runOnIdle { state = state.copy(draft = state.draft.copy(revision = 1, attachments = listOf(image, second))) }
         frames()
@@ -217,5 +295,4 @@ class MediaJourneyTest {
         assertTrue(requests.isEmpty() && events.isEmpty(), "Motion cannot emit host intents")
         compose.mainClock.autoAdvance = true
     }
-
 }

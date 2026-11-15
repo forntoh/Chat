@@ -8,7 +8,11 @@ plugins {
 }
 kotlin {
     jvmToolchain(21)
-    android { namespace = "dev.chat.consumer.combined"; compileSdk = 37; minSdk = 24 }
+    android {
+        namespace = "dev.chat.consumer.combined"
+        compileSdk = 37
+        minSdk = 24
+    }
     jvm()
     iosArm64()
     iosSimulatorArm64()
@@ -25,7 +29,7 @@ tasks.register("verifySelection") {
             "jvmRuntimeClasspath" to "jvm",
             "androidCompileClasspath" to "android",
             "iosArm64CompileKlibraries" to "iosarm64",
-            "iosSimulatorArm64CompileKlibraries" to "iossimulatorarm64"
+            "iosSimulatorArm64CompileKlibraries" to "iossimulatorarm64",
         )
         for ((configurationName, target) in targets) {
             val configuration = configurations.getByName(configurationName)
@@ -42,10 +46,12 @@ tasks.register("verifySelection") {
                 "Unexpected Chat target selection: $chat"
             }
             check(chat.count { it.module == "chat-core-$target" } == 1)
-            check(modules.none {
-                it.module.contains("material3", true) || it.group == "com.composables" ||
-                    it.module.contains("sample", true) || it.module.contains("build-logic", true)
-            }) { "Unwanted optional or producer dependency" }
+            check(
+                modules.none {
+                    it.module.contains("material3", true) || it.group == "com.composables" ||
+                        it.module.contains("sample", true) || it.module.contains("build-logic", true)
+                },
+            ) { "Unwanted optional or producer dependency" }
             val otherPlatforms = when (target) {
                 "jvm" -> listOf("-android", "-ios", "-wasm", "-js", "-linux", "-mingw", "-macos")
                 "android" -> listOf("-desktop", "-ios", "-wasm", "-js", "-linux", "-mingw", "-macos")

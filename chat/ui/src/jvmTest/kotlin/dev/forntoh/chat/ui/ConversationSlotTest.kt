@@ -1,22 +1,40 @@
 package dev.forntoh.chat.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.rows
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.height
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.forntoh.chat.core.*
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.top
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.assertTrue
-import androidx.compose.ui.unit.dp
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ConversationSlotTest {
     @get:Rule val compose = createComposeRule()
@@ -26,21 +44,34 @@ class ConversationSlotTest {
         val rows = (0..39).map { n -> Message("m$n", Participant("other", "Avery"), 0, "09:41", "Message $n", Delivery.Sent) }
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.size(360.dp, 400.dp)) {
-                Conversation(ConversationState("room", "me", messages = rows), {},
+                Conversation(
+                    ConversationState("room", "me", messages = rows),
+                    {},
                     messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
                     composerContent = {
-                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(composerHeight.value).testTag("host-composer"))
-                    })
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxWidth().height(composerHeight.value).testTag("host-composer"),
+                        )
+                    },
+                )
             }
         }
         fun bounds(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
-        assertEquals(bounds("host-composer").bottom, bounds("timeline").bottom, 1f,
-            "The timeline must extend behind the composer instead of ending at its top")
-        assertTrue(bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
-            "Latest rests fully above the overlaid composer with breathing room")
+        assertEquals(
+            bounds("host-composer").bottom,
+            bounds("timeline").bottom,
+            1f,
+            "The timeline must extend behind the composer instead of ending at its top",
+        )
+        assertTrue(
+            bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
+            "Latest rests fully above the overlaid composer with breathing room",
+        )
         compose.runOnIdle { composerHeight.value = 144.dp }
-        assertTrue(bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
-            "Composer growth must retain the latest message above the input")
+        assertTrue(
+            bounds("message-m39").bottom <= bounds("host-composer").top - 11f,
+            "Composer growth must retain the latest message above the input",
+        )
         compose.onNodeWithTag("timeline").performScrollToIndex(10)
         val anchor = bounds("message-m10").top
         compose.runOnIdle { composerHeight.value = 72.dp }
@@ -54,11 +85,16 @@ class ConversationSlotTest {
         val c = a.copy(id = "c", sender = Participant("sam", "Avery"), text = "C")
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(a, b, c)))
         compose.setContent {
-            Conversation(snapshot.value, {}, slots = ConversationSlots(message = { _, _, _ -> BasicText("bundle") }),
+            Conversation(
+                snapshot.value,
+                {},
+                slots = ConversationSlots(message = { _, _, _ -> BasicText("bundle") }),
                 messageContent = { row, _, _ ->
                     val group = LocalMessageGroupContext.current
                     BasicText("${row.id}: ${group.isFirst}/${group.isLast}")
-                }, composerContent = {})
+                },
+                composerContent = {},
+            )
         }
         compose.onNodeWithText("a: true/false").assertExists()
         compose.onNodeWithText("b: false/true").assertExists()
@@ -107,9 +143,11 @@ class ConversationSlotTest {
                 messageContent = { _, _, _ -> },
                 composerContent = { content ->
                     BasicText(content.draft.text)
-                    BasicText(if (custom.value) "Custom send" else "Default send",
+                    BasicText(
+                        if (custom.value) "Custom send" else "Default send",
                         Modifier.clickable(enabled = content.canSend, onClick = content.onSend)
-                            .semantics { if (!content.canSend) disabled() })
+                            .semantics { if (!content.canSend) disabled() },
+                    )
                 },
             )
         }
@@ -141,10 +179,13 @@ class ConversationSlotTest {
             composer.onSend()
             composer.onTextChange("After send")
             composer.onSend()
-            assertEquals<List<ConversationEvent>>(listOf(
-                ConversationEvent.DraftChanged("room", "Before send"),
-                ConversationEvent.SendDraft("room", 2, "Hello\n🌍"),
-            ), events)
+            assertEquals<List<ConversationEvent>>(
+                listOf(
+                    ConversationEvent.DraftChanged("room", "Before send"),
+                    ConversationEvent.SendDraft("room", 2, "Hello\n🌍"),
+                ),
+                events,
+            )
         }
     }
 }

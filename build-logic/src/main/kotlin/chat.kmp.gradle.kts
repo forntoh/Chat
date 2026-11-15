@@ -4,7 +4,10 @@ plugins {
 }
 kotlin {
     jvmToolchain(21)
-    android { compileSdk = 37; minSdk = 24 }
+    android {
+        compileSdk = 37
+        minSdk = 24
+    }
     jvm()
     iosArm64()
     iosSimulatorArm64()

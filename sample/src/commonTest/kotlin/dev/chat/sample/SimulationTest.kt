@@ -1,7 +1,13 @@
 package dev.chat.sample
 
-import dev.forntoh.chat.core.*
-import kotlin.test.*
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.Delivery
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** Checks the approved host event/snapshot seam with logical clock advancement only. */
 class SimulationTest {
@@ -30,6 +36,7 @@ class SimulationTest {
         assertEquals(host.state, repeated.state)
         assertEquals(host.trace, repeated.trace)
     }
+
     @Test fun refusalRetainsExactDraftAndRepeatedPendingSendIsIgnored() {
         val host = FakeHost().apply { startSimulation(Scenario.Refusal) }
         send(host, "  Keep\nthis draft 🌍  ")
@@ -93,7 +100,10 @@ class SimulationTest {
     }
 
     @Test fun pausedClockStepsEqualDeadlinesAndOldAcknowledgementCannotClearNewDraft() {
-        val host = FakeHost().apply { startSimulation(); configureDelays(0, 0) }
+        val host = FakeHost().apply {
+            startSimulation()
+            configureDelays(0, 0)
+        }
         host.pause(true)
         send(host, "First")
         val old = host.pendingDraft!!
@@ -115,7 +125,10 @@ class SimulationTest {
     }
 
     @Test fun configuredDelaysAndTraceStayBoundedWithFixtureDataOnly() {
-        val host = FakeHost().apply { startSimulation(); configureDelays(1_200, 2_000) }
+        val host = FakeHost().apply {
+            startSimulation()
+            configureDelays(1_200, 2_000)
+        }
         send(host, "PRIVATE DRAFT MUST NOT ENTER TRACE")
         host.advanceBy(1_199)
         assertTrue(host.state.draft.submitting)
@@ -125,7 +138,11 @@ class SimulationTest {
         assertEquals(Delivery.Sending, host.state.messages.last().delivery)
         host.advanceBy(1)
         assertEquals(Delivery.Sent, host.state.messages.last().delivery)
-        repeat(30) { send(host, "fixture"); host.step(); host.step() }
+        repeat(30) {
+            send(host, "fixture")
+            host.step()
+            host.step()
+        }
         assertTrue(host.trace.size <= 80)
         assertFalse(host.trace.any { "PRIVATE" in it || "fixture" in it })
     }
@@ -135,7 +152,8 @@ class SimulationTest {
             val first = FakeHost().apply { startSimulation(scenario, 7) }
             val second = FakeHost().apply { startSimulation(scenario, 7) }
             assertEquals(first.state, second.state)
-            first.advanceBy(5_000); second.advanceBy(5_000)
+            first.advanceBy(5_000)
+            second.advanceBy(5_000)
             assertEquals(first.state, second.state)
             assertEquals(first.trace, second.trace)
             first.resetSimulation()
@@ -147,7 +165,10 @@ class SimulationTest {
     }
 
     @Test fun burstHistoryFailureEmptyAndDisconnectUsePublicSnapshots() {
-        val burst = FakeHost().apply { startSimulation(Scenario.IncomingBurst); advanceBy(2_000) }
+        val burst = FakeHost().apply {
+            startSimulation(Scenario.IncomingBurst)
+            advanceBy(2_000)
+        }
         assertEquals(10, burst.state.messages.size)
         val history = FakeHost().apply { startSimulation(Scenario.History) }
         history.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", history.history.revision))
@@ -158,23 +179,35 @@ class SimulationTest {
         assertEquals(100, history.state.messages.size)
         assertEquals(100, history.state.messages.map { it.id }.distinct().size)
         val empty = FakeHost().apply { startSimulation(Scenario.EmptyHistory) }
-        empty.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", empty.history.revision)); empty.step()
+        empty.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", empty.history.revision))
+        empty.step()
         assertTrue(empty.state.messages.isEmpty())
         assertEquals(dev.forntoh.chat.ui.HistoryStatus.Exhausted, empty.history.status)
         val disconnected = FakeHost().apply { startSimulation(Scenario.Disconnected) }
         send(disconnected, "Retain until retry")
-        disconnected.step(); disconnected.step()
+        disconnected.step()
+        disconnected.step()
         assertEquals(Delivery.Failed, disconnected.state.messages.last().delivery)
         disconnected.changeConnection(true)
         val id = disconnected.state.messages.last().id
-        disconnected.onEvent(ConversationEvent.RetryMessage("studio", id)); disconnected.step()
+        disconnected.onEvent(ConversationEvent.RetryMessage("studio", id))
+        disconnected.step()
         assertEquals(Delivery.Sent, disconnected.state.messages.single { it.id == id }.delivery)
     }
 
     @Test fun mediaFixtureIncludesFallbacksAndProgressResetInvalidatesOldTargets() {
         val host = FakeMediaHost().apply { resetSimulation() }
-        assertEquals(setOf(dev.forntoh.chat.media.ImageStatus.Ready, dev.forntoh.chat.media.ImageStatus.Loading,
-            dev.forntoh.chat.media.ImageStatus.Missing, dev.forntoh.chat.media.ImageStatus.Unsupported), host.media.images.values.map { it.status }.toSet())
+        assertEquals(
+            setOf(
+                dev.forntoh.chat.media.ImageStatus.Ready,
+                dev.forntoh.chat.media.ImageStatus.Loading,
+                dev.forntoh.chat.media.ImageStatus.Missing,
+                dev.forntoh.chat.media.ImageStatus.Unsupported,
+            ),
+            host.media.images.values.map {
+                it.status
+            }.toSet(),
+        )
         val row = host.state.messages.first()
         val target = dev.forntoh.chat.media.MediaTarget(host.state.conversationId, row.attachments.first(), message = row)
         host.resetSimulation()
@@ -184,13 +217,22 @@ class SimulationTest {
 
     @Test fun resetRejectsSavedSelectionRemovalUploadAndRenderResultsWhilePreservingNewDraft() {
         val host = FakeMediaHost()
-        val selection = dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.Select,
-            host.media.revision, dev.forntoh.chat.media.MediaTarget(host.state.conversationId, draft = host.state.draft))
+        val selection = dev.forntoh.chat.media.MediaRequest(
+            dev.forntoh.chat.media.MediaCommand.Select,
+            host.media.revision,
+            dev.forntoh.chat.media.MediaTarget(host.state.conversationId, draft = host.state.draft),
+        )
         host.onRequest(selection)
         host.resolveSelection(choose = true)
-        val removal = dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.Remove,
-            host.media.revision, dev.forntoh.chat.media.MediaTarget(host.state.conversationId,
-                host.state.draft.attachments.single(), draft = host.state.draft))
+        val removal = dev.forntoh.chat.media.MediaRequest(
+            dev.forntoh.chat.media.MediaCommand.Remove,
+            host.media.revision,
+            dev.forntoh.chat.media.MediaTarget(
+                host.state.conversationId,
+                host.state.draft.attachments.single(),
+                draft = host.state.draft,
+            ),
+        )
         val draft = host.state.draft
         host.onEvent(ConversationEvent.SendDraft(host.state.conversationId, draft.revision, draft.text, draft.attachments))
         host.resolveDraft(true)
@@ -232,7 +274,8 @@ class SimulationTest {
         val host = FakeMediaHost().apply { resetSimulation() }
         val target = host.media.images.entries.first { it.value.status == dev.forntoh.chat.media.ImageStatus.Ready }.key
         val obsoleteFailure = host.renderFailureCallback(target)
-        host.switchRoom(); host.switchRoom()
+        host.switchRoom()
+        host.switchRoom()
         assertTrue(host.current(target)) // Sent snapshots deliberately survive navigation.
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "New room session caption"))
         host.onRequest(dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.View, host.media.revision, target))
@@ -250,8 +293,8 @@ class SimulationTest {
 
     @Test fun actionFailureRetriesAndSwitchRejectsLateCompletion() {
         val host = FakeHost().apply { startSimulation(Scenario.Actions) }
-        fun request(command: dev.forntoh.chat.actions.ActionCommand) = host.onAction(dev.forntoh.chat.actions.ActionRequest(
-            host.state.conversationId, host.actions.revision, command, "confirmed"))
+        fun request(command: dev.forntoh.chat.actions.ActionCommand) =
+            host.onAction(dev.forntoh.chat.actions.ActionRequest(host.state.conversationId, host.actions.revision, command, "confirmed"))
         request(dev.forntoh.chat.actions.ActionCommand.RequestDelete)
         request(dev.forntoh.chat.actions.ActionCommand.ConfirmDelete)
         host.step()
@@ -263,7 +306,9 @@ class SimulationTest {
         host.resetSimulation()
         request(dev.forntoh.chat.actions.ActionCommand.RequestDelete)
         request(dev.forntoh.chat.actions.ActionCommand.ConfirmDelete)
-        host.switchRoom(); host.switchRoom(); host.advanceBy(10_000)
+        host.switchRoom()
+        host.switchRoom()
+        host.advanceBy(10_000)
         assertNull(host.pendingAction)
         assertFalse(host.actions.pending)
         assertTrue(host.state.messages.any { it.id == "confirmed" })
@@ -271,16 +316,30 @@ class SimulationTest {
 
     @Test fun revokingPendingEditOrDeleteCannotReviveItsResultAfterRestoringCapability() {
         for (deleting in listOf(false, true)) {
-            val host = FakeHost().apply { startSimulation(Scenario.Capabilities); pause(true) }
+            val host = FakeHost().apply {
+                startSimulation(Scenario.Capabilities)
+                pause(true)
+            }
             val original = host.state.messages.last()
             host.onEvent(ConversationEvent.DraftChanged("studio", "Unrelated draft"))
-            fun request(command: dev.forntoh.chat.actions.ActionCommand, text: String? = null) =
-                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
-                    command, original.id, text, host.state.draft.revision))
-            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.RequestDelete else dev.forntoh.chat.actions.ActionCommand.BeginEdit)
+            fun request(command: dev.forntoh.chat.actions.ActionCommand, text: String? = null) = host.onAction(
+                dev.forntoh.chat.actions.ActionRequest(
+                    "studio",
+                    host.actions.revision,
+                    command,
+                    original.id,
+                    text,
+                    host.state.draft.revision,
+                ),
+            )
+            request(
+                if (deleting) dev.forntoh.chat.actions.ActionCommand.RequestDelete else dev.forntoh.chat.actions.ActionCommand.BeginEdit,
+            )
             if (!deleting) host.onEvent(ConversationEvent.DraftChanged("studio", "Obsolete edit"))
-            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.ConfirmDelete else dev.forntoh.chat.actions.ActionCommand.SubmitEdit,
-                if (deleting) null else "Obsolete edit")
+            request(
+                if (deleting) dev.forntoh.chat.actions.ActionCommand.ConfirmDelete else dev.forntoh.chat.actions.ActionCommand.SubmitEdit,
+                if (deleting) null else "Obsolete edit",
+            )
             assertTrue(host.actions.pending)
             host.revokeActions(original.id)
             host.allowActions(original.id)
@@ -288,14 +347,19 @@ class SimulationTest {
             assertEquals(original, host.state.messages.single { it.id == original.id })
             assertFalse(host.actions.pending)
             assertNotNull(host.actions.error)
-            request(if (deleting) dev.forntoh.chat.actions.ActionCommand.CancelDelete else dev.forntoh.chat.actions.ActionCommand.CancelEdit)
+            request(
+                if (deleting) dev.forntoh.chat.actions.ActionCommand.CancelDelete else dev.forntoh.chat.actions.ActionCommand.CancelEdit,
+            )
             assertEquals("Unrelated draft", host.state.draft.text)
         }
     }
 
     @Test fun resettingHistoryCannotReuseAnOldRequestWhileNewHistoryIsPending() {
         for (switchBeforeReset in listOf(false, true)) {
-            val host = FakeHost().apply { startSimulation(Scenario.History); pause(true) }
+            val host = FakeHost().apply {
+                startSimulation(Scenario.History)
+                pause(true)
+            }
             host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
             val old = host.pendingHistory!!
             if (switchBeforeReset) host.switchRoom()
@@ -319,7 +383,10 @@ class SimulationTest {
     }
 
     @Test fun overlappingHistoryExhaustsWithoutReorderingOrErasingTheDraft() {
-        val host = FakeHost().apply { startSimulation(Scenario.History); pause(true) }
+        val host = FakeHost().apply {
+            startSimulation(Scenario.History)
+            pause(true)
+        }
         host.onEvent(ConversationEvent.DraftChanged("studio", "Keep while paging"))
         repeat(20) {
             host.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", host.history.revision))
@@ -345,10 +412,19 @@ class SimulationTest {
 
     @Test fun resetRejectsOldMenuRequestsIncludingThoseRetainedBeforeSwitchingRooms() {
         for (switchBeforeReset in listOf(false, true)) {
-            for (command in listOf(dev.forntoh.chat.actions.ActionCommand.RequestDelete, dev.forntoh.chat.actions.ActionCommand.BeginEdit)) {
+            for (command in listOf(
+                dev.forntoh.chat.actions.ActionCommand.RequestDelete,
+                dev.forntoh.chat.actions.ActionCommand.BeginEdit,
+            )) {
                 val host = FakeHost().apply { startSimulation(Scenario.Capabilities) }
-                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
-                    dev.forntoh.chat.actions.ActionCommand.OpenMenu, "confirmed"))
+                host.onAction(
+                    dev.forntoh.chat.actions.ActionRequest(
+                        "studio",
+                        host.actions.revision,
+                        dev.forntoh.chat.actions.ActionCommand.OpenMenu,
+                        "confirmed",
+                    ),
+                )
                 val old = dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision, command, "confirmed")
                 if (switchBeforeReset) host.switchRoom()
                 host.resetSimulation()
@@ -362,12 +438,18 @@ class SimulationTest {
                 host.onAction(old.copy(revision = host.actions.revision))
                 if (command == dev.forntoh.chat.actions.ActionCommand.BeginEdit) {
                     assertEquals("confirmed", host.actions.editing?.original?.id)
-                    host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
-                        dev.forntoh.chat.actions.ActionCommand.CancelEdit))
-                } else assertEquals("confirmed", host.actions.deleting?.id)
+                    host.onAction(
+                        dev.forntoh.chat.actions.ActionRequest(
+                            "studio",
+                            host.actions.revision,
+                            dev.forntoh.chat.actions.ActionCommand.CancelEdit,
+                        ),
+                    )
+                } else {
+                    assertEquals("confirmed", host.actions.deleting?.id)
+                }
                 assertEquals("New session draft", host.state.draft.text)
             }
         }
     }
-
 }

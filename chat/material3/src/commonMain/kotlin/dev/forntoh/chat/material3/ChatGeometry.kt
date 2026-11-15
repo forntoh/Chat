@@ -7,8 +7,8 @@ internal object ChatGeometry {
     val Avatar = 30.dp
     val AvatarGap = 6.dp
     val BubbleMaxWidth = 560.dp
-    const val IncomingRowWidthFraction = 0.88f
-    const val OutgoingRowWidthFraction = 0.82f
+    const val INCOMING_ROW_WIDTH_FRACTION = 0.88f
+    const val OUTGOING_ROW_WIDTH_FRACTION = 0.82f
     val BubbleRadius = 20.dp
     val JoinedRadius = 6.dp
     val BubbleHorizontalPadding = 12.dp

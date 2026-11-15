@@ -1,11 +1,20 @@
 package dev.chat.sample.android
 
-import androidx.compose.ui.test.*
+import android.graphics.Bitmap
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.then
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
-import androidx.test.platform.app.InstrumentationRegistry
-import android.graphics.Bitmap
 import java.io.File
 
 class ConversationJourney {
@@ -29,7 +38,6 @@ class ConversationJourney {
         compose.onNodeWithTag("composer").assertTextContains("Retained draft")
         compose.onNodeWithText("Send").assertIsDisplayed()
         capture("android-retained-draft")
-
     }
 
     @Test fun copyActionUsesAndroidClipboard() {
@@ -38,8 +46,10 @@ class ConversationJourney {
         compose.runOnIdle {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            org.junit.Assert.assertEquals("Welcome! Send a message, then choose its delivery outcome.",
-                clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString())
+            org.junit.Assert.assertEquals(
+                "Welcome! Send a message, then choose its delivery outcome.",
+                clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString(),
+            )
         }
         capture("android-message-actions-copy")
     }

@@ -1,4 +1,4 @@
- package dev.forntoh.chat.core
+package dev.forntoh.chat.core
 
 /**
  * Presentation-neutral host content. Identity [id] is stable within its conversation and draft
@@ -15,7 +15,9 @@ data class Attachment(
     val id: String,
     val mediaType: String,
     val contentReference: String?,
-    val description: String? = null
+    val description: String? = null,
 ) {
-    init { require(id.isNotBlank()) { "Attachment identity must not be blank" } }
+    init {
+        require(id.isNotBlank()) { "Attachment identity must not be blank" }
+    }
 }

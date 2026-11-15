@@ -1,20 +1,45 @@
 package dev.chat.sample
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
-import java.awt.image.BufferedImage
-import java.awt.RenderingHints
-import java.io.File
-import javax.imageio.ImageIO
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.height
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.left
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.right
+import androidx.compose.ui.test.width
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Message
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.*
-import dev.forntoh.chat.core.*
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MediaSampleTest {
     @Test fun simulatedRenderFailureUsesPublicFallbackWithoutRevokingResourceOrChangingDraft() {
@@ -47,11 +72,13 @@ class MediaSampleTest {
         val scaled = BufferedImage(320, (pixels.height * 320.0 / pixels.width).toInt(), BufferedImage.TYPE_INT_ARGB)
         scaled.createGraphics().apply {
             setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
-            drawImage(raw, 0, 0, scaled.width, scaled.height, null); dispose()
+            drawImage(raw, 0, 0, scaled.width, scaled.height, null)
+            dispose()
         }
         val directory = File("build/pat245-evidence").apply { mkdirs() }
         ImageIO.write(scaled, "png", File(directory, "$name.png"))
     }
+
     @Test fun automaticServiceCompletesEveryAcceptedImage() {
         val host = FakeMediaHost()
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
@@ -72,7 +99,9 @@ class MediaSampleTest {
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
         compose.onNodeWithTag("message-${host.state.messages.first().id}").performScrollTo()
         fun bubble(row: Message) = compose.onNodeWithContentDescription(
-            dev.forntoh.chat.material3.chatConversationSlots().messageDescription(row), useUnmergedTree = true)
+            dev.forntoh.chat.material3.chatConversationSlots().messageDescription(row),
+            useUnmergedTree = true,
+        )
             .fetchSemanticsNode().boundsInRoot
         val incoming = bubble(host.state.messages.first())
         val ready = compose.onNodeWithContentDescription("Image attachment").fetchSemanticsNode().boundsInRoot
@@ -156,7 +185,10 @@ class MediaSampleTest {
         compose.onNodeWithText("Image unavailable").assertExists()
         compose.runOnIdle { host.completeUpload(true, oldUpload) }
         compose.onNodeWithTag("composer").assertTextContains("Newer unrelated draft")
-        compose.runOnIdle { assertFalse(host.current(oldUpload)); assertNull(host.upload) }
+        compose.runOnIdle {
+            assertFalse(host.current(oldUpload))
+            assertNull(host.upload)
+        }
         compose.onNodeWithText("Retry upload").performScrollTo().performClick()
         mediaDemo("Complete upload")
         compose.runOnIdle { assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
@@ -219,6 +251,7 @@ class MediaSampleTest {
         compose.onNodeWithText("Image unavailable").assertExists()
         capture("08-simulator-fallbacks")
     }
+
     @Test fun bundledImageJourneyRetainsDraftOnCancelDenyAndFailureThenRetriesSameIdentity() {
         val host = FakeMediaHost()
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
@@ -254,12 +287,16 @@ class MediaSampleTest {
         compose.runOnIdle { assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
         compose.onNodeWithText("Retry upload").performClick()
         mediaDemo("Complete upload")
-        compose.runOnIdle { assertEquals(id, host.state.messages.single().id); assertEquals(Delivery.Sent, host.state.messages.single().delivery) }
+        compose.runOnIdle {
+            assertEquals(id, host.state.messages.single().id)
+            assertEquals(Delivery.Sent, host.state.messages.single().delivery)
+        }
         compose.onNodeWithContentDescription("Bundled mountain illustration").performClick()
         compose.onNodeWithText("Shared image").assertExists()
         capture("05-host-viewer")
         compose.onNodeWithText("Close viewer").performClick()
     }
+
     @Test fun oldSelectionAndUploadResultsCannotAffectAnotherRoomOrRemovedDraft() {
         val host = FakeMediaHost()
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
@@ -268,11 +305,20 @@ class MediaSampleTest {
         val oldSelection = host.selection
         compose.onNodeWithText("Choose bundled image").performClick()
         compose.onNodeWithText("Remove image").performClick()
-        compose.runOnIdle { host.resolveSelection(choose = true, request = oldSelection); assertTrue(host.state.draft.attachments.isEmpty()) }
+        compose.runOnIdle {
+            host.resolveSelection(choose = true, request = oldSelection)
+            assertTrue(host.state.draft.attachments.isEmpty())
+        }
         compose.onNodeWithContentDescription("Attach image").performClick()
         val navigationSelection = host.selection
-        compose.runOnIdle { host.switchRoom(); host.switchRoom() }
-        compose.runOnIdle { host.resolveSelection(choose = true, request = navigationSelection); assertTrue(host.state.draft.attachments.isEmpty()) }
+        compose.runOnIdle {
+            host.switchRoom()
+            host.switchRoom()
+        }
+        compose.runOnIdle {
+            host.resolveSelection(choose = true, request = navigationSelection)
+            assertTrue(host.state.draft.attachments.isEmpty())
+        }
         compose.onNodeWithTag("composer").assertTextContains("Retained")
         compose.onNodeWithContentDescription("Attach image").performClick()
         compose.onNodeWithText("Choose bundled image").performClick()
@@ -280,9 +326,15 @@ class MediaSampleTest {
         mediaDemo("Accept image draft")
         val oldUpload = host.upload
         mediaDemo("Switch media room")
-        compose.runOnIdle { host.completeUpload(true, oldUpload); assertTrue(host.state.messages.isEmpty()) }
+        compose.runOnIdle {
+            host.completeUpload(true, oldUpload)
+            assertTrue(host.state.messages.isEmpty())
+        }
         mediaDemo("Switch media room")
-        compose.runOnIdle { host.completeUpload(true, oldUpload); assertEquals(Delivery.Failed, host.state.messages.single().delivery) }
+        compose.runOnIdle {
+            host.completeUpload(true, oldUpload)
+            assertEquals(Delivery.Failed, host.state.messages.single().delivery)
+        }
         compose.onNodeWithText("Couldn't upload image").assertExists()
     }
 
@@ -332,5 +384,4 @@ class MediaSampleTest {
         }
         capture("07-resolved-uploads")
     }
-
 }

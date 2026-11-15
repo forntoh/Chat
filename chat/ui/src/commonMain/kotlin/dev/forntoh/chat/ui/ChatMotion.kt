@@ -4,22 +4,22 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 /**
  * Presentation-only timing shared by the timeline and optional renderers. Provide [LocalChatMotion]
@@ -42,7 +42,7 @@ data class ChatMotion(
 ) {
     init {
         require(controlMillis >= 0 && sizeMillis >= 0 && insertionMillis >= 0)
-        require(latestMillis in 0..360)
+        require(latestMillis in 0..MAX_LATEST_MILLIS)
     }
     fun duration(millis: Int): Int = if (enabled) millis else 0
 }
@@ -62,11 +62,11 @@ fun Modifier.chatContentSize(): Modifier {
 /** Finite fade for content whose presentation does not depend on visibility. For changing
  * presentation data, use the snapshot overload so exiting pixels retain their prior value. */
 @Composable
-fun ChatMotionVisibility(
-    visible: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) = ChatMotionVisibility(if (visible) Unit else null, modifier) { content() }
+fun ChatMotionVisibility(visible: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) = ChatMotionVisibility(
+    value = if (visible) Unit else null,
+    modifier = modifier,
+    content = { content() },
+)
 
 /**
  * Finite fade retaining the last non-null immutable presentation [value] until exit finishes.
@@ -81,7 +81,7 @@ fun <T : Any> ChatMotionVisibility(
     value: T?,
     modifier: Modifier = Modifier,
     initiallyVisible: Boolean = value != null,
-    content: @Composable (T) -> Unit
+    content: @Composable (T) -> Unit,
 ) {
     val motion = LocalChatMotion.current
     if (!motion.enabled || motion.controlMillis == 0) {
@@ -102,14 +102,22 @@ fun <T : Any> ChatMotionVisibility(
         exit = fadeOut(tween(motion.controlMillis, easing = motion.easing)),
     ) {
         Box(
-            if (value != null) Modifier else Modifier
-                .clearAndSetSemantics { }
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) awaitPointerEvent(PointerEventPass.Initial)
-                            .changes.forEach { it.consume() }
+            if (value != null) {
+                Modifier
+            } else {
+                Modifier
+                    .clearAndSetSemantics { }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                    .changes.forEach { it.consume() }
+                            }
+                        }
                     }
-                }
+            },
         ) { (value ?: retained.value)?.let { content(it) } }
     }
 }
+
+private const val MAX_LATEST_MILLIS = 360

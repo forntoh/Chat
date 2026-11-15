@@ -1,34 +1,34 @@
 package dev.forntoh.chat.material3
 
-import androidx.compose.ui.draw.clip
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.HorizontalAlignmentLine
-import androidx.compose.ui.layout.VerticalAlignmentLine
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.HorizontalAlignmentLine
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import dev.forntoh.chat.core.Message
-import dev.forntoh.chat.ui.LocalChatMotion
 import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.LocalChatMotion
 
 /**
  * Splits one [ConversationSlots.messageMetadata] invocation into a heading above the bubble and
@@ -43,10 +43,7 @@ import dev.forntoh.chat.ui.ConversationSlots
  * This supplies presentation only; it owns no state, identities, intents or transport.
  */
 @Composable
-fun MessageMetadata(
-    header: @Composable () -> Unit = {},
-    footer: @Composable () -> Unit
-) {
+fun MessageMetadata(header: @Composable () -> Unit = {}, footer: @Composable () -> Unit) {
     Box(Modifier.layoutId(MetadataElement.Header)) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) { header() }
     }
@@ -73,16 +70,20 @@ internal fun MessageBubbleLayout(
     slots: ConversationSlots,
     shape: Shape,
     bubbleModifier: Modifier,
-    highlighted: Boolean
+    highlighted: Boolean,
 ) {
     val bubbleColor =
         if (outgoing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
     val motion = LocalChatMotion.current
-    val targetColor = if (highlighted) lerp(
+    val targetColor = if (highlighted) {
+        lerp(
             bubbleColor,
             MaterialTheme.colorScheme.tertiaryContainer,
-            0.35f
-        ) else bubbleColor
+            0.35f,
+        )
+    } else {
+        bubbleColor
+    }
     val displayedColor = if (motion.enabled) {
         val animated by animateColorAsState(targetColor, animationSpec = tween(motion.controlMillis, easing = motion.easing))
         animated
@@ -118,18 +119,18 @@ private fun MessageBubbleContent(
     message: Message,
     outgoing: Boolean,
     slots: ConversationSlots,
-    bubbleContentColor: androidx.compose.ui.graphics.Color
+    bubbleContentColor: androidx.compose.ui.graphics.Color,
 ) {
     Layout(
         modifier = Modifier,
         content = {
             CompositionLocalProvider(
                 LocalContentColor provides bubbleContentColor,
-                LocalBubbleOutgoing provides outgoing
+                LocalBubbleOutgoing provides outgoing,
             ) {
                 Column(
                     Modifier.layoutId(MetadataElement.Body),
-                    verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap)
+                    verticalArrangement = Arrangement.spacedBy(ChatGeometry.ContentGap),
                 ) {
                     slots.messageBody(message)
                 }
@@ -155,21 +156,27 @@ private fun MessageBubbleContent(
             (maxInnerWidth - delivery.width - if (hasDelivery) metadataGap else 0).coerceAtLeast(0)
         val footers = children.filter {
             it.layoutId != MetadataElement.Header && it.layoutId != MetadataElement.Body &&
-                    it.layoutId != MetadataElement.Delivery
+                it.layoutId != MetadataElement.Delivery
         }
             .map { it.measure(Constraints(maxWidth = footerWidthLimit)) }.filter { it.height > 0 }
         val metadataWidth = footers.maxOfOrNull { it.width } ?: 0
         val metadataHeight = footers.sumOf { it.height } + gap * (footers.size - 1).coerceAtLeast(0)
         val hasFooter = footers.isNotEmpty() || hasDelivery
-        val footerWidth = (metadataWidth + delivery.width +
-                if (footers.isNotEmpty() && hasDelivery) metadataGap else 0).coerceAtMost(
-            maxInnerWidth
+        val footerWidth = (
+            metadataWidth + delivery.width +
+                if (footers.isNotEmpty() && hasDelivery) metadataGap else 0
+            ).coerceAtMost(
+            maxInnerWidth,
         )
-        val footerHeight = if (hasFooter) maxOf(
-            metadataHeight,
-            delivery.height,
-            ChatGeometry.MetadataMinHeight.roundToPx()
-        ) else 0
+        val footerHeight = if (hasFooter) {
+            maxOf(
+                metadataHeight,
+                delivery.height,
+                ChatGeometry.MetadataMinHeight.roundToPx(),
+            )
+        } else {
+            0
+        }
         val textRight =
             body[LastTextRight].takeUnless { it == AlignmentLine.Unspecified } ?: body.width
         val textTop = body[LastTextTop].takeUnless { it == AlignmentLine.Unspecified } ?: 0
@@ -179,8 +186,9 @@ private fun MessageBubbleContent(
         val inline =
             hasFooter && textBottom == body.height && textRight + metadataGap + footerWidth <= maxInnerWidth
         val innerWidth = maxOf(
-            body.width, if (inline) textRight + metadataGap + footerWidth else footerWidth,
-            if (outgoing && hasFooter) textRight + metadataGap + ChatGeometry.OutgoingMetadataMinWidth.roundToPx() else 0
+            body.width,
+            if (inline) textRight + metadataGap + footerWidth else footerWidth,
+            if (outgoing && hasFooter) textRight + metadataGap + ChatGeometry.OutgoingMetadataMinWidth.roundToPx() else 0,
         ).coerceAtMost(maxInnerWidth)
         val bubbleWidth = innerWidth + 2 * padX
         val footerTop =
@@ -195,7 +203,7 @@ private fun MessageBubbleContent(
         layout(
             width = width,
             height = height,
-            alignmentLines = mapOf(BubbleWidth to bubbleWidth, BubbleTop to bubbleTop, BubbleHeight to bubbleHeight)
+            alignmentLines = mapOf(BubbleWidth to bubbleWidth, BubbleTop to bubbleTop, BubbleHeight to bubbleHeight),
         ) {
             val bubbleX = if (outgoing) width - bubbleWidth else 0
             var headerY = 0
@@ -209,14 +217,16 @@ private fun MessageBubbleContent(
             footers.forEach {
                 it.placeRelative(
                     bubbleX + padX + innerWidth - delivery.width - (if (hasDelivery) metadataGap else 0) - it.width,
-                    metadataY
+                    metadataY,
                 )
                 metadataY += it.height + gap
             }
-            if (hasDelivery) delivery.placeRelative(
-                bubbleX + padX + innerWidth - delivery.width,
-                footerY + footerHeight - delivery.height
-            )
+            if (hasDelivery) {
+                delivery.placeRelative(
+                    bubbleX + padX + innerWidth - delivery.width,
+                    footerY + footerHeight - delivery.height,
+                )
+            }
         }
     }
 }

@@ -1,21 +1,50 @@
 package dev.forntoh.chat.media
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.visible
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.runtime.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.Message
-import dev.forntoh.chat.ui.*
+import dev.forntoh.chat.ui.ChatMotionVisibility
+import dev.forntoh.chat.ui.ComposerContent
+import dev.forntoh.chat.ui.Conversation
 
-data class MediaControlContent(val command: MediaCommand, val enabled: Boolean, val onClick: () -> Unit)
+data class MediaControlContent(
+    val command: MediaCommand,
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
 
-data class MediaFeedbackContent(val target: MediaTarget, val image: ImageState)
+data class MediaFeedbackContent(
+    val target: MediaTarget,
+    val image: ImageState,
+)
 
 /**
  * Replaceable media content; defaults use English foundation controls. [description] supplies
@@ -52,27 +81,35 @@ fun MediaTheme(textStyle: TextStyle, slots: MediaSlots = LocalMediaSlots.current
 /** Foundation control usable for delegation from custom slots; minimum target is 48 dp. */
 @Composable
 fun DefaultMediaControl(content: MediaControlContent) {
-    Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-        .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick).padding(8.dp)) {
-        BasicText(when (content.command) {
-            MediaCommand.Select -> "Attach image"
-            MediaCommand.Remove -> "Remove image"
-            MediaCommand.Retry -> "Retry upload"
-            MediaCommand.View -> "View image"
-        }, style = LocalMediaTextStyle.current)
+    Box(
+        Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(enabled = content.enabled, role = Role.Button, onClick = content.onClick).padding(8.dp),
+    ) {
+        BasicText(
+            when (content.command) {
+                MediaCommand.Select -> "Attach image"
+                MediaCommand.Remove -> "Remove image"
+                MediaCommand.Retry -> "Retry upload"
+                MediaCommand.View -> "View image"
+            },
+            style = LocalMediaTextStyle.current,
+        )
     }
 }
 
 @Composable
 fun DefaultMediaFeedback(content: MediaFeedbackContent) {
-    BasicText(when (content.image.status) {
-        ImageStatus.Ready -> "Image attachment"
-        ImageStatus.Uploading -> "Uploading image · ${(content.image.progress * 100).toInt()}%"
-        ImageStatus.Loading -> "Loading image…"
-        ImageStatus.Failed -> "Couldn't upload image"
-        ImageStatus.Missing -> "Image unavailable"
-        ImageStatus.Unsupported -> "Unsupported attachment"
-    }, style = LocalMediaTextStyle.current)
+    BasicText(
+        when (content.image.status) {
+            ImageStatus.Ready -> "Image attachment"
+            ImageStatus.Uploading -> "Uploading image · ${(content.image.progress * 100).toInt()}%"
+            ImageStatus.Loading -> "Loading image…"
+            ImageStatus.Failed -> "Couldn't upload image"
+            ImageStatus.Missing -> "Image unavailable"
+            ImageStatus.Unsupported -> "Unsupported attachment"
+        },
+        style = LocalMediaTextStyle.current,
+    )
 }
 
 /**
@@ -85,23 +122,32 @@ fun DefaultMediaFeedback(content: MediaFeedbackContent) {
  * failure as ImageState(Missing) for the exact target. Explicit [slots] override MediaTheme.
  */
 @Composable
-fun MediaDraft(media: MediaContent, composer: ComposerContent,
-    renderer: (@Composable (MediaTarget) -> Unit)? = null, slots: MediaSlots = LocalMediaSlots.current) {
+fun MediaDraft(
+    media: MediaContent,
+    composer: ComposerContent,
+    renderer: (@Composable (MediaTarget) -> Unit)? = null,
+    slots: MediaSlots = LocalMediaSlots.current,
+) {
     val adapted = media.composer(composer)
     key(media.conversation.conversationId) {
         Column {
-            slots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
-                media.request(MediaCommand.Select, composer = adapted)
-            })
+            slots.control(
+                MediaControlContent(MediaCommand.Select, !adapted.pending) {
+                    media.request(MediaCommand.Select, composer = adapted)
+                },
+            )
             media.state.selectionError?.let { slots.selectionError(it) }
             val initialIds = remember { composer.draft.attachments.map { it.id }.toSet() }
             val retainedIds = remember { mutableStateListOf<String>() }
             val previews = composer.draft.attachments.associate { attachment ->
                 val target = media.draftTarget(attachment)
-                attachment.id to DraftPreview(target, media.imageState(target),
+                attachment.id to DraftPreview(
+                    target,
+                    media.imageState(target),
                     MediaControlContent(MediaCommand.Remove, !adapted.pending) {
                         media.request(MediaCommand.Remove, target, adapted)
-                    })
+                    },
+                )
             }
             Column(Modifier.heightIn(max = 184.dp).verticalScroll(rememberScrollState())) {
                 (previews.keys + retainedIds.filterNot { it in previews }).forEach { id ->
@@ -126,7 +172,7 @@ fun MediaDraft(media: MediaContent, composer: ComposerContent,
 private data class DraftPreview(
     val target: MediaTarget,
     val image: ImageState,
-    val remove: MediaControlContent
+    val remove: MediaControlContent,
 )
 
 /**
@@ -136,8 +182,12 @@ private data class DraftPreview(
  * Host delivery is independent and must never report Sent before a failed upload is resolved.
  */
 @Composable
-fun MediaAttachments(media: MediaContent, message: Message,
-    renderer: (@Composable (MediaTarget) -> Unit)? = null, slots: MediaSlots = LocalMediaSlots.current) {
+fun MediaAttachments(
+    media: MediaContent,
+    message: Message,
+    renderer: (@Composable (MediaTarget) -> Unit)? = null,
+    slots: MediaSlots = LocalMediaSlots.current,
+) {
     Column { message.attachments.forEach { MediaImage(media, media.messageTarget(message, it), renderer, slots) } }
 }
 
@@ -147,7 +197,7 @@ private fun MediaImage(
     target: MediaTarget,
     renderer: (@Composable (MediaTarget) -> Unit)?,
     slots: MediaSlots,
-    supplied: ImageState = media.imageState(target)
+    supplied: ImageState = media.imageState(target),
 ) {
     val attachment = target.attachment!!
     val display = when {
@@ -158,13 +208,24 @@ private fun MediaImage(
     }
     Column {
         if (display.status == ImageStatus.Ready) {
-            Box(Modifier.clickable(enabled = target.message != null, role = Role.Button,
-                onClick = { media.request(MediaCommand.View, target) })
-                .semantics(mergeDescendants = true) { contentDescription = slots.description(target) }) {
+            Box(
+                Modifier.clickable(
+                    enabled = target.message != null,
+                    role = Role.Button,
+                    onClick = { media.request(MediaCommand.View, target) },
+                )
+                    .semantics(mergeDescendants = true) { contentDescription = slots.description(target) },
+            ) {
                 Box(Modifier.clearAndSetSemantics {}) { renderer!!(target) }
             }
-            if (target.message != null) slots.control(MediaControlContent(MediaCommand.View, true) { media.request(MediaCommand.View, target) })
-        } else slots.feedback(MediaFeedbackContent(target, display))
+            if (target.message !=
+                null
+            ) {
+                slots.control(MediaControlContent(MediaCommand.View, true) { media.request(MediaCommand.View, target) })
+            }
+        } else {
+            slots.feedback(MediaFeedbackContent(target, display))
+        }
         if (display.status == ImageStatus.Failed && target.message != null) {
             slots.control(MediaControlContent(MediaCommand.Retry, true) { media.request(MediaCommand.Retry, target) })
         }

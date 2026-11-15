@@ -1,16 +1,33 @@
 package dev.forntoh.chat.material3
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.testTag
-import dev.forntoh.chat.ui.LocalConversationViewportPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.ui.LocalConversationViewportPadding
 
 /**
  * Optional application shell around the shared Conversation. All chrome is host-authored:
@@ -49,22 +66,26 @@ fun ChatScaffold(
         contentWindowInsets = contentWindowInsets,
         topBar = {
             Box(Modifier.testTag("conversation-header")) {
-                if (topBar != null) topBar() else TopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            avatar()
-                            title()
-                        }
-                    },
-                    navigationIcon = navigationIcon,
-                    actions = actions,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        titleContentColor = contentColor
-                    ),
-                )
+                if (topBar != null) {
+                    topBar()
+                } else {
+                    TopAppBar(
+                        title = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                avatar()
+                                title()
+                            }
+                        },
+                        navigationIcon = navigationIcon,
+                        actions = actions,
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            titleContentColor = contentColor,
+                        ),
+                    )
+                }
             }
         },
         bottomBar = bottomBar,
@@ -75,14 +96,15 @@ fun ChatScaffold(
         CompositionLocalProvider(
             LocalConversationViewportPadding provides PaddingValues(
                 top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding()
-            )
+                bottom = padding.calculateBottomPadding(),
+            ),
         ) {
             Column(
                 Modifier.fillMaxSize().padding(
                     start = padding.calculateStartPadding(direction),
-                    end = padding.calculateEndPadding(direction)
-                ).consumeWindowInsets(padding), content = content
+                    end = padding.calculateEndPadding(direction),
+                ).consumeWindowInsets(padding),
+                content = content,
             )
         }
     }

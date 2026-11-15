@@ -6,4 +6,7 @@ package dev.forntoh.chat.core
  * @param id Stable host participant key, compared with [ConversationState.currentParticipantId].
  * @param displayName Host-provided readable sender label; need not be unique.
  */
-data class Participant(val id: String, val displayName: String)
+data class Participant(
+    val id: String,
+    val displayName: String,
+)

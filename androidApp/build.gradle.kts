@@ -1,13 +1,23 @@
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.plugin.compose") }
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
 android {
     namespace = "dev.chat.sample.android"
     compileSdk = 37
     defaultConfig {
-        applicationId = "dev.chat.sample.android"; minSdk = 24; targetSdk = 37; versionCode = 1; versionName = "0.1"
+        applicationId = "dev.chat.sample.android"
+        minSdk = 24
+        targetSdk = 37
+        versionCode = 1
+        versionName = "0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
 }
 dependencies {
     implementation(project(":sample"))

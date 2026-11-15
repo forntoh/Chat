@@ -1,23 +1,46 @@
 package dev.chat.sample
 
-import androidx.compose.ui.test.*
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.height
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.top
+import androidx.compose.ui.test.width
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.ui.HistoryRequest
+import org.junit.Rule
+import org.junit.Test
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
-import androidx.compose.ui.test.junit4.createComposeRule
-import org.junit.Rule
-import org.junit.Test
 import kotlin.test.assertEquals
-import dev.forntoh.chat.ui.*
-import dev.forntoh.chat.core.ConversationEvent
 
 class SampleJourneyTest {
     private fun demo(label: String) {
@@ -28,13 +51,19 @@ class SampleJourneyTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun contextualHistoryAndMissingQuotesRemainReadableInDefaultAndCustomModes() {
-        val host = FakeHost().apply { startSimulation(Scenario.EmptyHistory); pause(true) }
+        val host = FakeHost().apply {
+            startSimulation(Scenario.EmptyHistory)
+            pause(true)
+        }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
         compose.setContent { Box(Modifier.width(width.value).height(720.dp)) { SampleApp(host) } }
         for (custom in listOf(false, true)) {
             val mode = if (custom) "custom" else "default"
             if (custom) demo("Custom UI")
-            compose.runOnIdle { host.startSimulation(Scenario.EmptyHistory); host.pause(true) }
+            compose.runOnIdle {
+                host.startSimulation(Scenario.EmptyHistory)
+                host.pause(true)
+            }
             compose.runOnIdle { host.loadEarlier(HistoryRequest("studio", host.history.revision)) }
             compose.onNodeWithText("Loading messages…").assertExists()
             capture("pat269-$mode-empty-loading")
@@ -42,7 +71,8 @@ class SampleJourneyTest {
             compose.onNodeWithText("No messages yet").assertExists()
             capture("pat269-$mode-empty-exhausted")
             compose.runOnIdle {
-                host.startSimulation(Scenario.History); host.pause(true)
+                host.startSimulation(Scenario.History)
+                host.pause(true)
                 host.loadEarlier(HistoryRequest("studio", host.history.revision))
             }
             compose.onNodeWithTag("timeline").performScrollToIndex(0)
@@ -59,14 +89,24 @@ class SampleJourneyTest {
                 compose.runOnIdle { width.value = 360.dp }
             }
             compose.onNodeWithText("Couldn't load messages · Retry").performClick()
-            compose.runOnIdle { host.step(); assertEquals(100, host.state.messages.size) }
+            compose.runOnIdle {
+                host.step()
+                assertEquals(100, host.state.messages.size)
+            }
             compose.onNodeWithContentDescription("Latest", substring = true).performClick()
             compose.onNodeWithTag("message-history-999").assertIsDisplayed()
             compose.runOnIdle {
-                host.startSimulation(Scenario.Replies); host.pause(true)
+                host.startSimulation(Scenario.Replies)
+                host.pause(true)
                 host.onEvent(ConversationEvent.DraftChanged("studio", "Retain unrelated text"))
-                host.onAction(dev.forntoh.chat.actions.ActionRequest("studio", host.actions.revision,
-                    dev.forntoh.chat.actions.ActionCommand.Quote, "welcome"))
+                host.onAction(
+                    dev.forntoh.chat.actions.ActionRequest(
+                        "studio",
+                        host.actions.revision,
+                        dev.forntoh.chat.actions.ActionCommand.Quote,
+                        "welcome",
+                    ),
+                )
                 host.removeMessage("welcome")
             }
             compose.onNodeWithTag("composer").assertTextContains("Retain unrelated text")
@@ -78,7 +118,10 @@ class SampleJourneyTest {
     }
 
     @Test fun resettingScenarioRestoresInitialReadingPositionInDefaultAndCustomModes() {
-        val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
+        val host = FakeHost().apply {
+            startSimulation(Scenario.LongConversation)
+            pause(true)
+        }
         compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
         for (custom in listOf(false, true)) {
             if (custom) demo("Custom UI")
@@ -87,7 +130,10 @@ class SampleJourneyTest {
             compose.onNodeWithTag("timeline").performScrollToIndex(0)
             compose.onNodeWithTag("message-history-0").assertIsDisplayed()
             capture("pat272-${if (custom) "custom" else "default"}-reading-history")
-            compose.runOnIdle { host.resetSimulation(); host.pause(true) }
+            compose.runOnIdle {
+                host.resetSimulation()
+                host.pause(true)
+            }
             compose.onNodeWithTag("message-history-999").assertIsDisplayed()
             compose.onNodeWithContentDescription("Latest", substring = true).assertDoesNotExist()
             capture("pat272-${if (custom) "custom" else "default"}-reset-latest")
@@ -95,13 +141,19 @@ class SampleJourneyTest {
     }
 
     @Test fun longScenarioReturnsFromFirstRowToNewest() {
-        val host = FakeHost().apply { startSimulation(Scenario.LongConversation); pause(true) }
+        val host = FakeHost().apply {
+            startSimulation(Scenario.LongConversation)
+            pause(true)
+        }
         compose.setContent { Box(Modifier.size(402.dp, 720.dp)) { SampleApp(host) } }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         capture("simulator-long-top")
         compose.mainClock.autoAdvance = false
         compose.onNodeWithContentDescription("Latest", substring = true).performClick()
-        repeat(25) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        repeat(25) {
+            compose.mainClock.advanceTimeByFrame()
+            compose.waitForIdle()
+        }
         try {
             compose.onNodeWithText("Message 999").assertIsDisplayed()
         } finally {
@@ -109,8 +161,12 @@ class SampleJourneyTest {
         }
         capture("simulator-long-latest")
     }
+
     @Test fun simulationPanelListsScenarioCasesAndStartupReplyExamples() {
-        val host = FakeHost().apply { startSimulation(); pause(true) }
+        val host = FakeHost().apply {
+            startSimulation()
+            pause(true)
+        }
         compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
         compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).assertExists()
         capture("simulator-startup-replies")
@@ -119,14 +175,22 @@ class SampleJourneyTest {
         compose.onNodeWithText("Normal exchange").performClick()
         compose.onNodeWithText("Replies / missing target").performScrollTo().performClick()
         compose.onNodeWithText("Start selected scenario").performScrollTo().performClick()
-        compose.runOnIdle { assertEquals(Scenario.Replies, host.selectedScenario); host.pause(true) }
+        compose.runOnIdle {
+            assertEquals(Scenario.Replies, host.selectedScenario)
+            host.pause(true)
+        }
         capture("simulator-replies-debug")
     }
+
     @Test fun polishedConversationDemonstratesDefaultGroupsTypingSendingAndContextMenu() {
         val host = FakeHost().apply { useChatFixture() }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
-        compose.setContent { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier
-            .width(width.value).height(720.dp)) { SampleApp(host) } }
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(
+                androidx.compose.ui.Modifier
+                    .width(width.value).height(720.dp),
+            ) { SampleApp(host) }
+        }
         capture("pat254-01-default-groups")
         compose.onNodeWithText("History fixture").assertDoesNotExist()
         compose.onNodeWithText("Actions").assertDoesNotExist()
@@ -164,8 +228,10 @@ class SampleJourneyTest {
         val host = FakeHost()
         val draft = "Hello 🌍\n" + "unbroken".repeat(40)
         compose.setContent {
-            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier
-                .width(360.dp).height(720.dp)) { SampleApp(host, manualService = true) }
+            androidx.compose.foundation.layout.Box(
+                androidx.compose.ui.Modifier
+                    .width(360.dp).height(720.dp),
+            ) { SampleApp(host, manualService = true) }
         }
         capture("01-jetchat")
         compose.onNodeWithTag("composer").performTextInput(draft)

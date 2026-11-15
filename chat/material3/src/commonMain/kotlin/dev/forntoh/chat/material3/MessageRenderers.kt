@@ -1,15 +1,49 @@
 package dev.forntoh.chat.material3
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.visible
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.ui.*
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.ui.ChatMotionVisibility
+import dev.forntoh.chat.ui.ComposerContent
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.ConversationTheme
+import dev.forntoh.chat.ui.HistoryContent
+import dev.forntoh.chat.ui.HistoryFeedbackContent
+import dev.forntoh.chat.ui.HistoryStatus
+import dev.forntoh.chat.ui.LatestContent
+import dev.forntoh.chat.ui.LocalConversationSlots
+import dev.forntoh.chat.ui.LocalConversationViewportPadding
+import dev.forntoh.chat.ui.LocalMessageGroupContext
+import dev.forntoh.chat.ui.LocalMessagePresentation
+import dev.forntoh.chat.ui.MessagePresentation
+import dev.forntoh.chat.ui.RetryContent
 
 /**
  * Default grouped avatar/metadata, directional bubble and delivery presentation, with Retry
@@ -27,17 +61,13 @@ fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() 
         message = message,
         isCurrentParticipant = isCurrentParticipant,
         onRetry = onRetry,
-        slots = LocalConversationSlots.current
+        slots = LocalConversationSlots.current,
     )
 }
 
 @Composable
-fun MessageBubble(
-    message: Message,
-    isCurrentParticipant: Boolean,
-    onRetry: (() -> Unit)?,
-    slots: ConversationSlots
-) = MessageBubble(message, isCurrentParticipant, onRetry, slots, Modifier)
+fun MessageBubble(message: Message, isCurrentParticipant: Boolean, onRetry: (() -> Unit)?, slots: ConversationSlots) =
+    MessageBubble(message, isCurrentParticipant, onRetry, slots, Modifier)
 
 /**
  * Renders the default message with [bubbleModifier] applied only to the shaped colored surface.
@@ -59,9 +89,14 @@ fun MessageBubble(
     ConversationTheme(slots) {
         BoxWithConstraints(
             Modifier.fillMaxWidth(),
-            contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart
+            contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            val maxBubbleWidth = minOf(maxWidth * if (isCurrentParticipant) ChatGeometry.OutgoingRowWidthFraction else ChatGeometry.IncomingRowWidthFraction, ChatGeometry.BubbleMaxWidth)
+            val maxBubbleWidth =
+                minOf(
+                    maxWidth *
+                        if (isCurrentParticipant) ChatGeometry.OUTGOING_ROW_WIDTH_FRACTION else ChatGeometry.INCOMING_ROW_WIDTH_FRACTION,
+                    ChatGeometry.BubbleMaxWidth,
+                )
             Row(
                 Modifier.widthIn(max = maxBubbleWidth),
                 verticalAlignment = Alignment.Bottom,
@@ -81,7 +116,7 @@ fun MessageBubble(
                             topEnd = if (isCurrentParticipant && !group.isFirst) joined else outer,
                             bottomEnd = if (isCurrentParticipant) joined else outer,
                             bottomStart = if (!isCurrentParticipant) joined else outer,
-                        )
+                        ),
                     )
                     if (onRetry != null) slots.retry(RetryContent(message, onRetry))
                 }
@@ -97,19 +132,25 @@ fun MessageBubble(
  * content aligns to the trailing edge. This renderer has no action/media dependency or state.
  */
 @Composable
-fun MessageSupplement(
-    isCurrentParticipant: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    BoxWithConstraints(modifier.fillMaxWidth(),
-        contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart) {
-        val rowWidth = minOf(maxWidth * if (isCurrentParticipant) ChatGeometry.OutgoingRowWidthFraction else
-            ChatGeometry.IncomingRowWidthFraction, ChatGeometry.BubbleMaxWidth)
+fun MessageSupplement(isCurrentParticipant: Boolean, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    BoxWithConstraints(
+        modifier.fillMaxWidth(),
+        contentAlignment = if (isCurrentParticipant) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        val rowWidth = minOf(
+            maxWidth * if (isCurrentParticipant) {
+                ChatGeometry.OUTGOING_ROW_WIDTH_FRACTION
+            } else {
+                ChatGeometry.INCOMING_ROW_WIDTH_FRACTION
+            },
+            ChatGeometry.BubbleMaxWidth,
+        )
         Row(Modifier.widthIn(max = rowWidth)) {
             if (!isCurrentParticipant) Spacer(Modifier.width(ChatGeometry.Avatar + ChatGeometry.AvatarGap))
-            Column(horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start,
-                content = content)
+            Column(
+                horizontalAlignment = if (isCurrentParticipant) Alignment.End else Alignment.Start,
+                content = content,
+            )
         }
     }
 }
@@ -120,7 +161,7 @@ private fun AvatarGutter(message: Message, visible: Boolean, slots: Conversation
         Modifier
             .width(ChatGeometry.Avatar + ChatGeometry.AvatarGap)
             .height(ChatGeometry.Avatar)
-            .padding(end = ChatGeometry.AvatarGap)
+            .padding(end = ChatGeometry.AvatarGap),
     ) {
         if (visible) slots.messageAvatar(message)
     }
@@ -160,8 +201,12 @@ fun MessageComposer(
                 start = defaultComposerGutter(),
                 end = defaultComposerGutter(),
                 top = ChatGeometry.ComposerVerticalPadding,
-                bottom = if (keyboardVisible) ChatGeometry.ComposerVerticalPadding else
-                    (ChatGeometry.ComposerVerticalPadding - LocalConversationViewportPadding.current.calculateBottomPadding()).coerceAtLeast(0.dp)
+                bottom = if (keyboardVisible) {
+                    ChatGeometry.ComposerVerticalPadding
+                } else {
+                    val viewportBottom = LocalConversationViewportPadding.current.calculateBottomPadding()
+                    (ChatGeometry.ComposerVerticalPadding - viewportBottom).coerceAtLeast(0.dp)
+                },
             ),
             verticalAlignment = Alignment.Bottom,
         ) {

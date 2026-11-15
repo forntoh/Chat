@@ -10,23 +10,34 @@ fun legacySlotCalls(base: ConversationSlots): List<ConversationSlots> = listOf(
     ConversationSlots(messageBody = { BasicText(it.text) }) { BasicText("Latest") },
     base.copy(messageBody = { BasicText(it.text) }) { BasicText("Newest") },
     // Original thirteen positional parameters, with the last lambda inside parentheses.
-    ConversationSlots(base.message, base.composer, base.history, base.latest,
+    ConversationSlots(
+        base.message, base.composer, base.history, base.latest,
         base.messageMetadata, base.messageBody, base.messageDelivery, base.messageDescription,
-        base.retry, base.composerField, base.composerSend, base.historyFeedback, base.latestLabel),
-    base.copy(base.message, base.composer, base.history, base.latest,
+        base.retry, base.composerField, base.composerSend, base.historyFeedback, base.latestLabel,
+    ),
+    base.copy(
+        base.message, base.composer, base.history, base.latest,
         base.messageMetadata, base.messageBody, base.messageDelivery, base.messageDescription,
-        base.retry, base.composerField, base.composerSend, base.historyFeedback, base.latestLabel),
+        base.retry, base.composerField, base.composerSend, base.historyFeedback, base.latestLabel,
+    ),
     // A trailing latestLabel following all other original positional parameters.
-    ConversationSlots(base.message, base.composer, base.history, base.latest,
+    ConversationSlots(
+        base.message, base.composer, base.history, base.latest,
         base.messageMetadata, base.messageBody, base.messageDelivery, base.messageDescription,
-        base.retry, base.composerField, base.composerSend, base.historyFeedback) { BasicText("Latest") },
-    base.copy(base.message, base.composer, base.history, base.latest,
+        base.retry, base.composerField, base.composerSend, base.historyFeedback,
+    ) { BasicText("Latest") },
+    base.copy(
+        base.message, base.composer, base.history, base.latest,
         base.messageMetadata, base.messageBody, base.messageDelivery, base.messageDescription,
-        base.retry, base.composerField, base.composerSend, base.historyFeedback) { BasicText("Newest") },
+        base.retry, base.composerField, base.composerSend, base.historyFeedback,
+    ) { BasicText("Newest") },
 )
 
 /** component13 and thirteen-position destructuring must still have LatestContent input. */
-fun legacyLatestLabelComponents(base: ConversationSlots): List<@androidx.compose.runtime.Composable (dev.forntoh.chat.ui.LatestContent) -> Unit> {
+@Suppress("DestructuringDeclarationWithTooManyEntries") // Exercises the original component13 ABI.
+fun legacyLatestLabelComponents(
+    base: ConversationSlots,
+): List<@androidx.compose.runtime.Composable (dev.forntoh.chat.ui.LatestContent) -> Unit> {
     val (_, _, _, _, _, _, _, _, _, _, _, _, latestLabel) = base
     return listOf(base.component13(), latestLabel)
 }

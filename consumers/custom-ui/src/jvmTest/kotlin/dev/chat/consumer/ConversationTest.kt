@@ -1,10 +1,21 @@
 package dev.chat.consumer
 
-import dev.forntoh.chat.core.*
-
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -33,24 +44,39 @@ class ConversationTest {
         val me = Participant("me", "You")
         val other = Participant("other", "Avery")
         val outgoing = Message("m2", me, 1_000, "09:41", "Hello\n🌍", Delivery.Sending)
-        val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(
-            Message("m1", other, 1_000, "09:41", "Welcome", Delivery.Sent), outgoing,
-        )))
+        val snapshot = mutableStateOf(
+            ConversationState(
+                "room",
+                "me",
+                messages = listOf(
+                    Message("m1", other, 1_000, "09:41", "Welcome", Delivery.Sent),
+                    outgoing,
+                ),
+            ),
+        )
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { CustomConversation(snapshot.value, events::add) }
         compose.onNodeWithText("Avery · 09:41").assertExists()
         compose.onNodeWithText("You · 09:41").assertExists()
         compose.onNodeWithText("Sending").assertExists()
-        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(
-            snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Failed),
-        )) }
+        compose.runOnIdle {
+            snapshot.value = snapshot.value.copy(
+                messages = listOf(
+                    snapshot.value.messages.first(),
+                    outgoing.copy(delivery = Delivery.Failed),
+                ),
+            )
+        }
         compose.onNodeWithText("Failed").assertExists()
         compose.onNodeWithText("Retry").performClick()
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.RetryMessage("room", "m2")), events)
-            snapshot.value = snapshot.value.copy(messages = listOf(
-                snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Sent),
-            ))
+            snapshot.value = snapshot.value.copy(
+                messages = listOf(
+                    snapshot.value.messages.first(),
+                    outgoing.copy(delivery = Delivery.Sent),
+                ),
+            )
         }
         compose.onAllNodesWithText("Hello\n🌍").assertCountEquals(1)
         compose.onNodeWithText("Retry").assertDoesNotExist()
@@ -68,10 +94,13 @@ class ConversationTest {
         compose.runOnIdle { snapshot.value = snapshot.value.copy(draft = Draft("Room B", 2)) }
         compose.onNodeWithText("Send").performClick()
         compose.runOnIdle {
-            assertEquals<List<ConversationEvent>>(listOf(
-                ConversationEvent.SendDraft("a", 1, "Room A"),
-                ConversationEvent.SendDraft("b", 2, "Room B"),
-            ), events)
+            assertEquals<List<ConversationEvent>>(
+                listOf(
+                    ConversationEvent.SendDraft("a", 1, "Room A"),
+                    ConversationEvent.SendDraft("b", 2, "Room B"),
+                ),
+                events,
+            )
         }
     }
 }

@@ -10,7 +10,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * cancels prior travel/highlight; conversation changes cancel all presentation work.
  * Call navigation only from user input. Do not retain this callback across conversations.
  */
-class MessagePresentation(val isHighlighted: Boolean = false, val onNavigateToMessage: (String) -> Unit = {})
+class MessagePresentation(
+    val isHighlighted: Boolean = false,
+    val onNavigateToMessage: (String) -> Unit = {},
+)
 
 /** Also available to existing three-argument row slots and nested optional renderers. */
 val LocalMessagePresentation = staticCompositionLocalOf { MessagePresentation() }

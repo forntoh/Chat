@@ -2,13 +2,32 @@ package dev.forntoh.chat.material3
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.*
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,31 +46,44 @@ fun ReplyPreview(message: Message?, onClick: (() -> Unit)? = null) {
         if (LocalBubbleOutgoing.current) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary
     Row(
         Modifier.widthIn(max = 320.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
-        .background(foreground.copy(alpha = 0.08f))
-        .then(
-            if (message != null && onClick != null) Modifier.clickable(
-                role = Role.Button,
-                onClick = onClick
-            ) else Modifier
-        )
-        .semantics(mergeDescendants = true) {
-            contentDescription =
-                message?.let { "Reply to ${it.sender.displayName}" } ?: "Message unavailable"
-        }.height(IntrinsicSize.Min)
+            .background(foreground.copy(alpha = 0.08f))
+            .then(
+                if (message != null && onClick != null) {
+                    Modifier.clickable(
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription =
+                    message?.let { "Reply to ${it.sender.displayName}" } ?: "Message unavailable"
+            }.height(IntrinsicSize.Min),
     ) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(accent))
         Column(
             Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            if (message != null) Text(
-                message.sender.displayName.ifBlank { "Unknown sender" },
-                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
-                color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis
+            if (message != null) {
+                Text(
+                    message.sender.displayName.ifBlank { "Unknown sender" },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                message?.text?.ifBlank { "Message unavailable" } ?: "Message unavailable",
+                style = MaterialTheme.typography.bodyMedium,
+                color = foreground.copy(alpha = 0.85f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            Text(message?.text?.ifBlank { "Message unavailable" } ?: "Message unavailable",
-                style = MaterialTheme.typography.bodyMedium, color = foreground.copy(alpha = 0.85f),
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }

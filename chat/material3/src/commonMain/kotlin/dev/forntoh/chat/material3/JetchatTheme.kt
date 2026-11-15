@@ -1,26 +1,48 @@
 package dev.forntoh.chat.material3
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.visible
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.text.TextLayoutResult
-import kotlin.math.ceil
-import kotlin.math.floor
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.SolidColor
-import dev.forntoh.chat.ui.*
+import dev.forntoh.chat.ui.ChatComposerKeyboardOptions
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.ConversationTheme
+import dev.forntoh.chat.ui.HistoryFeedbackContent
+import dev.forntoh.chat.ui.HistoryStatus
+import dev.forntoh.chat.ui.LocalMessageGroupContext
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Reference-design Material3 implementations of shared UI slots. This factory supplies
@@ -29,6 +51,7 @@ import dev.forntoh.chat.ui.*
  * or behavior state and requires neither actions nor media. Wording is English composable content;
  * hosts localize subslots directly, including visible and accessible delivery content together.
  */
+@Suppress("LongMethod") // One immutable bundle of independent renderer lambdas.
 fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     message = { row, outgoing, retry -> MessageBubble(row, outgoing, retry) },
     composer = { MessageComposer(it) },
@@ -42,8 +65,11 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
                 }
             },
             footer = {
-                Text(message.displayTime, style = MaterialTheme.typography.labelSmall,
-                    color = LocalContentColor.current.copy(alpha = 0.8f))
+                Text(
+                    message.displayTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.8f),
+                )
             },
         )
     },
@@ -56,7 +82,9 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             modifier = Modifier.layout { measurable, constraints ->
                 val text = measurable.measure(constraints)
                 val result = textLayout[0]
-                val lines = if (result == null) emptyMap() else {
+                val lines = if (result == null) {
+                    emptyMap()
+                } else {
                     val last = result.lineCount - 1
                     mapOf(
                         LastTextRight to ceil(result.getLineRight(last)).toInt(),
@@ -70,7 +98,9 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     },
     messageDelivery = { DeliveryStatus(it) },
     messageDescription = {
-        "${it.sender.displayName.ifBlank { "Unknown sender" }}, ${it.text.ifBlank { "Message unavailable" }}, ${it.displayTime}, ${it.delivery.name}"
+        "${it.sender.displayName.ifBlank {
+            "Unknown sender"
+        }}, ${it.text.ifBlank { "Message unavailable" }}, ${it.displayTime}, ${it.delivery.name}"
     },
     retry = { TextButton(onClick = it.onRetry) { Text("Retry") } },
     composerField = {
@@ -92,7 +122,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
                 Box(
                     Modifier.heightIn(min = ChatGeometry.Control).padding(
                         horizontal = ChatGeometry.InputHorizontalPadding,
-                        vertical = ChatGeometry.InputVerticalPadding
+                        vertical = ChatGeometry.InputVerticalPadding,
                     ),
                     contentAlignment = Alignment.CenterStart,
                 ) {
@@ -100,13 +130,14 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
                         Text(
                             "Type a message…",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                     field()
                 }
             },
-        ) },
+        )
+    },
     composerSend = {
         val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
         FilledIconButton(
@@ -115,12 +146,12 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             modifier = Modifier
                 .size(ChatGeometry.Control)
                 .focusProperties { canFocus = inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard }
-                .semantics { contentDescription = "Send" }
+                .semantics { contentDescription = "Send" },
         ) {
             Icon(
                 ChatIcons.Send,
                 contentDescription = null,
-                modifier = Modifier.size(ChatGeometry.Icon)
+                modifier = Modifier.size(ChatGeometry.Icon),
             )
         }
     },
@@ -131,14 +162,14 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(ChatGeometry.Avatar).clearAndSetSemantics {}
+            modifier = Modifier.size(ChatGeometry.Avatar).clearAndSetSemantics {},
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     text = message.sender.displayName.trim().split(Regex("\\s+"))
                         .filter(String::isNotBlank)
                         .take(2).joinToString("") { it.take(1) }.uppercase().ifEmpty { "?" },
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -152,10 +183,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
  * Existing explicit/bundle overrides still take precedence. No alternate Conversation is created.
  */
 @Composable
-fun JetchatTheme(
-    slots: ConversationSlots = chatConversationSlots(),
-    content: @Composable () -> Unit
-) {
+fun JetchatTheme(slots: ConversationSlots = chatConversationSlots(), content: @Composable () -> Unit) {
     ConversationTheme(slots, content)
 }
 
@@ -165,9 +193,14 @@ fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
     when (history.state.status) {
         HistoryStatus.Idle -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) { Text("Load earlier") }
         HistoryStatus.Loading -> Text("Loading messages…", Modifier.padding(12.dp))
-        HistoryStatus.Error -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) { Text("Couldn't load messages · Retry") }
-        HistoryStatus.Exhausted -> Text(if (content.empty) "No messages yet" else "Start of conversation",
-            Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HistoryStatus.Error -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) {
+            Text("Couldn't load messages · Retry")
+        }
+        HistoryStatus.Exhausted -> Text(
+            if (content.empty) "No messages yet" else "Start of conversation",
+            Modifier.padding(8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

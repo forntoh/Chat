@@ -6,5 +6,5 @@ import androidx.compose.ui.text.input.PlatformImeOptions
 
 @OptIn(ExperimentalComposeUiApi::class)
 actual val ChatComposerKeyboardOptions: KeyboardOptions = KeyboardOptions(
-    platformImeOptions = PlatformImeOptions { usingNativeTextInput(true) }
+    platformImeOptions = PlatformImeOptions { usingNativeTextInput(true) },
 )

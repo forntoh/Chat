@@ -1,15 +1,30 @@
 package dev.chat.consumer
 
-import androidx.compose.runtime.*
-import androidx.compose.ui.test.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.forntoh.chat.actions.*
-import dev.forntoh.chat.core.*
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.pressKey
+import dev.forntoh.chat.actions.ActionCommand
+import dev.forntoh.chat.actions.ActionRequest
+import dev.forntoh.chat.actions.ActionState
+import dev.forntoh.chat.actions.ActionsContent
+import dev.forntoh.chat.actions.EditingMessage
+import dev.forntoh.chat.actions.MessageAction
+import dev.forntoh.chat.actions.rememberMessageActions
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.semantics.SemanticsActions
 
 class ActionsTest {
     @get:Rule val compose = createComposeRule()
@@ -57,22 +72,51 @@ class ActionsTest {
         var rendered: ActionsContent? = null
         compose.setContent { rendered = rememberMessageActions(conversation.value, state.value, events::add, {}) }
         lateinit var old: ActionsContent
-        compose.runOnIdle { old = rendered!!; conversation.value = conversation.value.copy(messages = emptyList()) }
-        compose.runOnIdle { old.request(ActionCommand.Copy, "m1"); assertEquals(0, events.size); conversation.value = conversation.value.copy(messages = listOf(target)) }
-        compose.runOnIdle { old = rendered!!; state.value = state.value.copy(capabilities = emptyMap()) }
-        compose.runOnIdle { old.request(ActionCommand.RequestDelete, "m1"); assertEquals(0, events.size); state.value = state.value.copy(capabilities = mapOf("m1" to MessageAction.entries.toSet())) }
-        compose.runOnIdle { old = rendered!!; conversation.value = conversation.value.copy(conversationId = "other") }
-        compose.runOnIdle { old.request(ActionCommand.Quote, "m1"); assertEquals(0, events.size) }
+        compose.runOnIdle {
+            old = rendered!!
+            conversation.value = conversation.value.copy(messages = emptyList())
+        }
+        compose.runOnIdle {
+            old.request(ActionCommand.Copy, "m1")
+            assertEquals(0, events.size)
+            conversation.value =
+                conversation.value.copy(messages = listOf(target))
+        }
+        compose.runOnIdle {
+            old = rendered!!
+            state.value = state.value.copy(capabilities = emptyMap())
+        }
+        compose.runOnIdle {
+            old.request(ActionCommand.RequestDelete, "m1")
+            assertEquals(0, events.size)
+            state.value =
+                state.value.copy(capabilities = mapOf("m1" to MessageAction.entries.toSet()))
+        }
+        compose.runOnIdle {
+            old = rendered!!
+            conversation.value = conversation.value.copy(conversationId = "other")
+        }
+        compose.runOnIdle {
+            old.request(ActionCommand.Quote, "m1")
+            assertEquals(0, events.size)
+        }
     }
+
     @Test fun keyboardActivationIsExplicitAndRepeatedRequestsAreLatched() {
         val events = mutableListOf<ActionRequest>()
         compose.setContent {
-            ActionsConversation(ConversationState("room", "me", messages = listOf(target)),
-                ActionState(capabilities = mapOf("m1" to setOf(MessageAction.Copy))), {}, events::add)
+            ActionsConversation(
+                ConversationState("room", "me", messages = listOf(target)),
+                ActionState(capabilities = mapOf("m1" to setOf(MessageAction.Copy))),
+                {},
+                events::add,
+            )
         }
         compose.onNodeWithText("Actions").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
-        compose.onNodeWithText("Actions").performKeyInput { pressKey(Key.Enter); pressKey(Key.Enter) }
+        compose.onNodeWithText("Actions").performKeyInput {
+            pressKey(Key.Enter)
+            pressKey(Key.Enter)
+        }
         compose.runOnIdle { assertEquals(listOf(ActionRequest("room", 0, ActionCommand.OpenMenu, "m1")), events) }
     }
-
 }

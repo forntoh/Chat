@@ -1,21 +1,63 @@
 package dev.chat.sample
 
-import androidx.compose.ui.test.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.cancel
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.center
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.height
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.top
+import androidx.compose.ui.test.width
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.actions.ActionCommand
+import dev.forntoh.chat.actions.ActionRequest
+import dev.forntoh.chat.actions.ActionState
+import dev.forntoh.chat.actions.rememberMessageActions
+import dev.forntoh.chat.core.Attachment
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.assertEquals
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.actions.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.graphics.toArgb
-import java.awt.image.BufferedImage
 import java.awt.RenderingHints
+import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.test.assertEquals
 
 class ActionsJourneyTest {
     private fun demo(label: String) {
@@ -131,11 +173,16 @@ class ActionsJourneyTest {
         compose.runOnIdle { assertEquals("welcome", host.actions.quotes[host.state.messages.last().id]) }
         compose.onNodeWithTag("composer").assertTextContains("")
     }
+
     @Test fun replyContextKeepsDismissBesidePreviewInsideComposer() {
         val host = FakeHost()
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, host.state.messages.first().id))
         compose.setContent { Box(Modifier.size(360.dp, 720.dp)) { SampleApp(host, manualService = true) } }
-        val quote = compose.onNodeWithContentDescription("Reply to Avery", substring = true, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val quote = compose.onNodeWithContentDescription(
+            "Reply to Avery",
+            substring = true,
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithContentDescription("Cancel reply").fetchSemanticsNode().boundsInRoot
         compose.onNodeWithText("Replying to").assertDoesNotExist()
         assertEquals(quote.center.y, cancel.center.y, 1f, "Dismiss must be vertically centered on the preview")
@@ -150,14 +197,25 @@ class ActionsJourneyTest {
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, target.id))
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "A reply with an embedded preview"))
         val draft = host.state.draft
-        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.SendQuote,
-            target.id, draft.text, draft.revision))
+        host.onAction(
+            ActionRequest(
+                host.state.conversationId,
+                host.actions.revision,
+                ActionCommand.SendQuote,
+                target.id,
+                draft.text,
+                draft.revision,
+            ),
+        )
         host.accept()
         host.completeDelivery(Delivery.Sent)
         compose.setContent { Box(Modifier.size(360.dp, 800.dp)) { SampleApp(host, manualService = true) } }
         val preview = compose.onNodeWithContentDescription("Reply to ${target.sender.displayName}", useUnmergedTree = true)
         val previewBounds = preview.fetchSemanticsNode().boundsInRoot
-        val bubbleBounds = compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val bubbleBounds = compose.onNodeWithTag(
+            "bubble-${host.state.messages.last().id}",
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
         kotlin.test.assertTrue(previewBounds.top >= bubbleBounds.top && previewBounds.bottom < bubbleBounds.bottom)
         kotlin.test.assertTrue(previewBounds.width >= bubbleBounds.width * 0.75f, "The inset preview should span its parent bubble content")
         capture("reply-embedded")
@@ -179,13 +237,27 @@ class ActionsJourneyTest {
         val host = FakeHost().apply { useChatFixture() }
         host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.Quote, "morgan"))
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "A reply with an embedded preview"))
-        host.onAction(ActionRequest(host.state.conversationId, host.actions.revision, ActionCommand.SendQuote,
-            "morgan", host.state.draft.text, host.state.draft.revision))
-        host.accept(); host.completeDelivery(Delivery.Sent); host.receiveMessage()
+        host.onAction(
+            ActionRequest(
+                host.state.conversationId,
+                host.actions.revision,
+                ActionCommand.SendQuote,
+                "morgan",
+                host.state.draft.text,
+                host.state.draft.revision,
+            ),
+        )
+        host.accept()
+        host.completeDelivery(Delivery.Sent)
+        host.receiveMessage()
         compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { SampleApp(host, manualService = true) } }
-        compose.onNode(hasContentDescription("Reply to Morgan Lee") and hasAnyAncestor(hasTestTag("message-studio-1")), useUnmergedTree = true).performClick()
-        if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())
+        compose.onNode(
+            hasContentDescription("Reply to Morgan Lee") and hasAnyAncestor(hasTestTag("message-studio-1")),
+            useUnmergedTree = true,
+        ).performClick()
+        if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty()) {
             compose.onNodeWithContentDescription("Latest", substring = true).performClick()
+        }
         repeat(3) { n ->
             compose.onNodeWithTag("composer").performTextInput("Following message $n. More conversation content for the scrolling journey.")
             compose.onNodeWithContentDescription("Send").performClick()
@@ -210,13 +282,17 @@ class ActionsJourneyTest {
         compose.setContent { Box(Modifier.width(360.dp).height(800.dp)) { SampleApp(host, manualService = true) } }
         compose.onNodeWithTag("bubble-${host.state.messages.first().id}", useUnmergedTree = true).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
+            longClick()
+        }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").assertTextContains("Original message")
         compose.onNodeWithContentDescription("Cancel edit").performClick()
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithContentDescription("Cancel reply").assertExists()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
+            longClick()
+        }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithTag("composer").performTextReplacement("Revised message")
         compose.onNodeWithText("Save edit").performClick()
@@ -231,6 +307,7 @@ class ActionsJourneyTest {
         compose.onNodeWithTag("composer").assertTextContains("Unsent draft")
         compose.onNodeWithContentDescription("Cancel reply").assertExists()
     }
+
     @Test fun deleteRequiresConfirmationAndRevalidatesCapabilityAndTarget() {
         val host = FakeHost()
         host.onEvent(ConversationEvent.DraftChanged("studio", "Disposable"))
@@ -242,20 +319,26 @@ class ActionsJourneyTest {
         compose.onNodeWithText("Edit").assertDoesNotExist()
         compose.onNodeWithText("Delete").assertDoesNotExist()
         compose.onNodeWithText("Close actions").performClick()
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
+            longClick()
+        }
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         capture("04-delete-confirmation")
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
+            longClick()
+        }
         compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { host.revokeActions("studio-1") }
         compose.onNodeWithText("Confirm delete").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(null, host.pendingAction) }
         compose.onNodeWithText("Cancel delete").performClick()
         compose.runOnIdle { host.allowActions("studio-1") }
-        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithTag("bubble-${host.state.messages.last().id}", useUnmergedTree = true).performScrollTo().performTouchInput {
+            longClick()
+        }
         compose.onNodeWithText("Delete").performClick()
         compose.onNodeWithText("Confirm delete").performClick()
         compose.runOnIdle { assertEquals(2, host.state.messages.size) }
@@ -280,5 +363,4 @@ class ActionsJourneyTest {
             assertEquals(listOf(image), requests.single().attachments)
         }
     }
-
 }

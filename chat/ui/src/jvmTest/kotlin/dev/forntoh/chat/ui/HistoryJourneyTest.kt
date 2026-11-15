@@ -1,14 +1,32 @@
 package dev.forntoh.chat.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.height
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.center
+import androidx.compose.ui.test.height
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.forntoh.chat.core.*
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToKey
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.top
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -83,11 +101,15 @@ class HistoryJourneyTest {
         val highlighted = mutableSetOf<String>()
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(ConversationState("room", "me", messages = (0..29).map(::message)), {},
+                Conversation(
+                    ConversationState("room", "me", messages = (0..29).map(::message)),
+                    {},
                     slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
                         androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
                         BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
-                    }), composerContent = {})
+                    }),
+                    composerContent = {},
+                )
             }
         }
         compose.onNodeWithText("Message 29").performClick()
@@ -106,11 +128,15 @@ class HistoryJourneyTest {
         val highlighted = mutableSetOf<String>()
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, {},
+                Conversation(
+                    snapshot.value,
+                    {},
                     slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
                         androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
                         BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
-                    }), composerContent = {})
+                    }),
+                    composerContent = {},
+                )
             }
         }
         compose.mainClock.autoAdvance = false
@@ -132,14 +158,18 @@ class HistoryJourneyTest {
         lateinit var navigate: (String) -> Unit
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, {},
+                Conversation(
+                    snapshot.value,
+                    {},
                     slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
                         androidx.compose.runtime.SideEffect {
                             navigate = presentation.onNavigateToMessage
                             if (presentation.isHighlighted) highlighted.add(row.id)
                         }
                         BasicText(row.text, Modifier.height(48.dp))
-                    }), composerContent = {})
+                    }),
+                    composerContent = {},
+                )
             }
         }
         compose.mainClock.autoAdvance = false
@@ -151,7 +181,10 @@ class HistoryJourneyTest {
         // Reintroducing the ID must not restart the cancelled request.
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = (0..99).map(::message)) }
         compose.mainClock.advanceTimeBy(1200)
-        compose.runOnIdle { assertTrue(highlighted.isEmpty()); navigate("m12") }
+        compose.runOnIdle {
+            assertTrue(highlighted.isEmpty())
+            navigate("m12")
+        }
         repeat(4) { compose.mainClock.advanceTimeByFrame() }
         compose.runOnIdle { snapshot.value = snapshot.value.copy(conversationId = "other") }
         compose.mainClock.advanceTimeBy(1200)
@@ -166,11 +199,15 @@ class HistoryJourneyTest {
         val highlighted = mutableSetOf<String>()
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, {},
+                Conversation(
+                    snapshot.value,
+                    {},
                     slots = ConversationSlots(presentedMessage = { row, _, _, presentation ->
                         androidx.compose.runtime.SideEffect { if (presentation.isHighlighted) highlighted.add(row.id) }
                         BasicText(row.text, Modifier.height(48.dp).clickable { presentation.onNavigateToMessage("m12") })
-                    }), composerContent = {})
+                    }),
+                    composerContent = {},
+                )
             }
         }
         compose.mainClock.autoAdvance = false
@@ -190,9 +227,12 @@ class HistoryJourneyTest {
         val height = mutableStateOf(600.dp)
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(height.value)) {
-                Conversation(ConversationState("room", "me", messages = (0..39).map(::message)), {},
+                Conversation(
+                    ConversationState("room", "me", messages = (0..39).map(::message)),
+                    {},
                     messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
-                    composerContent = {})
+                    composerContent = {},
+                )
             }
         }
         compose.onNodeWithTag("message-m39").assertIsDisplayed()
@@ -210,19 +250,27 @@ class HistoryJourneyTest {
     }
 
     @Test fun sendingFromHistoryReturnsToLatestAndFollowsAcceptedMessage() {
-        fun message(n: Int, sender: String = "other") = Message("m$n", Participant(sender, sender), n.toLong(), "09:41", "Message $n", Delivery.Sent)
-        val snapshot = mutableStateOf(ConversationState("room", "me", draft = Draft("Send from history"), messages = (0..39).map(::message)))
+        fun message(n: Int, sender: String = "other") =
+            Message("m$n", Participant(sender, sender), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot =
+            mutableStateOf(ConversationState("room", "me", draft = Draft("Send from history"), messages = (0..39).map(::message)))
         lateinit var composer: ComposerContent
         val events = mutableListOf<ConversationEvent>()
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, events::add,
+                Conversation(
+                    snapshot.value,
+                    events::add,
                     messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
-                    composerContent = { composer = it })
+                    composerContent = { composer = it },
+                )
             }
         }
         compose.onNodeWithTag("timeline").performScrollToIndex(10)
-        compose.runOnIdle { composer.onSend(); composer.onSend() }
+        compose.runOnIdle {
+            composer.onSend()
+            composer.onSend()
+        }
         compose.onNodeWithTag("message-m39").assertIsDisplayed()
         compose.runOnIdle {
             snapshot.value = snapshot.value.copy(draft = Draft(revision = 1), messages = snapshot.value.messages + message(40, "me"))
@@ -237,19 +285,24 @@ class HistoryJourneyTest {
         fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(ConversationState("room", "me", messages = (0..999).map(::message)), {},
+                Conversation(
+                    ConversationState("room", "me", messages = (0..999).map(::message)),
+                    {},
                     slots = ConversationSlots(messageSpacing = { 0.dp }),
                     messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
-                    composerContent = {})
+                    composerContent = {},
+                )
             }
         }
         compose.onNodeWithTag("timeline").performScrollToIndex(1)
         compose.mainClock.autoAdvance = false
         fun position(): Float {
             val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
-            val node = compose.onAllNodes(SemanticsMatcher("message row") {
-                it.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { "" }.startsWith("message-m")
-            }).fetchSemanticsNodes().first { it.boundsInRoot.bottom > viewport.top }
+            val node = compose.onAllNodes(
+                SemanticsMatcher("message row") {
+                    it.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { "" }.startsWith("message-m")
+                },
+            ).fetchSemanticsNodes().first { it.boundsInRoot.bottom > viewport.top }
             val number = node.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag].removePrefix("message-m").toInt()
             // Rows are 48dp, at the test density of 1. The absolute origin is irrelevant.
             return number * 48f - node.positionInRoot.y
@@ -278,13 +331,17 @@ class HistoryJourneyTest {
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..999).map(::message)))
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, {}, messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) }, composerContent = {})
+                Conversation(snapshot.value, {
+                }, messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) }, composerContent = {})
             }
         }
         compose.onNodeWithTag("timeline").performScrollToIndex(1)
         compose.mainClock.autoAdvance = false
         compose.onNodeWithText("Latest").performClick()
-        repeat(4) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        repeat(4) {
+            compose.mainClock.advanceTimeByFrame()
+            compose.waitForIdle()
+        }
         compose.onNodeWithTag("timeline").performTouchInput { swipeDown(durationMillis = 200) }
         compose.mainClock.advanceTimeBy(1_000)
         compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(1000)) }
@@ -297,14 +354,22 @@ class HistoryJourneyTest {
         val height = mutableStateOf(500.dp)
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(height.value)) {
-                Conversation(ConversationState("room", "me", messages = listOf(
-                    Message("large", Participant("me", "You"), 0, "09:41", "Long message", Delivery.Sent))), {},
+                Conversation(
+                    ConversationState(
+                        "room",
+                        "me",
+                        messages = listOf(Message("large", Participant("me", "You"), 0, "09:41", "Long message", Delivery.Sent)),
+                    ),
+                    {
+                    },
                     messageContent = { _, _, _ ->
                         androidx.compose.foundation.layout.Column {
                             BasicText("Top", Modifier.height(700.dp))
                             BasicText("Trailing content")
                         }
-                    }, composerContent = {})
+                    },
+                    composerContent = {},
+                )
             }
         }
         compose.onNodeWithText("Trailing content").assertIsDisplayed()
@@ -317,9 +382,12 @@ class HistoryJourneyTest {
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..39).map(::message)))
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
-                Conversation(snapshot.value, {},
+                Conversation(
+                    snapshot.value,
+                    {},
                     messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) },
-                    composerContent = {})
+                    composerContent = {},
+                )
             }
         }
         compose.onNodeWithTag("message-m39").assertIsDisplayed()
@@ -340,10 +408,15 @@ class HistoryJourneyTest {
         val requests = mutableListOf<HistoryRequest>()
         lateinit var controls: HistoryContent
         compose.setContent {
-            Conversation(ConversationState("room", "me"), {},
-                messageContent = { row, _, _ -> BasicText(row.text) }, composerContent = {},
-                history = history.value, onLoadEarlier = requests::add,
-                historyContent = { controls = it })
+            Conversation(
+                ConversationState("room", "me"),
+                {},
+                messageContent = { row, _, _ -> BasicText(row.text) },
+                composerContent = {},
+                history = history.value,
+                onLoadEarlier = requests::add,
+                historyContent = { controls = it },
+            )
         }
         compose.runOnIdle {
             assertEquals(listOf(HistoryRequest("room", 0)), requests)
@@ -351,11 +424,18 @@ class HistoryJourneyTest {
             assertEquals(1, requests.size)
             history.value = HistoryState(HistoryStatus.Error, 1)
         }
-        compose.runOnIdle { assertEquals(1, requests.size); controls.onLoadEarlier(); controls.onLoadEarlier() }
+        compose.runOnIdle {
+            assertEquals(1, requests.size)
+            controls.onLoadEarlier()
+            controls.onLoadEarlier()
+        }
         compose.runOnIdle {
             assertEquals(listOf(HistoryRequest("room", 0), HistoryRequest("room", 1)), requests)
             history.value = HistoryState(HistoryStatus.Exhausted, 2)
         }
-        compose.runOnIdle { controls.onLoadEarlier(); assertEquals(2, requests.size) }
+        compose.runOnIdle {
+            controls.onLoadEarlier()
+            assertEquals(2, requests.size)
+        }
     }
 }

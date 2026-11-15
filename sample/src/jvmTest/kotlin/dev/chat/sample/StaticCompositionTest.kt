@@ -1,11 +1,40 @@
 package dev.chat.sample
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.bottom
+import androidx.compose.ui.test.cancel
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.center
+import androidx.compose.ui.test.centerY
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.height
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.left
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.right
+import androidx.compose.ui.test.top
+import androidx.compose.ui.test.width
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.core.ConversationEvent
 import org.junit.Rule
@@ -74,11 +103,15 @@ class StaticCompositionTest {
         compose.mainClock.advanceTimeBy(80)
         val pressed = compose.onAllNodes(isRoot()).onFirst().captureToImage().toPixelMap()
         var changedInside = 0
-        for (y in 0 until pressed.height) for (x in 0 until pressed.width) {
-            if (pressed[x, y].toArgb() != beforePress[x, y].toArgb()) {
-                kotlin.test.assertTrue(x >= bubble.left && x < bubble.right && y >= bubble.top && y < bubble.bottom,
-                    "Touch feedback must not draw outside the bubble")
-                changedInside++
+        for (y in 0 until pressed.height) {
+            for (x in 0 until pressed.width) {
+                if (pressed[x, y].toArgb() != beforePress[x, y].toArgb()) {
+                    kotlin.test.assertTrue(
+                        x >= bubble.left && x < bubble.right && y >= bubble.top && y < bubble.bottom,
+                        "Touch feedback must not draw outside the bubble",
+                    )
+                    changedInside++
+                }
             }
         }
         kotlin.test.assertTrue(changedInside > 0, "Bubble press must show feedback")

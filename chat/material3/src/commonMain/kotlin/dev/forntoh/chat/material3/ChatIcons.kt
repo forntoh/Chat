@@ -2,7 +2,18 @@ package dev.forntoh.chat.material3
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.*
+import com.composables.icons.tabler.outline.ArrowBackUp
+import com.composables.icons.tabler.outline.ArrowLeft
+import com.composables.icons.tabler.outline.ArrowRight
+import com.composables.icons.tabler.outline.ChevronDown
+import com.composables.icons.tabler.outline.Copy
+import com.composables.icons.tabler.outline.DotsVertical
+import com.composables.icons.tabler.outline.Edit
+import com.composables.icons.tabler.outline.Paperclip
+import com.composables.icons.tabler.outline.Pencil
+import com.composables.icons.tabler.outline.Send
+import com.composables.icons.tabler.outline.Trash
+import com.composables.icons.tabler.outline.X
 
 object ChatIcons {
     val ChevronDown: ImageVector get() = Tabler.Outline.ChevronDown

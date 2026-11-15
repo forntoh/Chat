@@ -1,7 +1,16 @@
 package dev.forntoh.chat.media
 
-import androidx.compose.runtime.*
-import dev.forntoh.chat.core.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import dev.forntoh.chat.core.Attachment
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
 import dev.forntoh.chat.ui.ComposerContent
 
 /**
@@ -15,9 +24,12 @@ data class MediaTarget(
     val conversationId: String,
     val attachment: Attachment? = null,
     val draft: Draft? = null,
-    val message: Message? = null
+    val message: Message? = null,
 ) {
-    init { require((draft == null) != (message == null)); require(attachment != null || draft != null) }
+    init {
+        require((draft == null) != (message == null))
+        require(attachment != null || draft != null)
+    }
 }
 
 enum class ImageStatus { Ready, Loading, Uploading, Failed, Missing, Unsupported }
@@ -27,8 +39,13 @@ enum class ImageStatus { Ready, Loading, Uploading, Failed, Missing, Unsupported
  * Loading/Missing/Unsupported offer fallback. Renderers must report load errors through host
  * state rather than throw during composition. No automatic loading or retry is performed.
  */
-data class ImageState(val status: ImageStatus = ImageStatus.Ready, val progress: Float = 0f) {
-    init { require(progress.isFinite() && progress in 0f..1f) }
+data class ImageState(
+    val status: ImageStatus = ImageStatus.Ready,
+    val progress: Float = 0f,
+) {
+    init {
+        require(progress.isFinite() && progress in 0f..1f)
+    }
 }
 
 /**
@@ -42,7 +59,7 @@ data class MediaState(
     val revision: Long = 0,
     val selecting: Boolean = false,
     val selectionError: String? = null,
-    val images: Map<MediaTarget, ImageState> = emptyMap()
+    val images: Map<MediaTarget, ImageState> = emptyMap(),
 )
 
 enum class MediaCommand { Select, Remove, Retry, View }
@@ -56,7 +73,7 @@ enum class MediaCommand { Select, Remove, Retry, View }
 data class MediaRequest(
     val command: MediaCommand,
     val revision: Long,
-    val target: MediaTarget
+    val target: MediaTarget,
 )
 
 /**
@@ -69,14 +86,20 @@ class MediaContent internal constructor(
     val conversation: ConversationState,
     val state: MediaState,
     private val dispatch: (MediaRequest, ComposerContent?) -> Unit,
-    val onConversationEvent: (ConversationEvent) -> Unit
+    val onConversationEvent: (ConversationEvent) -> Unit,
 ) {
     fun draftTarget(attachment: Attachment? = null) = MediaTarget(conversation.conversationId, attachment, draft = conversation.draft)
     fun messageTarget(message: Message, attachment: Attachment) = MediaTarget(conversation.conversationId, attachment, message = message)
     fun imageState(target: MediaTarget) = state.images[target] ?: ImageState()
 
-    fun composer(content: ComposerContent) = ComposerContent(content.draft, content.pending || state.selecting,
-        content.onTextChange, content.onSend, content.onDraftAction, content.focusRequest)
+    fun composer(content: ComposerContent) = ComposerContent(
+        content.draft,
+        content.pending || state.selecting,
+        content.onTextChange,
+        content.onSend,
+        content.onDraftAction,
+        content.focusRequest,
+    )
 
     fun request(command: MediaCommand, target: MediaTarget = draftTarget(), composer: ComposerContent? = null) {
         dispatch(MediaRequest(command, state.revision, target), composer)
@@ -84,8 +107,12 @@ class MediaContent internal constructor(
 }
 
 @Composable
-fun rememberMedia(conversation: ConversationState, state: MediaState,
-    onRequest: (MediaRequest) -> Unit, onEvent: (ConversationEvent) -> Unit = {}): MediaContent {
+fun rememberMedia(
+    conversation: ConversationState,
+    state: MediaState,
+    onRequest: (MediaRequest) -> Unit,
+    onEvent: (ConversationEvent) -> Unit = {},
+): MediaContent {
     val latest by rememberUpdatedState(conversation)
     val latestMedia by rememberUpdatedState(state)
     val handler by rememberUpdatedState(onRequest)
@@ -101,20 +128,25 @@ fun rememberMedia(conversation: ConversationState, state: MediaState,
             if (target.conversationId != now.conversationId) return@dispatch
             val attachment = target.attachment
             if (target.draft != null) {
-                if (now.draft != target.draft || now.draft.submitting || state.selecting ||
-                    composer == null || composer.pending || composer.draft != now.draft
-                ) return@dispatch
+                if (now.draft != target.draft || now.draft.submitting || state.selecting) return@dispatch
+                if (composer == null || composer.pending || composer.draft != now.draft) {
+                    return@dispatch
+                }
                 if (attachment != null && attachment !in now.draft.attachments) return@dispatch
             } else if (now.messages.find { it.id == target.message?.id } != target.message ||
-                attachment !in target.message!!.attachments) return@dispatch
+                attachment !in target.message!!.attachments
+            ) {
+                return@dispatch
+            }
             val image = state.images[target] ?: ImageState()
             when (request.command) {
                 MediaCommand.Select -> if (target.draft == null || attachment != null) return@dispatch
                 MediaCommand.Remove -> if (target.draft == null || attachment == null) return@dispatch
                 MediaCommand.Retry -> if (target.message == null || image.status != ImageStatus.Failed) return@dispatch
-                MediaCommand.View -> if (target.message == null || image.status != ImageStatus.Ready ||
-                    attachment?.mediaType?.startsWith("image/") != true || attachment.contentReference.isNullOrBlank()
-                ) return@dispatch
+                MediaCommand.View -> {
+                    if (target.message == null || image.status != ImageStatus.Ready) return@dispatch
+                    if (attachment?.mediaType?.startsWith("image/") != true || attachment.contentReference.isNullOrBlank()) return@dispatch
+                }
             }
             if (request.command != MediaCommand.View && emitted) return@dispatch
             val send = {
@@ -124,10 +156,11 @@ fun rememberMedia(conversation: ConversationState, state: MediaState,
             if (target.draft != null) composer!!.onDraftAction(send) else send()
         },
         onConversationEvent = event@{ event ->
-            if (latest.conversationId != conversation.conversationId || latest.draft != conversation.draft ||
-                latestMedia != state || state.selecting
-            ) return@event
+            if (latest.conversationId != conversation.conversationId || latest.draft != conversation.draft) return@event
+            if (latestMedia != state || state.selecting) {
+                return@event
+            }
             eventHandler(event)
-        }
+        },
     )
 }

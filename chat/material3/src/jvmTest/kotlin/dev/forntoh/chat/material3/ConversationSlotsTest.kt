@@ -1,28 +1,51 @@
 package dev.forntoh.chat.material3
 
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.height
 import androidx.compose.ui.test.junit4.createComposeRule
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.ui.*
+import androidx.compose.ui.test.left
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.right
+import androidx.compose.ui.test.width
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.ConversationTheme
+import dev.forntoh.chat.ui.LocalConversationSlots
 import org.junit.Rule
 import org.junit.Test
-import kotlin.test.assertEquals
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.graphics.toArgb
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.test.assertEquals
 
 /** Consumer seam: host-authored wording and renderer replacement retain submission guards. */
 class ConversationSlotsTest {
@@ -30,12 +53,22 @@ class ConversationSlotsTest {
 
     @Test fun defaultGroupsUseHostAvatarAndCompactTimeWithoutRoutineDeliveryText() {
         val a = Message("a", Participant("avery", "Avery"), 1, "09:41", "First", Delivery.Sent)
-        val rows = listOf(a, a.copy(id = "b", text = "Second"),
-            a.copy(id = "c", sender = Participant("me", "You"), text = "Third"))
-        compose.setContent { MaterialTheme { JetchatTheme {
-            Conversation(ConversationState("room", "me", messages = rows), {},
-                slots = chatConversationSlots().copy(messageAvatar = { Text("Host avatar ${it.sender.id}") }))
-        } } }
+        val rows = listOf(
+            a,
+            a.copy(id = "b", text = "Second"),
+            a.copy(id = "c", sender = Participant("me", "You"), text = "Third"),
+        )
+        compose.setContent {
+            MaterialTheme {
+                JetchatTheme {
+                    Conversation(
+                        ConversationState("room", "me", messages = rows),
+                        {},
+                        slots = chatConversationSlots().copy(messageAvatar = { Text("Host avatar ${it.sender.id}") }),
+                    )
+                }
+            }
+        }
         compose.onAllNodesWithText("Host avatar avery", useUnmergedTree = true).assertCountEquals(1)
         compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(3)
         compose.onAllNodesWithText("Sent", useUnmergedTree = true).assertCountEquals(0)
@@ -49,10 +82,19 @@ class ConversationSlotsTest {
             Message("last", peer, 2, "09:38", "What will you do tonight?", Delivery.Sent),
             Message("reply", Participant("me", "You"), 3, "09:41", "Hello", Delivery.Sent),
         )
-        compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { MaterialTheme { JetchatTheme {
-            Conversation(ConversationState("room", "me", messages = rows), {},
-                slots = chatConversationSlots().copy(messageAvatar = { Text("Avatar ${it.id}") }))
-        } } } }
+        compose.setContent {
+            Box(Modifier.size(360.dp, 640.dp)) {
+                MaterialTheme {
+                    JetchatTheme {
+                        Conversation(
+                            ConversationState("room", "me", messages = rows),
+                            {},
+                            slots = chatConversationSlots().copy(messageAvatar = { Text("Avatar ${it.id}") }),
+                        )
+                    }
+                }
+            }
+        }
         compose.onNodeWithText("Avatar first", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithText("Avatar last", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Avatar reply", useUnmergedTree = true).assertDoesNotExist()
@@ -66,13 +108,20 @@ class ConversationSlotsTest {
         val text = "  Hello 🌍\nSecond line  "
         val snapshot = mutableStateOf(ConversationState("room", "me"))
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { Box(Modifier.size(360.dp, 640.dp)) { MaterialTheme { JetchatTheme {
-            Conversation(snapshot.value, { event ->
-                events += event
-                if (event is ConversationEvent.DraftChanged) snapshot.value = snapshot.value.copy(
-                    draft = Draft(event.text, snapshot.value.draft.revision + 1))
-            })
-        } } } }
+        compose.setContent {
+            Box(Modifier.size(360.dp, 640.dp)) {
+                MaterialTheme {
+                    JetchatTheme {
+                        Conversation(snapshot.value, { event ->
+                            events += event
+                            if (event is ConversationEvent.DraftChanged) {
+                                snapshot.value = snapshot.value.copy(draft = Draft(event.text, snapshot.value.draft.revision + 1))
+                            }
+                        })
+                    }
+                }
+            }
+        }
         compose.onNodeWithContentDescription("Send").assertIsNotEnabled()
         captureComposer("idle")
         compose.onNodeWithTag("composer").performTextInput(text)
@@ -81,8 +130,10 @@ class ConversationSlotsTest {
         compose.onNodeWithTag("composer").assertTextContains(text)
         captureComposer("pending")
         compose.runOnIdle {
-            assertEquals(listOf(ConversationEvent.SendDraft("room", snapshot.value.draft.revision, text)),
-                events.filterIsInstance<ConversationEvent.SendDraft>())
+            assertEquals(
+                listOf(ConversationEvent.SendDraft("room", snapshot.value.draft.revision, text)),
+                events.filterIsInstance<ConversationEvent.SendDraft>(),
+            )
         }
     }
 
@@ -101,11 +152,13 @@ class ConversationSlotsTest {
         compose.setContent {
             MaterialTheme {
                 val base = if (alternate.value) chatConversationSlots() else ConversationSlots()
-                ConversationTheme(slots = base.copy(composerSend = { content ->
-                    Button(onClick = content.onSend, enabled = content.canSend) {
-                        Text(if (alternate.value) "Submit" else "Post")
-                    }
-                })) { Conversation(snapshot.value, events::add) }
+                ConversationTheme(
+                    slots = base.copy(composerSend = { content ->
+                        Button(onClick = content.onSend, enabled = content.canSend) {
+                            Text(if (alternate.value) "Submit" else "Post")
+                        }
+                    }),
+                ) { Conversation(snapshot.value, events::add) }
             }
         }
         compose.onNodeWithText("Post").performClick()
@@ -118,29 +171,36 @@ class ConversationSlotsTest {
         }
         compose.onNodeWithText("Submit").assertIsEnabled()
     }
+
     @Test fun explicitBundleAndDirectComposerOverrideAmbientDefaultsWithoutResettingSendLatch() {
         val snapshot = ConversationState("room", "me", Draft("Keep", 2))
         val direct = mutableStateOf(false)
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { MaterialTheme {
-            ConversationTheme(slots = ConversationSlots(composerSend = { Text("Ambient") })) {
-                Conversation(snapshot, events::add,
-                    slots = LocalConversationSlots.current.copy(composerSend = { content ->
-                        Button(onClick = content.onSend, enabled = content.canSend) { Text("Bundle") }
-                    }),
-                    composerContent = if (direct.value) { content ->
-                        Button(onClick = content.onSend, enabled = content.canSend) { Text("Direct") }
-                    } else null,
-                )
+        compose.setContent {
+            MaterialTheme {
+                ConversationTheme(slots = ConversationSlots(composerSend = { Text("Ambient") })) {
+                    Conversation(
+                        snapshot,
+                        events::add,
+                        slots = LocalConversationSlots.current.copy(composerSend = { content ->
+                            Button(onClick = content.onSend, enabled = content.canSend) { Text("Bundle") }
+                        }),
+                        composerContent = if (direct.value) {
+                            { content ->
+                                Button(onClick = content.onSend, enabled = content.canSend) { Text("Direct") }
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                }
             }
-        } }
+        }
         compose.onNodeWithText("Ambient").assertDoesNotExist()
         compose.onNodeWithText("Bundle").performClick()
         compose.runOnIdle { direct.value = true }
         compose.onNodeWithText("Bundle").assertDoesNotExist()
         compose.onNodeWithText("Direct").assertIsNotEnabled().performClick()
-        compose.runOnIdle { assertEquals<List<ConversationEvent>>(
-            listOf(ConversationEvent.SendDraft("room", 2, "Keep")), events) }
+        compose.runOnIdle { assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.SendDraft("room", 2, "Keep")), events) }
     }
-
 }

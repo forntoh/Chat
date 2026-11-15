@@ -1,55 +1,77 @@
 package dev.forntoh.chat.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.runtime.*
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.toString
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.requestFocus
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.unit.Dp
-import dev.forntoh.chat.core.*
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Message
 
-data class RetryContent(val message: Message, val onRetry: () -> Unit)
+data class RetryContent(
+    val message: Message,
+    val onRetry: () -> Unit,
+)
 
-data class HistoryFeedbackContent(val history: HistoryContent, val empty: Boolean)
+data class HistoryFeedbackContent(
+    val history: HistoryContent,
+    val empty: Boolean,
+)
 
-data class MessageGroupContext(val isFirst: Boolean = true, val isLast: Boolean = true)
+data class MessageGroupContext(
+    val isFirst: Boolean = true,
+    val isLast: Boolean = true,
+)
 
 /** Row-local presentation context, also available to explicit row overrides and wrappers.
  * Standalone renderers default to a complete one-message group. */
 val LocalMessageGroupContext = staticCompositionLocalOf { MessageGroupContext() }
 
 /**
- * Immutable slot value configuration for conversation UI rendering. Explicit copy, equality,
- * hash and component functions retain the original data-class source behavior. Components 1–13
- * keep their original order (latestLabel is 13); avatar and spacing are components 14 and 15.
- * Constructor/copy place latestLabel last so trailing lambdas keep their original meaning.
+ * Immutable renderers for a conversation, its composer and navigation feedback.
+ * Derive a [copy] to replace selected renderers while retaining the surrounding theme defaults.
+ * Slots own presentation and semantics; they do not own another draft or service state.
  *
- * @property message Composable slot for rendering an individual message row.
- * @property composer Composable slot for rendering the message input composer area.
- * @property history Composable slot for rendering conversation history and pagination feedback.
- * @property latest Composable slot for returning to the latest messages.
- * @property messageMetadata Composable slot for rendering message sender and timestamp metadata.
- * @property messageBody Composable slot for rendering the main text content of a message.
- * @property messageDelivery Composable slot for rendering message delivery status.
- * @property messageDescription Function providing accessibility content description for a message.
- * @property retry Composable slot for rendering retry action controls.
- * @property composerField Composable slot for the text input field within the composer.
- * @property composerSend Composable slot for the send action control within the composer.
- * @property historyFeedback Composable slot for history loading status and feedback.
- * @property latestLabel Composable slot for the label indicating new messages or latest state.
- * @property presentedMessage Optional row slot with transient highlight and ID-based navigation.
- * Takes precedence over [message]; explicit Conversation messageContent still takes precedence.
- * Custom bubbles animate [MessagePresentation.isHighlighted] with their own presentation.
- * @property messageAvatar Optional host avatar presentation; never fetches implicitly.
- * @property messageSpacing Gap before each row except the first loaded row; neutral default is 12dp.
+ * [presentedMessage] takes precedence over [message] and receives transient highlight/navigation
+ * context. An explicit `Conversation.messageContent` takes precedence over both. Custom bubbles
+ * animate [MessagePresentation.isHighlighted] themselves. [messageAvatar] never fetches content;
+ * [messageSpacing] defaults to 12dp between loaded rows.
+ *
+ * Existing copy, equality and component ordering are retained: [latestLabel] is component 13,
+ * [messageAvatar] and [messageSpacing] are 14 and 15. The trailing constructor/copy lambda remains
+ * [latestLabel] for source compatibility.
  */
+// Compatibility constructors and data-class operations preserve the published slot contract.
+@Suppress("LongParameterList", "TooManyFunctions")
 class ConversationSlots(
     val message: @Composable (Message, Boolean, (() -> Unit)?) -> Unit = { row, _, retry ->
         DefaultMessage(row, retry)
@@ -70,15 +92,17 @@ class ConversationSlots(
         val requester = remember { FocusRequester() }
         LaunchedEffect(it.focusRequest) { if (it.focusRequest != 0L) requester.requestFocus() }
         BasicTextField(
-            value = it.draft.text, onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
+            value = it.draft.text,
+            onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
             keyboardOptions = ChatComposerKeyboardOptions,
             modifier = Modifier.fillMaxWidth().focusRequester(requester).testTag("composer")
-                .semantics { contentDescription = "Message" })
+                .semantics { contentDescription = "Message" },
+        )
     },
     val composerSend: @Composable (ComposerContent) -> Unit = {
         NeutralControl(
             it.onSend,
-            it.canSend
+            it.canSend,
         ) { BasicText("Send") }
     },
     val historyFeedback: @Composable (HistoryFeedbackContent) -> Unit = { NeutralHistoryFeedback(it) },
@@ -106,7 +130,7 @@ class ConversationSlots(
     ) : this(
         message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
         messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar,
-        messageSpacing, null, latestLabel
+        messageSpacing, null, latestLabel,
     )
 
     constructor(
@@ -148,7 +172,7 @@ class ConversationSlots(
     ): ConversationSlots = ConversationSlots(
         message, composer, history, latest, messageMetadata, messageBody, messageDelivery,
         messageDescription, retry, composerField, composerSend, historyFeedback, messageAvatar,
-        messageSpacing, presentedMessage, latestLabel
+        messageSpacing, presentedMessage, latestLabel,
     )
 
     fun copy(
@@ -223,10 +247,11 @@ class ConversationSlots(
     operator fun component13(): @Composable (LatestContent) -> Unit = latestLabel
     operator fun component14(): @Composable (Message) -> Unit = messageAvatar
     operator fun component15(): (MessageGroupContext) -> Dp = messageSpacing
-    operator fun component16(): (@Composable (Message, Boolean, (() -> Unit)?, MessagePresentation) -> Unit)? =
-        presentedMessage
+    operator fun component16(): (@Composable (Message, Boolean, (() -> Unit)?, MessagePresentation) -> Unit)? = presentedMessage
 
-    override fun equals(other: Any?): Boolean = this === other || (other is ConversationSlots &&
+    @Suppress("CyclomaticComplexMethod") // Field-wise equality matches the original data-class contract.
+    override fun equals(other: Any?): Boolean = this === other || (
+        other is ConversationSlots &&
             message == other.message &&
             composer == other.composer &&
             history == other.history &&
@@ -241,7 +266,8 @@ class ConversationSlots(
             historyFeedback == other.historyFeedback &&
             latestLabel == other.latestLabel &&
             messageAvatar == other.messageAvatar &&
-            messageSpacing == other.messageSpacing && presentedMessage == other.presentedMessage)
+            messageSpacing == other.messageSpacing && presentedMessage == other.presentedMessage
+        )
 
     override fun hashCode(): Int {
         var result = message.hashCode()
@@ -265,7 +291,6 @@ class ConversationSlots(
 
     override fun toString(): String =
         "ConversationSlots(message=$message, composer=$composer, history=$history, latest=$latest, messageMetadata=$messageMetadata, messageBody=$messageBody, messageDelivery=$messageDelivery, messageDescription=$messageDescription, retry=$retry, composerField=$composerField, composerSend=$composerSend, historyFeedback=$historyFeedback, latestLabel=$latestLabel, messageAvatar=$messageAvatar, messageSpacing=$messageSpacing, presentedMessage=$presentedMessage)"
-
 }
 
 val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
@@ -282,10 +307,7 @@ val LocalConversationSlots = staticCompositionLocalOf { ConversationSlots() }
  * ```
  */
 @Composable
-fun ConversationTheme(
-    slots: ConversationSlots = LocalConversationSlots.current,
-    content: @Composable () -> Unit
-) {
+fun ConversationTheme(slots: ConversationSlots = LocalConversationSlots.current, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalConversationSlots provides slots, content = content)
 }
 
@@ -294,9 +316,10 @@ fun DefaultMessage(message: Message, onRetry: (() -> Unit)?) {
     val slots = LocalConversationSlots.current
     Column {
         Column(
-            Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) }
+            Modifier.clearAndSetSemantics { contentDescription = slots.messageDescription(message) },
         ) {
-            slots.messageMetadata(message); slots.messageBody(message)
+            slots.messageMetadata(message)
+            slots.messageBody(message)
             slots.messageDelivery(message.delivery)
         }
         if (onRetry != null) slots.retry(RetryContent(message, onRetry))
@@ -318,11 +341,7 @@ fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
 }
 
 @Composable
-private fun NeutralControl(
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    content: @Composable () -> Unit
-) {
+private fun NeutralControl(onClick: () -> Unit, enabled: Boolean = true, content: @Composable () -> Unit) {
     val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
     Box(
         Modifier
@@ -345,14 +364,14 @@ private fun NeutralHistoryFeedback(content: HistoryFeedbackContent) {
         HistoryStatus.Idle -> {
             NeutralControl(
                 onClick = history.onLoadEarlier,
-                enabled = history.canLoadEarlier
+                enabled = history.canLoadEarlier,
             ) { BasicText("Load earlier") }
         }
 
         HistoryStatus.Error -> {
             NeutralControl(
                 onClick = history.onLoadEarlier,
-                enabled = history.canLoadEarlier
+                enabled = history.canLoadEarlier,
             ) { BasicText("Couldn't load messages · Retry") }
         }
 

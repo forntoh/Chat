@@ -1,16 +1,36 @@
 package dev.forntoh.chat.material3
 
-import dev.forntoh.chat.core.*
-import dev.forntoh.chat.ui.*
-
-import androidx.compose.material3.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.core.Participant
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.HistoryState
+import dev.forntoh.chat.ui.HistoryStatus
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -30,29 +50,52 @@ class ConversationTest {
         val slots = ConversationSlots(
             messageDescription = { "${it.sender.displayName}, ${it.text}, ${it.displayTime}, ${delivery(it.delivery)}" },
             messageDelivery = { Text(delivery(it)) },
-            retry = { control -> TextButton(onClick = control.onRetry,
-                modifier = Modifier.semantics { contentDescription = "Retry delivery" }) { Text("Again") } },
-            composerField = { content -> OutlinedTextField(content.draft.text, content.onTextChange,
-                enabled = !content.pending, label = { Text("Write here") },
-                modifier = Modifier.semantics { contentDescription = "Draft input" }) },
-            composerSend = { content -> Button(onClick = content.onSend, enabled = content.canSend,
-                modifier = Modifier.semantics { contentDescription = "Post draft" }) { Text("Post") } },
+            retry = { control ->
+                TextButton(
+                    onClick = control.onRetry,
+                    modifier = Modifier.semantics { contentDescription = "Retry delivery" },
+                ) { Text("Again") }
+            },
+            composerField = { content ->
+                OutlinedTextField(
+                    content.draft.text,
+                    content.onTextChange,
+                    enabled = !content.pending,
+                    label = { Text("Write here") },
+                    modifier = Modifier.semantics { contentDescription = "Draft input" },
+                )
+            },
+            composerSend = { content ->
+                Button(
+                    onClick = content.onSend,
+                    enabled = content.canSend,
+                    modifier = Modifier.semantics { contentDescription = "Post draft" },
+                ) { Text("Post") }
+            },
             historyFeedback = { content ->
                 when (content.history.state.status) {
-                    dev.forntoh.chat.ui.HistoryStatus.Error -> TextButton(onClick = content.history.onLoadEarlier,
+                    dev.forntoh.chat.ui.HistoryStatus.Error -> TextButton(
+                        onClick = content.history.onLoadEarlier,
                         enabled = content.history.canLoadEarlier,
-                        modifier = Modifier.semantics { contentDescription = "Retry earlier messages" }) { Text("Earlier messages unavailable") }
+                        modifier = Modifier.semantics {
+                            contentDescription = "Retry earlier messages"
+                        },
+                    ) { Text("Earlier messages unavailable") }
                     dev.forntoh.chat.ui.HistoryStatus.Loading -> Text("Fetching")
                     dev.forntoh.chat.ui.HistoryStatus.Exhausted -> Text(if (content.empty) "Begin here" else "Beginning")
-                    dev.forntoh.chat.ui.HistoryStatus.Idle -> TextButton(onClick = content.history.onLoadEarlier,
-                        enabled = content.history.canLoadEarlier) { Text("Older") }
+                    dev.forntoh.chat.ui.HistoryStatus.Idle -> TextButton(
+                        onClick = content.history.onLoadEarlier,
+                        enabled = content.history.canLoadEarlier,
+                    ) { Text("Older") }
                 }
             },
         )
         val events = mutableListOf<ConversationEvent>()
-        compose.setContent { JetchatTheme {
-            Conversation(snapshot.value, events::add, history = history.value, slots = slots)
-        } }
+        compose.setContent {
+            JetchatTheme {
+                Conversation(snapshot.value, events::add, history = history.value, slots = slots)
+            }
+        }
         compose.onNodeWithContentDescription("Draft input").assertExists()
         compose.onNodeWithText("Write here").assertExists()
         compose.onNodeWithContentDescription("Post draft").assertIsNotEnabled()
@@ -81,13 +124,22 @@ class ConversationTest {
     @Test fun latestAndArrivalActionsUseHostLabelsAndKeepReaderControlExplicit() {
         val rows = (0..39).map { Message("m$it", Participant("other", "Avery"), it.toLong(), "09:41", "Message $it", Delivery.Sent) }
         val snapshot = mutableStateOf(ConversationState("room", "me", messages = rows))
-        compose.setContent { JetchatTheme {
-            Conversation(snapshot.value, {}, slots = ConversationSlots(latestLabel = {
-                Text(if (it.hasNewMessages) "Arrivals" else "Return", modifier = Modifier.semantics {
-                    contentDescription = if (it.hasNewMessages) "Read arrivals" else "Return to newest"
-                })
-            }))
-        } }
+        compose.setContent {
+            JetchatTheme {
+                Conversation(
+                    snapshot.value,
+                    {},
+                    slots = ConversationSlots(latestLabel = {
+                        Text(
+                            if (it.hasNewMessages) "Arrivals" else "Return",
+                            modifier = Modifier.semantics {
+                                contentDescription = if (it.hasNewMessages) "Read arrivals" else "Return to newest"
+                            },
+                        )
+                    }),
+                )
+            }
+        }
         compose.onNodeWithTag("timeline").performScrollToIndex(0)
         compose.onNodeWithText("Return").assertIsDisplayed()
         compose.onNodeWithContentDescription("Return to newest").assertExists()
@@ -119,23 +171,38 @@ class ConversationTest {
         val me = Participant("me", "You")
         val other = Participant("other", "Avery")
         val outgoing = Message("m2", me, 1_000, "09:41", "Hello\n🌍", Delivery.Sending)
-        val snapshot = mutableStateOf(ConversationState("room", "me", messages = listOf(
-            Message("m1", other, 1_000, "09:41", "Welcome", Delivery.Sent), outgoing,
-        )))
+        val snapshot = mutableStateOf(
+            ConversationState(
+                "room",
+                "me",
+                messages = listOf(
+                    Message("m1", other, 1_000, "09:41", "Welcome", Delivery.Sent),
+                    outgoing,
+                ),
+            ),
+        )
         val events = mutableListOf<ConversationEvent>()
         compose.setContent { JetchatTheme { Conversation(snapshot.value, events::add) } }
         compose.onAllNodesWithText("09:41", useUnmergedTree = true).assertCountEquals(2)
         compose.onNodeWithText("Sending", useUnmergedTree = true).assertExists()
-        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = listOf(
-            snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Failed),
-        )) }
+        compose.runOnIdle {
+            snapshot.value = snapshot.value.copy(
+                messages = listOf(
+                    snapshot.value.messages.first(),
+                    outgoing.copy(delivery = Delivery.Failed),
+                ),
+            )
+        }
         compose.onNodeWithText("Failed", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Retry").performClick()
         compose.runOnIdle {
             assertEquals<List<ConversationEvent>>(listOf(ConversationEvent.RetryMessage("room", "m2")), events)
-            snapshot.value = snapshot.value.copy(messages = listOf(
-                snapshot.value.messages.first(), outgoing.copy(delivery = Delivery.Sent),
-            ))
+            snapshot.value = snapshot.value.copy(
+                messages = listOf(
+                    snapshot.value.messages.first(),
+                    outgoing.copy(delivery = Delivery.Sent),
+                ),
+            )
         }
         compose.onAllNodesWithText("Hello\n🌍", useUnmergedTree = true).assertCountEquals(1)
         compose.onNodeWithText("Retry").assertDoesNotExist()
@@ -153,10 +220,13 @@ class ConversationTest {
         compose.runOnIdle { snapshot.value = snapshot.value.copy(draft = Draft("Room B", 2)) }
         compose.onNodeWithContentDescription("Send").performClick()
         compose.runOnIdle {
-            assertEquals<List<ConversationEvent>>(listOf(
-                ConversationEvent.SendDraft("a", 1, "Room A"),
-                ConversationEvent.SendDraft("b", 2, "Room B"),
-            ), events)
+            assertEquals<List<ConversationEvent>>(
+                listOf(
+                    ConversationEvent.SendDraft("a", 1, "Room A"),
+                    ConversationEvent.SendDraft("b", 2, "Room B"),
+                ),
+                events,
+            )
         }
     }
 }
