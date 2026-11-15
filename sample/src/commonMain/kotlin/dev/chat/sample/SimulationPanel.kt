@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun SimulationPanel(host: FakeHost, onDismiss: () -> Unit) {
+internal fun SimulationPanel(host: FakeHost, onImages: () -> Unit, onDismiss: () -> Unit) {
     var scenario by remember { mutableStateOf(host.selectedScenario) }
     var seed by remember { mutableStateOf(host.selectedSeed.toString()) }
     var choosing by remember { mutableStateOf(false) }
@@ -30,6 +30,7 @@ internal fun SimulationPanel(host: FakeHost, onDismiss: () -> Unit) {
                         }
                     }
                 }
+                Text(scenario.guidance)
                 OutlinedTextField(seed, onValueChange = { seed = it }, label = { Text("Seed") }, singleLine = true,
                     isError = seed.toIntOrNull() == null)
                 Text("New events: acknowledgement ${host.acknowledgementMillis} ms · delivery ${host.deliveryMillis} ms")
@@ -45,6 +46,12 @@ internal fun SimulationPanel(host: FakeHost, onDismiss: () -> Unit) {
                     TextButton(onClick = host::step, enabled = host.simulationEnabled) { Text("Step") }
                     TextButton(onClick = host::resetSimulation, enabled = host.simulationEnabled) { Text("Reset") }
                 }
+                TextButton(onClick = { host.changeConnection(!host.connected) }) { Text(if (host.connected) "Disconnect" else "Reconnect") }
+                TextButton(onClick = { host.changeSelectedCapabilities(false) }) { Text("Revoke selected message actions") }
+                TextButton(onClick = { host.changeSelectedCapabilities(true) }) { Text("Restore selected message actions") }
+                TextButton(onClick = host::removeQuotedTarget) { Text("Remove reply target") }
+                TextButton(onClick = host::removeFirstVisibleFixtureRow) { Text("Remove first loaded row") }
+                TextButton(onClick = onImages) { Text("Open image simulator") }
                 TextButton(onClick = host::switchRoom) { Text("Switch room") }
                 Text("${if (host.paused) "Paused" else "Running"} · logical clock ${host.clockMillis} ms")
                 Text("Recent fixture trace (max 80; draft text excluded)", style = MaterialTheme.typography.labelMedium)

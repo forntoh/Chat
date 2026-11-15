@@ -20,6 +20,43 @@ class FakeMediaHost {
     private var serial = 1
     private val rooms = mutableMapOf<String, ConversationState>()
 
+    fun resetSimulation() {
+        val revision = state.draft.revision + 1
+        state = ConversationState("media", "me", draft = Draft(revision = revision), messages = listOf(
+            ImageStatus.Ready, ImageStatus.Loading, ImageStatus.Missing, ImageStatus.Unsupported
+        ).map { status ->
+            val attachment = Attachment("fixture-${serial++}", if (status == ImageStatus.Unsupported) "application/pdf" else "image/vector",
+                if (status == ImageStatus.Missing) null else "bundled:mountain", "${status.name} fixture")
+            Message("media-fixture-${serial++}", Participant("avery", "Avery"), serial.toLong(), "09:44",
+                "${status.name} fixture", Delivery.Sent, listOf(attachment))
+        })
+        media = MediaState(revision = media.revision + 1, images = state.messages.map { row ->
+            MediaTarget(state.conversationId, row.attachments.first(), message = row) to ImageState(
+                when (row.text.substringBefore(" ")) {
+                    "Loading" -> ImageStatus.Loading
+                    "Missing" -> ImageStatus.Missing
+                    "Unsupported" -> ImageStatus.Unsupported
+                    else -> ImageStatus.Ready
+                })
+        }.toMap())
+        selection = null; submission = null; uploads = emptyList(); viewer = null; rooms.clear()
+    }
+
+    fun advanceUpload() {
+        val target = upload ?: return
+        if (!current(target)) return
+        val progress = media.images[target]?.progress ?: 0f
+        if (progress >= .75f) completeUpload(true)
+        else media = media.copy(revision = media.revision + 1,
+            images = media.images + (target to ImageState(ImageStatus.Uploading, progress + .25f)))
+    }
+
+    fun finishLoading() {
+        media = media.copy(revision = media.revision + 1, images = media.images.mapValues { (_, image) ->
+            if (image.status == ImageStatus.Loading) ImageState(ImageStatus.Ready) else image
+        })
+    }
+
     fun current(target: MediaTarget): Boolean = target.conversationId == state.conversationId &&
         if (target.draft != null) target.draft == state.draft &&
             (target.attachment == null || target.attachment in state.draft.attachments)

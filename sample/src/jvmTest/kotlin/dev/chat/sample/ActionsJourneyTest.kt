@@ -134,7 +134,7 @@ class ActionsJourneyTest {
             "morgan", host.state.draft.text, host.state.draft.revision))
         host.accept(); host.completeDelivery(Delivery.Sent); host.receiveMessage()
         compose.setContent { Box(Modifier.size(402.dp, 748.dp)) { SampleApp(host, manualService = true) } }
-        compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).performClick()
+        compose.onNode(hasContentDescription("Reply to Morgan Lee") and hasAnyAncestor(hasTestTag("message-studio-1")), useUnmergedTree = true).performClick()
         if (compose.onAllNodesWithContentDescription("Latest", substring = true).fetchSemanticsNodes().isNotEmpty())
             compose.onNodeWithContentDescription("Latest", substring = true).performClick()
         repeat(3) { n ->

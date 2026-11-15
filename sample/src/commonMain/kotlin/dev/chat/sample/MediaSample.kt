@@ -27,7 +27,7 @@ fun MediaSample(
     onBack: (() -> Unit)? = null
 ) {
     var denyNextSelection by remember { mutableStateOf(false) }
-    var manualCompletion by remember { mutableStateOf(manualService) }
+    var manualCompletion by remember { mutableStateOf(manualService || host.state.messages.isNotEmpty()) }
     val media = rememberMedia(host.state, host.media, { request ->
         host.onRequest(request)
         if (request.command == MediaCommand.Select && denyNextSelection) {
@@ -80,6 +80,9 @@ fun MediaSample(
                     @Composable fun entry(label: String, action: () -> Unit) {
                         DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; action() })
                     }
+                    entry("Reset image simulator", host::resetSimulation)
+                    entry("Finish image loading", host::finishLoading)
+                    entry("Advance upload progress", host::advanceUpload)
                     entry("Switch media room", host::switchRoom)
                     entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
                     entry("Deny next selection") { denyNextSelection = true }

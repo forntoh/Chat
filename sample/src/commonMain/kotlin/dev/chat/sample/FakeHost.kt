@@ -94,6 +94,13 @@ class FakeHost {
             }
         }
         actionState = actionState.copy(revision = actionState.revision + 1)
+        if (simulationEnabled && pendingAction == request) schedule(700, "action ${request.command}") {
+            if (pendingAction == request) {
+                val success = !failActionNext
+                failActionNext = false
+                completeAction(success)
+            }
+        }
     }
 
     private fun restoreComposer() {
@@ -152,6 +159,30 @@ class FakeHost {
         private set
     private var failNext = false
     private var refuseNext = false
+    var connected by mutableStateOf(true)
+        private set
+    private var failHistoryNext = false
+    private var failActionNext = false
+
+    /** Simulated connection state only; queued deliveries observe it when they resolve. */
+    fun changeConnection(value: Boolean) { connected = value; record("connected=$value") }
+
+    /** Capability mutation is deliberately exposed in debug controls for stale-menu cases. */
+    fun changeSelectedCapabilities(allowed: Boolean) {
+        val id = actions.menuTargetId ?: state.messages.lastOrNull()?.id ?: return
+        if (allowed) allowActions(id) else revokeActions(id)
+        record("capability id=$id allowed=$allowed")
+    }
+
+    fun removeQuotedTarget() {
+        val id = actions.quoteTargetId ?: actions.quotes.values.firstOrNull { target -> state.messages.any { it.id == target } } ?: return
+        removeMessage(id)
+        record("removed quote target=$id")
+    }
+
+    fun removeFirstVisibleFixtureRow() {
+        state.messages.firstOrNull()?.let { removeMessage(it.id); record("removed anchor id=${it.id}") }
+    }
     private var sequence = 0L
     private var generation = 0L
     private var random = kotlin.random.Random(42)
@@ -177,6 +208,9 @@ class FakeHost {
         roomPendingActions.clear()
         failNext = scenario == Scenario.Failure
         refuseNext = scenario == Scenario.Refusal
+        connected = scenario != Scenario.Disconnected
+        failHistoryNext = scenario == Scenario.History
+        failActionNext = scenario == Scenario.Actions
         simulationEnabled = true
         generation++
         scheduled.clear()
@@ -187,6 +221,15 @@ class FakeHost {
         state = initialState("studio").copy(draft = Draft(revision = revision))
         nextMessage = 1
         useChatFixture()
+        when (scenario) {
+            Scenario.IncomingBurst -> repeat(4) { n -> schedule(400L * (n + 1), "burst $n") { receiveMessage() } }
+            Scenario.History -> useHistoryFixture()
+            Scenario.EmptyHistory -> { state = state.copy(messages = emptyList()); history = HistoryState(HistoryStatus.Idle, history.revision + 1) }
+            Scenario.LongConversation -> { state = state.copy(messages = (0..999).map(::historyMessage)); history = HistoryState(HistoryStatus.Exhausted, history.revision + 1) }
+            Scenario.Replies -> actionState = actionState.copy(quotes = actionState.quotes + ("morgan" to "removed-target"))
+            Scenario.Composer -> state = state.copy(draft = Draft("First line\nSecond line\nThird line\nFourth line\nFifth line", state.draft.revision))
+            else -> Unit
+        }
         record("start seed=$seed scenario=${scenario.name} ack=$acknowledgementMillis delivery=$deliveryMillis")
     }
 
@@ -227,7 +270,7 @@ class FakeHost {
     private fun scheduleDelivery(id: String) {
         schedule(deliveryMillis, "delivery id=$id") {
             if (state.messages.none { it.id == id && it.delivery == Delivery.Sending }) return@schedule
-            val failed = failNext
+            val failed = failNext || !connected
             failNext = false
             completeDelivery(if (failed) Delivery.Failed else Delivery.Sent, id)
             if (!failed) schedule(700 + random.nextLong(400), "reply to=$id") { receiveMessage() }
@@ -258,6 +301,14 @@ class FakeHost {
             pendingHistory != null || history.status !in listOf(HistoryStatus.Idle, HistoryStatus.Error)) return
         pendingHistory = request
         history = history.copy(status = HistoryStatus.Loading)
+        if (simulationEnabled) schedule(700, "history revision=${request.revision}") {
+            if (pendingHistory != request) return@schedule
+            if (failHistoryNext) { failHistoryNext = false; failHistory() }
+            else if (selectedScenario == Scenario.EmptyHistory) {
+                pendingHistory = null
+                history = HistoryState(HistoryStatus.Exhausted, history.revision + 1)
+            } else completeHistory(request)
+        }
     }
 
     fun failHistory() {
@@ -290,6 +341,7 @@ class FakeHost {
             generation++
             scheduled.clear()
             if (pendingDraft != null) refuse()
+            if (pendingAction != null) completeAction(false)
             state = state.copy(messages = state.messages.map {
                 if (it.delivery == Delivery.Sending) it.copy(delivery = Delivery.Failed) else it
             })
@@ -394,6 +446,7 @@ class FakeHost {
             Message("morgan-2", Participant("morgan", "Morgan Lee"), 1_004, "09:43", "Does 2:30 work for everyone?", Delivery.Sent),
             Message("confirmed", Participant("me", "You"), 1_005, "09:44", "Perfect — see you both there!", Delivery.Sent),
         ))
+        actionState = actionState.copy(quotes = mapOf("response" to "sketches", "confirmed" to "morgan-2"))
         history = HistoryState(HistoryStatus.Exhausted)
     }
 

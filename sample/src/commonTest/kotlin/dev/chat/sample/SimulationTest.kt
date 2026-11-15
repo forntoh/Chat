@@ -130,4 +130,77 @@ class SimulationTest {
         assertFalse(host.trace.any { "PRIVATE" in it || "fixture" in it })
     }
 
+    @Test fun startupRepliesAndEveryScenarioAreReproducible() {
+        Scenario.entries.forEach { scenario ->
+            val first = FakeHost().apply { startSimulation(scenario, 7) }
+            val second = FakeHost().apply { startSimulation(scenario, 7) }
+            assertEquals(first.state, second.state)
+            first.advanceBy(5_000); second.advanceBy(5_000)
+            assertEquals(first.state, second.state)
+            assertEquals(first.trace, second.trace)
+            first.resetSimulation()
+            assertEquals(0L, first.clockMillis)
+        }
+        val host = FakeHost().apply { startSimulation() }
+        assertEquals("sketches", host.actions.quotes["response"])
+        assertEquals("morgan-2", host.actions.quotes["confirmed"])
+    }
+
+    @Test fun burstHistoryFailureEmptyAndDisconnectUsePublicSnapshots() {
+        val burst = FakeHost().apply { startSimulation(Scenario.IncomingBurst); advanceBy(2_000) }
+        assertEquals(10, burst.state.messages.size)
+        val history = FakeHost().apply { startSimulation(Scenario.History) }
+        history.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", history.history.revision))
+        history.step()
+        assertEquals(dev.forntoh.chat.ui.HistoryStatus.Error, history.history.status)
+        history.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", history.history.revision))
+        history.step()
+        assertEquals(100, history.state.messages.size)
+        assertEquals(100, history.state.messages.map { it.id }.distinct().size)
+        val empty = FakeHost().apply { startSimulation(Scenario.EmptyHistory) }
+        empty.loadEarlier(dev.forntoh.chat.ui.HistoryRequest("studio", empty.history.revision)); empty.step()
+        assertTrue(empty.state.messages.isEmpty())
+        assertEquals(dev.forntoh.chat.ui.HistoryStatus.Exhausted, empty.history.status)
+        val disconnected = FakeHost().apply { startSimulation(Scenario.Disconnected) }
+        send(disconnected, "Retain until retry")
+        disconnected.step(); disconnected.step()
+        assertEquals(Delivery.Failed, disconnected.state.messages.last().delivery)
+        disconnected.changeConnection(true)
+        val id = disconnected.state.messages.last().id
+        disconnected.onEvent(ConversationEvent.RetryMessage("studio", id)); disconnected.step()
+        assertEquals(Delivery.Sent, disconnected.state.messages.single { it.id == id }.delivery)
+    }
+
+    @Test fun mediaFixtureIncludesFallbacksAndProgressResetInvalidatesOldTargets() {
+        val host = FakeMediaHost().apply { resetSimulation() }
+        assertEquals(setOf(dev.forntoh.chat.media.ImageStatus.Ready, dev.forntoh.chat.media.ImageStatus.Loading,
+            dev.forntoh.chat.media.ImageStatus.Missing, dev.forntoh.chat.media.ImageStatus.Unsupported), host.media.images.values.map { it.status }.toSet())
+        val row = host.state.messages.first()
+        val target = dev.forntoh.chat.media.MediaTarget(host.state.conversationId, row.attachments.first(), message = row)
+        host.resetSimulation()
+        assertFalse(host.current(target))
+        assertEquals(4, host.state.messages.size)
+    }
+
+    @Test fun actionFailureRetriesAndSwitchRejectsLateCompletion() {
+        val host = FakeHost().apply { startSimulation(Scenario.Actions) }
+        fun request(command: dev.forntoh.chat.actions.ActionCommand) = host.onAction(dev.forntoh.chat.actions.ActionRequest(
+            host.state.conversationId, host.actions.revision, command, "confirmed"))
+        request(dev.forntoh.chat.actions.ActionCommand.RequestDelete)
+        request(dev.forntoh.chat.actions.ActionCommand.ConfirmDelete)
+        host.step()
+        assertNotNull(host.actions.error)
+        assertTrue(host.state.messages.any { it.id == "confirmed" })
+        request(dev.forntoh.chat.actions.ActionCommand.ConfirmDelete)
+        host.step()
+        assertFalse(host.state.messages.any { it.id == "confirmed" })
+        host.resetSimulation()
+        request(dev.forntoh.chat.actions.ActionCommand.RequestDelete)
+        request(dev.forntoh.chat.actions.ActionCommand.ConfirmDelete)
+        host.switchRoom(); host.switchRoom(); host.advanceBy(10_000)
+        assertNull(host.pendingAction)
+        assertFalse(host.actions.pending)
+        assertTrue(host.state.messages.any { it.id == "confirmed" })
+    }
+
 }

@@ -146,7 +146,7 @@ class ReplyNavigationJourney {
         compose.onNodeWithTag("timeline").performScrollToKey("studio-1")
         compose.onNodeWithTag("bubble-studio-1", useUnmergedTree = true).assertIsDisplayed()
         capture("reply-default")
-        compose.onNodeWithContentDescription("Reply to Morgan Lee", substring = true, useUnmergedTree = true).performClick()
+        compose.onNode(hasContentDescription("Reply to Morgan Lee", substring = true) and hasAnyAncestor(hasTestTag("message-studio-1")), useUnmergedTree = true).performClick()
         val viewport = compose.onNodeWithTag("timeline").fetchSemanticsNode().boundsInRoot
         val target = compose.onNodeWithTag("message-morgan").fetchSemanticsNode().boundsInRoot
         org.junit.Assert.assertTrue(target.top >= viewport.top && target.bottom <= viewport.bottom)

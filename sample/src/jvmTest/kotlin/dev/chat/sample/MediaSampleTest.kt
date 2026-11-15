@@ -35,6 +35,13 @@ class MediaSampleTest {
         val directory = File("build/pat245-evidence").apply { mkdirs() }
         ImageIO.write(scaled, "png", File(directory, "$name.png"))
     }
+    @Test fun imageSimulatorRendersLoadingAndUnavailableFallbacks() {
+        val host = FakeMediaHost().apply { resetSimulation() }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host) } }
+        compose.onNodeWithText("Unsupported attachment").assertExists()
+        compose.onNodeWithText("Image unavailable").assertExists()
+        capture("08-simulator-fallbacks")
+    }
     @Test fun bundledImageJourneyRetainsDraftOnCancelDenyAndFailureThenRetriesSameIdentity() {
         val host = FakeMediaHost()
         compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }

@@ -49,7 +49,7 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
                 retainedHost.accept()
                 retainedHost.completeDelivery(Delivery.Sent)
             }
-            if (retainedHost.pendingAction != null) retainedHost.completeAction(true)
+            if (!retainedHost.simulationEnabled && retainedHost.pendingAction != null) retainedHost.completeAction(true)
         }
     }
     val actions = rememberMessageActions(retainedHost.state, retainedHost.actions,
@@ -60,7 +60,12 @@ fun SampleApp(host: FakeHost? = null, manualService: Boolean = false) {
     var hostTheme by remember { mutableStateOf(false) }
     var demoMenu by remember { mutableStateOf(false) }
     SampleTheme(hostTheme) {
-        if (debugPanel) SimulationPanel(retainedHost) { debugPanel = false }
+        if (debugPanel) {
+            SimulationPanel(
+                retainedHost,
+                onImages = { mediaHost.resetSimulation(); mediaDemo = true; debugPanel = false }
+            ) { debugPanel = false }
+        }
         ChatScaffold(
             title = { Column {
                 Text(if (retainedHost.state.conversationId == "studio") "Design team" else "Project room",

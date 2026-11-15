@@ -1,6 +1,9 @@
 package dev.chat.sample
 
 import androidx.compose.ui.test.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -24,6 +27,19 @@ class SampleJourneyTest {
 
     @get:Rule val compose = createComposeRule()
 
+    @Test fun simulationPanelListsScenarioCasesAndStartupReplyExamples() {
+        val host = FakeHost().apply { startSimulation(); pause(true) }
+        compose.setContent { Box(Modifier.size(402.dp, 874.dp)) { SampleApp(host) } }
+        compose.onNodeWithContentDescription("Reply to Morgan Lee", useUnmergedTree = true).assertExists()
+        capture("simulator-startup-replies")
+        compose.onNodeWithTag("demo-menu").performClick()
+        compose.onNodeWithText("Simulation debug panel").performClick()
+        compose.onNodeWithText("Normal exchange").performClick()
+        compose.onNodeWithText("Replies / missing target").performScrollTo().performClick()
+        compose.onNodeWithText("Start selected scenario").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(Scenario.Replies, host.selectedScenario); host.pause(true) }
+        capture("simulator-replies-debug")
+    }
     @Test fun polishedConversationDemonstratesDefaultGroupsTypingSendingAndContextMenu() {
         val host = FakeHost().apply { useChatFixture() }
         val width = androidx.compose.runtime.mutableStateOf(360.dp)
@@ -55,7 +71,7 @@ class SampleJourneyTest {
     }
 
     private fun capture(name: String) {
-        val pixels = compose.onRoot().captureToImage().toPixelMap()
+        val pixels = compose.onAllNodes(isRoot()).onLast().captureToImage().toPixelMap()
         val image = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until pixels.height) for (x in 0 until pixels.width) image.setRGB(x, y, pixels[x, y].toArgb())
         val directory = File("build/pat243-evidence").apply { mkdirs() }
