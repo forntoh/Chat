@@ -150,6 +150,14 @@ Core/custom-UI/actions/media consumers do not inherit it unless they select Mate
 Icons are bundled by the dependency; no copied vector paths or runtime icon fetch is used.
 
 
+### Native iOS text input
+
+The foundation and Material3 composer fields use `ChatComposerKeyboardOptions`, which enables
+Compose 1.11.1's experimental native UIKit text input on iOS. Android and desktop keep
+`KeyboardOptions.Default`. Custom `composerField` implementations can pass the same options to
+`BasicTextField` (or copy them to customize keyboard behavior). Draft text, pending guards and
+submission remain host-owned; this option does not change inset handling.
+
 ### Floating composer
 
 `Conversation` overlays the composer on the timeline. It measures the complete composer slot

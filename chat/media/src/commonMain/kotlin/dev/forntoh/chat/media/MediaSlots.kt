@@ -49,7 +49,6 @@ fun DefaultMediaControl(content: MediaControlContent) {
     }
 }
 
-/** Visible feedback also serves as accessible fallback when a host renderer cannot present content. */
 @Composable
 fun DefaultMediaFeedback(content: MediaFeedbackContent) {
     BasicText(when (content.image.status) {
@@ -88,7 +87,6 @@ fun MediaDraft(media: MediaContent, composer: ComposerContent,
                         media.request(MediaCommand.Remove, target, adapted)
                     })
             }
-            // Current previews follow host order; only absent identities remain for their exit.
             (previews.keys + retainedIds.filterNot { it in previews }).forEach { id ->
                 key(id) {
                     ChatMotionVisibility(previews[id], initiallyVisible = id in initialIds) { shown ->

@@ -79,6 +79,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
         BasicTextField(
             value = it.draft.text,
             onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
+            keyboardOptions = ChatComposerKeyboardOptions,
             minLines = 1,
             maxLines = 5,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),

@@ -71,6 +71,7 @@ class ConversationSlots(
         LaunchedEffect(it.focusRequest) { if (it.focusRequest != 0L) requester.requestFocus() }
         BasicTextField(
             value = it.draft.text, onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
+            keyboardOptions = ChatComposerKeyboardOptions,
             modifier = Modifier.fillMaxWidth().focusRequester(requester).testTag("composer")
                 .semantics { contentDescription = "Message" })
     },
