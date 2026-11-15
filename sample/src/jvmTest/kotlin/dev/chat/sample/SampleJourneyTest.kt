@@ -34,9 +34,12 @@ class SampleJourneyTest {
         capture("simulator-long-top")
         compose.mainClock.autoAdvance = false
         compose.onNodeWithContentDescription("Latest", substring = true).performClick()
-        repeat(240) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
-        compose.mainClock.autoAdvance = true
-        compose.onNodeWithText("Message 999").assertIsDisplayed()
+        repeat(25) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        try {
+            compose.onNodeWithText("Message 999").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
         capture("simulator-long-latest")
     }
     @Test fun simulationPanelListsScenarioCasesAndStartupReplyExamples() {

@@ -227,7 +227,7 @@ class HistoryJourneyTest {
         assertEquals(1, events.filterIsInstance<ConversationEvent.SendDraft>().size)
     }
 
-    @Test fun returnToLatestTravelsContinuouslyWithoutTeleportingAcrossLongHistory() {
+    @Test fun returnToLatestCapsDurationAcrossLongHistory() {
         fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
         compose.setContent {
             androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
@@ -251,18 +251,40 @@ class HistoryJourneyTest {
         var previous = position()
         var movingFrames = 0
         compose.onNodeWithText("Latest").performClick()
-        repeat(240) {
+        repeat(25) {
             compose.mainClock.advanceTimeByFrame()
             compose.waitForIdle()
             val current = position()
             assertTrue(current >= previous - 1f, "Return travel must not reverse")
-            assertTrue(current - previous <= 400f + 1f, "Each frame must measure at most one viewport of travel: ${current - previous}")
             if (current > previous + 1f) movingFrames++
             previous = current
         }
-        compose.mainClock.autoAdvance = true
-        compose.onNodeWithTag("message-m999").assertIsDisplayed()
+        try {
+            compose.onNodeWithTag("message-m999").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
         assertTrue(movingFrames >= 8, "Return travel must include intermediate frames")
+    }
+
+    @Test fun readerDragInterruptsCappedReturnAndLaterArrivalKeepsHistory() {
+        fun message(n: Int) = Message("m$n", Participant("other", "Avery"), n.toLong(), "09:41", "Message $n", Delivery.Sent)
+        val snapshot = mutableStateOf(ConversationState("room", "me", messages = (0..999).map(::message)))
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(Modifier.height(400.dp)) {
+                Conversation(snapshot.value, {}, messageContent = { row, _, _ -> BasicText(row.text, Modifier.height(48.dp)) }, composerContent = {})
+            }
+        }
+        compose.onNodeWithTag("timeline").performScrollToIndex(1)
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText("Latest").performClick()
+        repeat(4) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+        compose.onNodeWithTag("timeline").performTouchInput { swipeDown(durationMillis = 200) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.runOnIdle { snapshot.value = snapshot.value.copy(messages = snapshot.value.messages + message(1000)) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("message-m1000").assertDoesNotExist()
+        compose.mainClock.autoAdvance = true
     }
 
     @Test fun oversizedLatestMessageKeepsItsTrailingContentAboveTheKeyboard() {

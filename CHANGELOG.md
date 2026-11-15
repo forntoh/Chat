@@ -4,7 +4,7 @@
 
 No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local` are local verification coordinates.
 
-- Bound return-to-latest work to one viewport per frame so long histories keep the interface responsive.
+- Cap the entire return-to-latest animation at 360ms, using virtualized positions for long histories so unseen rows do not block each frame.
 - Expand the sample simulator with the remaining conversation scenarios, startup reply examples, and a controllable image-state gallery.
 - iOS floating composer bottom and side gutters match at 26pt to follow the screen corner curve; the explicit keyboard gap remains.
   Reply context omits the redundant label and centers dismiss beside the preview, aligned with Send.
@@ -16,7 +16,7 @@ No public release has been published. `dev.forntoh.chat.candidate:*:0.1.0-local`
   inside its borderless rounded field and centers placeholder/text vertically. Optional actions use
   an icon-only reply/edit dismiss control beside the preview. Header/leading slots accept host content. History
   scrolls behind the surrounding space; multiline growth preserves latest/history reader intent.
-- Return-to-latest uses continuous scrolling without long-history teleports. Sending from history
+- Return-to-latest uses eased scrolling with a fixed duration cap. Sending from history
   returns to latest; keyboard/composer viewport changes retain bottom-follow, including oversized final messages.
 - Replies can render an inset, slot-customizable sender/excerpt preview inside the message bubble.
   Tapping a loaded quote smoothly centers its stable target and briefly highlights it.

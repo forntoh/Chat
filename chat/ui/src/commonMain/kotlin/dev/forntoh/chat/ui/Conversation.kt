@@ -102,7 +102,7 @@ class ComposerContent(
  * retaining its scroll offset. Incoming rows follow only an existing bottom reader; Send and
  * return-to-latest explicitly resume following. Keyboard/composer resizing retains that mode,
  * keeping the final row's trailing content visible even when the row exceeds the viewport.
- * Latest travel uses a cancellable 360ms eased scroll without jumping over unmeasured history.
+ * Latest travel is capped at 360ms; distant positions are virtualized to avoid measuring skipped history.
  * Switching conversation resets
  * these UI latches; the host must isolate drafts and reject obsolete asynchronous results.
  *
@@ -216,6 +216,7 @@ fun Conversation(
                 var followingLatest by remember { mutableStateOf(true) }
                 var highlightedId by remember { mutableStateOf<String?>(null) }
                 var navigation by remember { mutableStateOf<Job?>(null) }
+                var latestNavigation by remember { mutableStateOf<Job?>(null) }
                 // Reader intent wins even when a native viewport resize and an arrival share a frame.
                 LaunchedEffect(list) {
                     list.interactionSource.interactions.collect { interaction ->
@@ -278,6 +279,7 @@ fun Conversation(
                         if (latestState.messages.isNotEmpty()) list.animateToLatest()
                         followingLatest = !list.canScrollForward
                     }
+                    latestNavigation = navigation
                 }
                 LaunchedEffect(sendScrollRequest) {
                     if (sendScrollRequest > 0) returnToLatest()
@@ -327,7 +329,9 @@ fun Conversation(
                         previousIndex = observed.firstIndex
                         previousOffset = observed.firstOffset
                         if (navigation?.isActive == true) {
-                            if (followingLatest && movedBackward && !viewportChanged) {
+                            // Virtualized seeks update the requested index before layout clamps it.
+                            // Their clamp is not reader intent; actual reader drag cancels above.
+                            if (followingLatest && movedBackward && !viewportChanged && navigation !== latestNavigation) {
                                 followingLatest = false
                                 navigation?.cancel()
                             }
@@ -489,39 +493,48 @@ private data class TimelineObservation(
     val firstIndex: Int, val firstOffset: Int, val canScrollForward: Boolean,
 )
 
-/** One uninterrupted scroll session; unlike animateScrollToItem this never teleports past history.
- * Re-estimate unmeasured rows each frame, then use the actual trailing edge once it is visible.
- * Scroll priority and the caller's conversation scope preserve user interruption/cancellation.
+/** A single 360ms return, independent of history length. Nearby travel uses pixel scrolling;
+ * distant travel seeks virtualized positions each frame so unseen intermediate rows do not
+ * block the UI. Both paths settle at the measured trailing edge inside the same scroll session.
+ * Reader drag and conversation scope retain cancellation; no distance-dependent tail is queued.
  */
 private suspend fun LazyListState.animateToLatest() {
     scroll {
         val lazyScope = LazyLayoutScrollScope(this@animateToLatest, this)
-        fun remaining(): Float {
+        val startIndex = firstVisibleItemIndex
+        val startOffset = firstVisibleItemScrollOffset
+        val visible = layoutInfo.visibleItemsInfo
+        val rowHeight = if (visible.isEmpty()) 1f else
+            ((visible.last().offset + visible.last().size - visible.first().offset).toFloat() / visible.size).coerceAtLeast(1f)
+        val distant = layoutInfo.totalItemsCount - startIndex > maxOf(30, visible.size * 3)
+        var previous = 0f
+        animate(initialValue = 0f, targetValue = 1f, animationSpec = tween(360)) { fraction, _ ->
             val layout = layoutInfo
             val lastIndex = layout.totalItemsCount - 1
-            if (lastIndex < 0 || !canScrollForward) return 0f
-            val last = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex }
-            return (if (last != null) {
-                (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).toFloat()
-            } else lazyScope.calculateDistanceTo(lastIndex).toFloat()).coerceAtLeast(0f)
-        }
-        fun viewportStep(): Float = layoutInfo.viewportSize.height.toFloat().coerceAtLeast(1f)
-        var previous = 0f
-        animate(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = tween(360)
-        ) { fraction, _ ->
-            val share = if (previous >= 1f) 1f else ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
-            scrollBy((remaining() * share).coerceAtMost(viewportStep()))
+            if (lastIndex >= 0 && canScrollForward) {
+                if (distant) {
+                    val position = startIndex + (lastIndex - startIndex) * fraction
+                    val index = position.toInt().coerceIn(0, lastIndex)
+                    val offset = ((position - index) * rowHeight + startOffset * (1f - fraction)).toInt()
+                    // Estimated row heights may temporarily put us ahead of the interpolation.
+                    // Wait for it to catch up instead of reversing and cancelling reader intent.
+                    if (index > firstVisibleItemIndex ||
+                        (index == firstVisibleItemIndex && offset >= firstVisibleItemScrollOffset))
+                        lazyScope.snapToItem(index, offset)
+                } else {
+                    val last = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex }
+                    val remaining = if (last != null)
+                        (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).toFloat()
+                    else lazyScope.calculateDistanceTo(lastIndex).toFloat()
+                    val share = if (previous >= 1f) 1f else ((fraction - previous) / (1f - previous)).coerceIn(0f, 1f)
+                    scrollBy(remaining.coerceAtLeast(0f) * share)
+                }
+            }
             previous = fraction
         }
-        while (canScrollForward) {
-            withFrameNanos { }
-            val distance = remaining()
-            if (distance <= 0f) break
-            val consumed = scrollBy((distance * .35f).coerceAtLeast(1f).coerceAtMost(viewportStep()))
-            if (consumed < .5f) break
+        val layout = layoutInfo
+        layout.visibleItemsInfo.lastOrNull { it.index == layout.totalItemsCount - 1 }?.let { last ->
+            scrollBy((last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).coerceAtLeast(0).toFloat())
         }
     }
 }
