@@ -21,4 +21,4 @@ The optional Material3 module uses Compose Icons Tabler Outline and its Tabler d
 
 These terms apply to the dependencies rather than replacing the license of original Chat code. Host fonts, images, native payloads and platform SDKs require their own distribution assessment.
 
-Build tools are separate from the library's production graph: Gradle 9.4.1, Kotlin/compiler 2.4.0, Compose plugin 1.11.1 and AGP 9.1.0. Tests select Kotlin test and Compose UI test/JUnit4. Quality tooling runs Detekt 1.23.8 and ktlint 1.8.0 in isolated processes. Documentation uses MkDocs 1.6.1 with its complete Python dependency closure pinned in `requirements-docs.txt`.
+Build tools are separate from the library's production graph: Gradle 9.4.1, Kotlin/compiler 2.4.0, Compose plugin 1.11.1 and AGP 9.1.0. Tests select Kotlin test and Compose UI test/JUnit4. Quality tooling runs Detekt 1.23.8 and ktlint 1.8.0 in isolated processes. Documentation uses MyST 1.13.0, pinned with `package-lock.json`.

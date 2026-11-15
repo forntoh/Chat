@@ -21,6 +21,6 @@ commonMain.dependencies {
 }
 ```
 
-For staged artifact dependencies, use the matching `chat-*` artifact names under `dev.forntoh.chat.candidate` at `0.1.0-local`, as described in [getting started](getting-started.md). All five declare Android, JVM and arm64 iOS targets.
+Use the matching `chat-*` artifact names under `dev.forntoh.chat` at `0.0.1`, as described in [getting started](getting-started.md). All five declare Android, JVM and arm64 iOS targets.
 
 Transport, authentication, persistence, upload storage, permissions and resource loading belong to the host. Module selection alone does not provide those services. See the [dependency and license inventory](third-party-licenses.md) for the production graph.

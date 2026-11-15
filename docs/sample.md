@@ -1,10 +1,14 @@
 # Run the offline bot sample
 
-Scout replies after a short delay when you send text. Independently, it occasionally shares text, the bundled mountain illustration and a custom trail card. The toolbar switches between the default and forest themes; the composer keeps Send and image attachment. Both participants' images open in a simple viewer.
+Scout replies after a short delay when you send text. Independently, it occasionally shares text, the bundled mountain illustration and a custom trail card. The toolbar overflow offers default/forest themes and Pause bot / Resume bot; the composer keeps Send and image attachment. Both participants' images open in a simple viewer.
 
 <img src="assets/bot-chat.gif" width="320" alt="The running offline Scout chat">
 
-The host uses a seedable scheduler (seed 42 by default), 0.9–1.8 second replies and 4.5–7.5 second autonomous intervals. It starts once per mounted session and cancels queued work on disposal/reset. Theme changes retain the same host and Conversation. Reset is a host/test seam, not an ordinary screen control. All messages and drafts are in memory.
+The host uses a seedable scheduler (seed 42 by default), 0.9–1.8 second replies and 15–30 second autonomous intervals. Each burst contains at most three arrivals, then Scout stays idle until an accepted user message or explicit resume. Pause cancels pending arrivals and replies immediately; you can still send messages while paused. Resume starts one fresh burst without replaying missed messages. Disposal/reset cancels all queued work. The scheduler starts once per mounted session. Theme changes retain the same host and Conversation. Reset is a host/test seam, not an ordinary screen control. All messages and drafts are in memory.
+
+Pause and resume from the overflow without replacing the conversation or draft:
+
+<img src="assets/bot-controls.gif" width="320" alt="Resuming Scout from the toolbar overflow with the draft retained">
 
 The forest theme keeps the same conversation and draft:
 
@@ -44,8 +48,8 @@ xcodebuild -project ChatSample.xcodeproj -scheme ChatSample \
 
 The generated project invokes the shared framework task. Select a concrete simulator in Xcode to run it. Physical-device signing is separate host setup. Software-keyboard overlap and real picker/upload behavior remain unverified.
 
-## Developer fixtures
+## Fixtures
 
-Normal launch has no scenario, Step or service-outcome controls. Existing regression fixtures remain in `DiagnosticSampleApp`; JVM journeys call that entry point explicitly. On Android, launch the existing app with `--ez diagnostics true` to inspect the retained simulator. On iOS, use the `--diagnostics` launch argument; retained native journeys select it explicitly. These fixtures model service outcomes without claiming production reliability.
+The normal screen uses one bot conversation. Contract checks supply manual action/history snapshots and media outcomes through public APIs in test sources; they do not ship another application route.
 
 `sample/src/commonMain/composeResources/drawable/mountain.xml` is an original local fixture licensed under Apache-2.0. It is rendered by the host, never fetched from a network.

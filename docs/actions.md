@@ -2,7 +2,7 @@
 
 Select `chat-actions` with `chat-ui`. It stays independent of media and Material3. A host retains `ActionState`, supplies explicit per-message capabilities and resolves requests; the module does not edit storage, authorize users or access the clipboard implicitly.
 
-Create `rememberMessageActions(conversation, actionState, onAction, onEvent)` beside your retained snapshots. Wrap a row in `MessageActionFocus` for the focused action surface, or render `MessageActions` for an explicit menu. Forward the adapted composer and render `ActionComposerStatus` in its header. `DiagnosticSampleApp` contains a complete combined reference for these public slots.
+Create `rememberMessageActions(conversation, actionState, onAction, onEvent)` beside your retained snapshots. Wrap a row in `MessageActionFocus` for the focused action surface, or render `MessageActions` for an explicit menu. Forward the adapted composer and render `ActionComposerStatus` in its header. The test-only `ActionContractHarness` in the sample JVM test sources contains a complete combined reference for these public slots.
 
 Capabilities determine which actions are offered. Validate them again in the host, including after a pending result. Requests bind conversation, action revision and target identity; edits and quoted sends also bind draft revision and payload. Reject stale callbacks and results after message replacement, capability revocation, navigation or reset.
 

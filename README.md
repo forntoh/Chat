@@ -18,7 +18,7 @@ Chat with Scout, attach the bundled illustration, and try the theme switch. Scou
 
 ## Add a conversation
 
-Inside this source checkout, add `implementation(project(":chat:material3"))` to your host module. Then render your host snapshot and handle its events:
+Add `implementation("dev.forntoh.chat:chat-material3:0.0.1")` to your shared host module, with `mavenCentral()` in your repositories. Then render your host snapshot and handle its events:
 
 ```kotlin
 import androidx.compose.material3.Text
@@ -39,6 +39,6 @@ fun TripChat(state: ConversationState, onEvent: (ConversationEvent) -> Unit) {
 }
 ```
 
-Public packages are not published yet. The [getting-started guide](docs/getting-started.md) explains source integration and the existing local Maven stage; `0.1.0-local` coordinates are not a Maven Central installation command.
+Use version `0.0.1` for all Chat modules. The [getting-started guide](docs/getting-started.md) covers integration and host state.
 
-Read the [full guides](docs/index.md), [module choices](docs/modules.md), [contributing guide](docs/development.md) and [Apache-2.0 license](LICENSE). Build the documentation locally with `pip install -r requirements-docs.txt` and `mkdocs serve`; there is no deployed documentation site.
+Read the [full guides](docs/index.md), [module choices](docs/modules.md), [contributing guide](docs/development.md) and [Apache-2.0 license](LICENSE). Build the documentation locally with `npm ci` and `npm run docs:serve`.

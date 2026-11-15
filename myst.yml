@@ -1,0 +1,24 @@
+version: 1
+project:
+  title: Compose Chat
+  description: Host-owned conversations for Compose Multiplatform
+  license: Apache-2.0
+  toc:
+    - file: docs/index.md
+    - file: docs/getting-started.md
+    - file: docs/modules.md
+    - file: docs/state.md
+    - file: docs/customization.md
+    - file: docs/media.md
+    - file: docs/actions.md
+    - file: docs/history.md
+    - file: docs/motion.md
+    - file: docs/sample.md
+    - file: docs/development.md
+    - file: docs/support.md
+    - file: docs/third-party-licenses.md
+    - file: docs/license.md
+site:
+  template: https://github.com/myst-templates/book-theme/archive/39551f85e7540f44b3b7e1341b4fd4ca236621dc.zip
+  options:
+    logo_text: Compose Chat

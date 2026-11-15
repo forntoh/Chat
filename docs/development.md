@@ -8,18 +8,17 @@ Run the same checks as CI from the repository root:
 
 ```sh
 ./gradlew detekt ktlintCheck
-python3.12 -m venv .venv-docs
-.venv-docs/bin/pip install -r requirements-docs.txt
-.venv-docs/bin/mkdocs build --strict
+npm ci --ignore-scripts
+npm run docs:build
 ```
 
-Use `./gradlew ktlintFormat` to apply formatting, inspect the diff, then check again. CI never commits formatting. Reports are under `build/reports/quality`; MkDocs writes `site` without deploying it. Python dependencies, including transitive dependencies, are pinned in `requirements-docs.txt`.
+Use `./gradlew ktlintFormat` to apply formatting, inspect the diff, then check again. CI never commits formatting. Reports are under `build/reports/quality`; MyST 1.13.0 writes `_build/html` without deploying it. Use Node.js 22 or newer. The CLI and its dependency closure are pinned by `package-lock.json`; `myst.yml` pins the prebuilt book theme to an immutable archive. The build checks links and fails on unresolved references using MyST’s `--check-links --strict` flags.
 
 The `chat.quality` convention pins Detekt 1.23.8 and ktlint 1.8.0 in isolated JDK 21 processes. Detekt uses syntax analysis without type resolution, so compilation and behavior tests remain necessary. There is no baseline or ignored failure setting.
 
-Checks cover all maintained library, sample, Android, JVM and iOS Kotlin sources/tests, consumers, build logic and Gradle Kotlin scripts. They exclude generated/local `**/build/**`, `**/.gradle/**`, `**/.kotlin/**`, `**/.git/**` and `evidence/**`. No platform or source set is omitted.
+Checks cover all maintained library, sample, Android, JVM and iOS Kotlin sources/tests, consumers, build logic and Gradle Kotlin scripts. They exclude generated/local `**/build/**`, `**/.gradle/**`, `**/.kotlin/**`, `**/.git/**` and `evidence/**`, `**/node_modules/**` and `**/_build/**`. No platform or source set is omitted.
 
-`.editorconfig` owns formatting and line length. Compose functions retain their naming and declarative-tree exceptions; complex guards are still checked. Appearance properties, named arguments, fixture values, SDK settings and test expectations retain literal numbers. Algorithm thresholds are named. Local annotations explain compatibility operations, the slot factory, diagnostic host function counts, one continuous pixel/anchor helper and Swift entry-point spelling. The configuration is in `config/quality/detekt.yml`.
+`.editorconfig` owns formatting and line length. Compose functions retain their naming and declarative-tree exceptions; complex guards are still checked. Appearance properties, named arguments, fixture values, SDK settings and test expectations retain literal numbers. Algorithm thresholds are named. Local annotations explain compatibility operations, the slot factory, manual contract fixture operations, one continuous pixel/anchor helper and Swift entry-point spelling. The configuration is in `config/quality/detekt.yml`.
 
 ## Behavioral checks
 
@@ -30,7 +29,7 @@ Agree on the public seam before writing a test: supply snapshots to Conversation
 ./gradlew :androidApp:assembleDebug
 ```
 
-Run relevant `:chat:MODULE:jvmTest` tasks when shared behavior changes. See [sample setup](sample.md) for iOS and developer fixtures. For independent consumer graphs, stage the required modules as described in [getting started](getting-started.md), then run `./gradlew -p consumers -PchatRepository=/absolute/path/to/staging :combined:verifySelection`. This checks artifact graphs, not native runtime behavior.
+Run relevant `:chat:MODULE:jvmTest` tasks when shared behavior changes. See [sample setup](sample.md) for iOS. The isolated consumer build validates local artifact graphs. Run the relevant `:chat:MODULE:publishAllPublicationsToStagingRepository` tasks locally, then run `./gradlew -p consumers -PchatRepository=/absolute/path/to/staging :combined:verifySelection`. This checks artifact graphs, not native runtime behavior.
 
 ## Review
 
