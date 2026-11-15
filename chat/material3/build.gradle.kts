@@ -4,6 +4,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":chat:ui"))
+            implementation(libs.compose.animation)
             implementation(libs.material3)
             implementation(libs.tabler.icons)
         }

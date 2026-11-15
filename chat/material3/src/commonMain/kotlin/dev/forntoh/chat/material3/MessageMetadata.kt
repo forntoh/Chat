@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.constrainHeight
 import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.ui.LocalChatMotion
 import dev.forntoh.chat.ui.ConversationSlots
 
 /**
@@ -76,14 +77,18 @@ internal fun MessageBubbleLayout(
 ) {
     val bubbleColor =
         if (outgoing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
-    val displayedColor by animateColorAsState(
-        if (highlighted) lerp(
+    val motion = LocalChatMotion.current
+    val targetColor = if (highlighted) lerp(
             bubbleColor,
             MaterialTheme.colorScheme.tertiaryContainer,
             0.35f
-        ) else bubbleColor,
-        animationSpec = tween(180)
-    )
+        ) else bubbleColor
+    val displayedColor = if (motion.enabled) {
+        val animated by animateColorAsState(targetColor, animationSpec = tween(motion.controlMillis, easing = motion.easing))
+        animated
+    } else {
+        targetColor
+    }
     val bubbleContentColor =
         if (outgoing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Layout(content = {

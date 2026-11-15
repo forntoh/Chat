@@ -73,17 +73,23 @@ fun DefaultMediaFeedback(content: MediaFeedbackContent) {
 fun MediaDraft(media: MediaContent, composer: ComposerContent,
     renderer: (@Composable (MediaTarget) -> Unit)? = null, slots: MediaSlots = LocalMediaSlots.current) {
     val adapted = media.composer(composer)
-    Column {
-        slots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
-            media.request(MediaCommand.Select, composer = adapted)
-        })
-        media.state.selectionError?.let { slots.selectionError(it) }
-        composer.draft.attachments.forEach { attachment ->
-            val target = media.draftTarget(attachment)
-            MediaImage(media, target, renderer, slots)
-            slots.control(MediaControlContent(MediaCommand.Remove, !adapted.pending) {
-                media.request(MediaCommand.Remove, target, adapted)
+    key(media.conversation.conversationId) {
+        Column {
+            slots.control(MediaControlContent(MediaCommand.Select, !adapted.pending) {
+                media.request(MediaCommand.Select, composer = adapted)
             })
+            media.state.selectionError?.let { slots.selectionError(it) }
+            ChatMotionVisibility(composer.draft.attachments.isNotEmpty()) {
+                Column {
+                    composer.draft.attachments.forEach { attachment ->
+                        val target = media.draftTarget(attachment)
+                        MediaImage(media, target, renderer, slots)
+                        slots.control(MediaControlContent(MediaCommand.Remove, !adapted.pending) {
+                            media.request(MediaCommand.Remove, target, adapted)
+                        })
+                    }
+                }
+            }
         }
     }
 }

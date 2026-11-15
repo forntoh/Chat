@@ -42,7 +42,8 @@ import kotlin.math.roundToInt
  * Selection stays in the host's ActionState. Tap does not open the menu. Outside tap, Back/Escape
  * and Close emit CloseMenu; changed/removed targets, lost capabilities, pending work and a changed
  * conversation immediately remove the presentation. No animation completion emits an intent.
- * [motionEnabled] is a host override; Compose's platform duration scale also controls animations.
+ * [motionEnabled] disables this affordance. The subtree's shared LocalChatMotion also controls
+ * timings/disable; Compose's platform duration scale applies to finite animations.
  * Entrance/exit use a 180ms eased fade, a 5% bubble lift anchored to the sender edge and continuous travel to/from its action
  * layout, with no retained bitmap or resource IO. Growth is capped uniformly by the safe window
  * width; a full-width custom bubble keeps its original size so neither content edge is clipped.
@@ -57,6 +58,7 @@ fun MessageActionFocus(
     below: @Composable () -> Unit = { MessageActionMenu(content, messageId) },
     bubble: @Composable (Modifier) -> Unit,
 ) {
+    val motion = dev.forntoh.chat.ui.LocalChatMotion.current
     val target = content.conversation.messages.find { it.id == messageId }
     val allowed = target != null && content.state.capabilities[messageId].orEmpty().isNotEmpty() &&
         !content.state.pending && content.state.editing == null && content.state.deleting == null
@@ -69,7 +71,7 @@ fun MessageActionFocus(
     val transition = remember { MutableTransitionState(false) }.apply { targetState = visible && popupReady }
     val animation = rememberTransition(transition, label = "Message action focus")
     val progress by animation.animateFloat(
-        transitionSpec = { tween(if (motionEnabled) 180 else 0, easing = FastOutSlowInEasing) },
+        transitionSpec = { tween(if (motionEnabled) motion.duration(motion.controlMillis) else 0, easing = motion.easing) },
         label = "Bubble lift and scrim",
     ) { if (it) 1f else 0f }
     val layer = rememberGraphicsLayer()

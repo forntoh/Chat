@@ -12,6 +12,8 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -116,6 +118,10 @@ class ComposerContent(
  * return-to-latest explicitly resume following. Keyboard/composer resizing retains that mode,
  * keeping the final row's trailing content visible even when the row exceeds the viewport.
  * Latest travel is capped at 360ms; distant positions are virtualized to avoid measuring skipped history.
+ * [LocalChatMotion] overrides/disables finite presentation timing. Stable tail IDs fade in; initial
+ * rows, history prepends and remounts stay opaque. Report initial history hydration with
+ * [HistoryStatus.Loading] to suppress entrance when an empty timeline is populated. Composer sizing
+ * is bottom-anchored inside native inset padding; animations never emit host intents.
  * Switching conversation resets
  * these UI latches; the host must isolate drafts and reject obsolete asynchronous results.
  *
@@ -182,6 +188,7 @@ fun Conversation(
     latestContent: (@Composable (LatestContent) -> Unit)? = null,
 ) {
     val latestState by rememberUpdatedState(state)
+    val motion = LocalChatMotion.current
     var submitted by remember(state.conversationId, state.draft.revision) { mutableStateOf(false) }
     var sendScrollRequest by remember(state.conversationId) { mutableIntStateOf(0) }
     val pending = state.draft.submitting || submitted
@@ -229,6 +236,7 @@ fun Conversation(
                 var followingLatest by remember { mutableStateOf(true) }
                 var highlightedId by remember { mutableStateOf<String?>(null) }
                 var navigation by remember { mutableStateOf<Job?>(null) }
+                var replyNavigationTarget by remember { mutableStateOf<String?>(null) }
                 var latestNavigation by remember { mutableStateOf<Job?>(null) }
                 // Reader intent wins even when a native viewport resize and an arrival share a frame.
                 LaunchedEffect(list) {
@@ -236,6 +244,7 @@ fun Conversation(
                         when (interaction) {
                             is DragInteraction.Start -> {
                                 followingLatest = false
+                                replyNavigationTarget = null
                                 navigation?.cancel()
                             }
                             is DragInteraction.Stop, is DragInteraction.Cancel -> followingLatest = !list.canScrollForward
@@ -247,6 +256,7 @@ fun Conversation(
                         navigation?.cancel()
                         followingLatest = false
                         highlightedId = null
+                        replyNavigationTarget = targetId
                         navigation = scope.launch {
                             val located = snapshotFlow { latestState.messages.map { it.id } }
                                 .mapLatest { currentIds ->
@@ -284,15 +294,49 @@ fun Conversation(
                     }
                 }
                 val ids = state.messages.map { it.id }
+                // Presentation admission uses identity and explicit history loading, never text/time.
+                var renderedIds by remember { mutableStateOf(ids) }
+                var renderedHistory by remember { mutableStateOf(history.status) }
+                val enteringIds = remember(ids) {
+                    val tail = renderedIds.lastOrNull()?.let(ids::indexOf) ?: -1
+                    when {
+                        history.status == HistoryStatus.Loading || renderedHistory == HistoryStatus.Loading -> emptySet()
+                        tail >= 0 -> ids.drop(tail + 1).filterNot { it in renderedIds }.toSet()
+                        renderedIds.isEmpty() -> ids.toSet()
+                        else -> emptySet()
+                    }
+                }
+                SideEffect { renderedIds = ids; renderedHistory = history.status }
+                // One shared progress value per appended snapshot also covers an empty timeline.
+                // Virtualized rows read current progress rather than starting their own entrance.
+                val insertionProgress = remember { Animatable(1f) }
+                LaunchedEffect(ids) {
+                    if (motion.enabled && enteringIds.isNotEmpty() && followingLatest) {
+                        insertionProgress.snapTo(0f)
+                        insertionProgress.animateTo(1f, tween(motion.insertionMillis, easing = motion.easing))
+                    } else insertionProgress.snapTo(1f)
+                }
+                LaunchedEffect(motion.enabled) {
+                    if (!motion.enabled) insertionProgress.snapTo(1f)
+                }
                 val returnToLatest = {
                     navigation?.cancel()
+                    replyNavigationTarget = null
                     followingLatest = true
                     newMessages = false
                     navigation = scope.launch {
-                        if (latestState.messages.isNotEmpty()) list.animateToLatest()
+                        if (latestState.messages.isNotEmpty()) list.animateToLatest(motion)
                         followingLatest = !list.canScrollForward
                     }
                     latestNavigation = navigation
+                }
+                LaunchedEffect(motion.enabled) {
+                    if (!motion.enabled && navigation?.isActive == true) {
+                        val target = replyNavigationTarget
+                        navigation?.cancel()
+                        if (followingLatest) returnToLatest()
+                        else if (target != null) navigate(target)
+                    }
                 }
                 LaunchedEffect(sendScrollRequest) {
                     if (sendScrollRequest > 0) returnToLatest()
@@ -404,7 +448,9 @@ fun Conversation(
                                 isLast = state.messages.getOrNull(index + 1)?.sender?.id != message.sender.id,
                             )
                             Column(
-                                Modifier.fillMaxWidth().padding(
+                                Modifier.graphicsLayer {
+                                    alpha = if (motion.enabled && message.id in enteringIds) insertionProgress.value else 1f
+                                }.fillMaxWidth().padding(
                                     top = if (index == 0) 0.dp else slots.messageSpacing(group)
                                 )
                                     .testTag("message-${message.id}"),
@@ -460,41 +506,45 @@ fun Conversation(
                 }
             }
             Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }.testTag("composer-area").padding(bottom = viewportPadding.calculateBottomPadding())) {
-                (composerContent ?: slots.composer)(
-                    ComposerContent(
-                        state.draft, pending,
-                        onTextChange = {
-                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                                onEvent(
-                                    ConversationEvent.DraftChanged(
-                                        conversationId = state.conversationId,
-                                        text = it,
-                                    ),
-                                )
-                            }
-                        },
-                        onSend = {
-                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
-                                submitted = true
-                                sendScrollRequest++
-                                onEvent(
-                                    ConversationEvent.SendDraft(
-                                        conversationId = state.conversationId,
-                                        revision = state.draft.revision,
-                                        text = state.draft.text,
-                                        attachments = state.draft.attachments.toList(),
-                                    )
-                                )
-                            }
-                        },
-                        onDraftAction = { action ->
-                            if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
-                                submitted = true
-                                action()
-                            }
-                        },
-                    )
-                )
+                key(state.conversationId) {
+                    Box(Modifier.chatContentSize()) {
+                        (composerContent ?: slots.composer)(
+                            ComposerContent(
+                                state.draft, pending,
+                                onTextChange = {
+                                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                                        onEvent(
+                                            ConversationEvent.DraftChanged(
+                                                conversationId = state.conversationId,
+                                                text = it,
+                                            ),
+                                        )
+                                    }
+                                },
+                                onSend = {
+                                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting && state.draft.hasContent) {
+                                        submitted = true
+                                        sendScrollRequest++
+                                        onEvent(
+                                            ConversationEvent.SendDraft(
+                                                conversationId = state.conversationId,
+                                                revision = state.draft.revision,
+                                                text = state.draft.text,
+                                                attachments = state.draft.attachments.toList(),
+                                            )
+                                        )
+                                    }
+                                },
+                                onDraftAction = { action ->
+                                    if (latestState.conversationId == state.conversationId && latestState.draft == state.draft && !submitted && !state.draft.submitting) {
+                                        submitted = true
+                                        action()
+                                    }
+                                },
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -504,9 +554,23 @@ private const val HistoryMarker = 0L
 
 @Composable
 private fun TimelineLatest(visible: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    val motion = LocalChatMotion.current
+    if (!motion.enabled || motion.controlMillis == 0) {
+        if (visible) Box(modifier) { content() }
+        return
+    }
     AnimatedVisibility(
-        visible, modifier, enter = fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 2 },
-        exit = fadeOut(tween(180)) + slideOutVertically(tween(180)) { it / 2 }) { content() }
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(motion.duration(motion.controlMillis), easing = motion.easing)) +
+                slideInVertically(
+                    tween(motion.duration(motion.controlMillis), easing = motion.easing)
+                ) { it / 2 },
+        exit = fadeOut(tween(motion.duration(motion.controlMillis), easing = motion.easing)) +
+                slideOutVertically(
+                    tween(motion.duration(motion.controlMillis), easing = motion.easing)
+                ) { it / 2 }
+    ) { content() }
 }
 
 private data class TimelineObservation(
@@ -519,7 +583,7 @@ private data class TimelineObservation(
  * block the UI. Both paths settle at the measured trailing edge inside the same scroll session.
  * Reader drag and conversation scope retain cancellation; no distance-dependent tail is queued.
  */
-private suspend fun LazyListState.animateToLatest() {
+private suspend fun LazyListState.animateToLatest(motion: ChatMotion) {
     scroll {
         val lazyScope = LazyLayoutScrollScope(this@animateToLatest, this)
         val startIndex = firstVisibleItemIndex
@@ -529,7 +593,11 @@ private suspend fun LazyListState.animateToLatest() {
             ((visible.last().offset + visible.last().size - visible.first().offset).toFloat() / visible.size).coerceAtLeast(1f)
         val distant = layoutInfo.totalItemsCount - startIndex > maxOf(30, visible.size * 3)
         var previous = 0f
-        animate(initialValue = 0f, targetValue = 1f, animationSpec = tween(360)) { fraction, _ ->
+        animate(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = tween(motion.duration(motion.latestMillis), easing = motion.easing)
+        ) { fraction, _ ->
             val layout = layoutInfo
             val lastIndex = layout.totalItemsCount - 1
             if (lastIndex >= 0 && canScrollForward) {

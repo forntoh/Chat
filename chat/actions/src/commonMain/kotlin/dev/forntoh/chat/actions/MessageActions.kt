@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import dev.forntoh.chat.core.*
+import dev.forntoh.chat.ui.ChatMotionVisibility
 import dev.forntoh.chat.ui.ComposerContent
 
 enum class MessageAction { Copy, Quote, Edit, Delete }
@@ -231,31 +232,33 @@ fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots 
  */
 @Composable
 fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {
-    ActionTheme(slots = slots) {
-        slots.composerStatus {
-            if (content.state.editing != null || content.state.quoteTargetId != null) {
-                Row(Modifier.fillMaxWidth().padding(LocalActionStyle.current.composerPadding), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        content.state.editing?.let {
-                            slots.status(ActionStatusContent(ActionStatusKind.Editing))
-                            if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+    key(content.conversation.conversationId) {
+        ActionTheme(slots = slots) {
+            slots.composerStatus {
+                ChatMotionVisibility(content.state.editing != null || content.state.quoteTargetId != null) {
+                    Row(Modifier.fillMaxWidth().padding(LocalActionStyle.current.composerPadding), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            content.state.editing?.let {
+                                slots.status(ActionStatusContent(ActionStatusKind.Editing))
+                                if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+                            }
+                            content.state.quoteTargetId?.let {
+                                QuotedMessage(content, it)
+                            }
                         }
-                        content.state.quoteTargetId?.let {
-                            QuotedMessage(content, it)
+                        // Dismiss stays beside context rather than taking another row above the input.
+                        if (content.state.editing != null) {
+                            slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
                         }
-                    }
-                    // Dismiss stays beside context rather than taking another row above the input.
-                    if (content.state.editing != null) {
-                        slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
-                    }
-                    if (content.state.quoteTargetId != null) {
-                        slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+                        if (content.state.quoteTargetId != null) {
+                            slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
+                        }
                     }
                 }
+                DeleteConfirmation(content)
+                ChatMotionVisibility(content.state.pending) { slots.status(ActionStatusContent(ActionStatusKind.Pending)) }
+                content.state.error?.let { slots.status(ActionStatusContent(ActionStatusKind.Error, it)) }
             }
-            DeleteConfirmation(content)
-            if (content.state.pending) slots.status(ActionStatusContent(ActionStatusKind.Pending))
-            content.state.error?.let { slots.status(ActionStatusContent(ActionStatusKind.Error, it)) }
         }
     }
 }

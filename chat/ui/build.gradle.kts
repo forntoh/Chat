@@ -4,7 +4,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":chat:core"))
-            implementation(libs.compose.animation)
+            api(libs.compose.animation)
             api(libs.compose.runtime); api(libs.compose.foundation)
         }
 

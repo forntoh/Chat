@@ -5,7 +5,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import dev.forntoh.chat.core.Delivery
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.layout.layout
@@ -69,20 +68,7 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
             },
         )
     },
-    messageDelivery = {
-        if (it == Delivery.Failed) {
-            Surface(color = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-                Text(
-                    it.name,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-        } else if (it == Delivery.Sending) {
-            Text(it.name, style = MaterialTheme.typography.labelSmall)
-        }
-    },
+    messageDelivery = { DeliveryStatus(it) },
     messageDescription = {
         "${it.sender.displayName.ifBlank { "Unknown sender" }}, ${it.text.ifBlank { "Message unavailable" }}, ${it.displayTime}, ${it.delivery.name}"
     },

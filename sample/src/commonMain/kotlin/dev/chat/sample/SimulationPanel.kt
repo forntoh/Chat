@@ -9,7 +9,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun SimulationPanel(host: FakeHost, onImages: () -> Unit, onDismiss: () -> Unit) {
+internal fun SimulationPanel(
+    host: FakeHost,
+    motionLabel: String,
+    onMotion: () -> Unit,
+    onImages: () -> Unit,
+    onDismiss: () -> Unit
+) {
     var scenario by remember { mutableStateOf(host.selectedScenario) }
     var seed by remember { mutableStateOf(host.selectedSeed.toString()) }
     var choosing by remember { mutableStateOf(false) }
@@ -22,6 +28,7 @@ internal fun SimulationPanel(host: FakeHost, onImages: () -> Unit, onDismiss: ()
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("Fixture simulation only · no network or persistence.")
+                TextButton(onClick = onMotion) { Text(motionLabel) }
                 Box {
                     OutlinedButton(onClick = { choosing = true }) { Text(scenario.label) }
                     DropdownMenu(choosing, onDismissRequest = { choosing = false }) {
