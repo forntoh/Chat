@@ -80,5 +80,7 @@ outcomes are fixture simulation, not real resource authorization or service reli
 fixture through the public `ImageState(Missing)` fallback. It closes that viewer but retains
 the resource descriptor, message delivery and unrelated draft text. This differs from resource
 revocation: it demonstrates a host renderer reporting failure, without throwing in composition.
+Deferred renderer failures capture the media revision when work starts and validate it alongside
+the complete target; switching away and back cannot revive a callback for an identical Sent row.
 Late reports must match the complete current target. Real picker, OS permission and upload
 integration remain unverified; the bundled fixture and manual controls simulate those outcomes.

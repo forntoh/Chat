@@ -183,16 +183,30 @@ class FakeMediaHost {
 
     /**
      * Inject a renderer load error through public media state, without revoking the descriptor
-     * or changing delivery. A late renderer callback must still match the complete ready target.
+     * or changing delivery. Debug injection starts and finishes in the current media revision.
      */
-    fun failRendering(target: MediaTarget? = viewer ?: media.images.entries.firstOrNull {
-        it.value.status == ImageStatus.Ready && current(it.key)
-    }?.key) {
-        if (target == null || !current(target) ||
-            (media.images[target]?.status ?: ImageStatus.Ready) != ImageStatus.Ready) return
-        media = media.copy(revision = media.revision + 1,
-            images = media.images + (target to ImageState(ImageStatus.Missing)))
-        if (viewer == target) viewer = null
+    fun failRendering() {
+        val target = viewer ?: media.images.entries.firstOrNull {
+            it.value.status == ImageStatus.Ready && current(it.key)
+        }?.key ?: return
+        renderFailureCallback(target)()
+    }
+
+    /**
+     * Capture when renderer work starts, then invoke on failure. The saved revision rejects work
+     * after media changes or navigation, including returning to identical Sent message snapshots.
+     * Complete target validation also rejects replaced drafts and revoked attachment descriptors.
+     */
+    fun renderFailureCallback(target: MediaTarget): () -> Unit {
+        val revision = media.revision
+        return {
+            if (revision == media.revision && current(target) &&
+                (media.images[target]?.status ?: ImageStatus.Ready) == ImageStatus.Ready) {
+                media = media.copy(revision = media.revision + 1,
+                    images = media.images + (target to ImageState(ImageStatus.Missing)))
+                if (viewer == target) viewer = null
+            }
+        }
     }
 
     /** Retain draft/content per room while invalidating pending media callbacks, even after returning. */

@@ -195,6 +195,7 @@ class SimulationTest {
         host.onEvent(ConversationEvent.SendDraft(host.state.conversationId, draft.revision, draft.text, draft.attachments))
         host.resolveDraft(true)
         val upload = host.upload!!
+        val renderFailure = host.renderFailureCallback(upload)
         host.resetSimulation()
         host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "New draft after reset"))
         val expectedState = host.state
@@ -203,7 +204,7 @@ class SimulationTest {
         host.onRequest(removal)
         host.completeUpload(true, upload)
         host.completeUpload(false, upload)
-        host.failRendering(upload)
+        renderFailure()
         assertEquals(expectedState, host.state)
         assertEquals(expectedMedia, host.media)
         assertNull(host.upload)
@@ -216,14 +217,35 @@ class SimulationTest {
         val target = dev.forntoh.chat.media.MediaTarget(host.state.conversationId, row.attachments.first(), message = row)
         host.onRequest(dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.View, host.media.revision, target))
         assertEquals(target, host.viewer)
-        host.failRendering(target)
+        val renderFailure = host.renderFailureCallback(target)
+        renderFailure()
         assertNull(host.viewer)
         assertEquals(row, host.state.messages.first())
         assertEquals(dev.forntoh.chat.media.ImageStatus.Missing, host.media.images[target]?.status)
         host.resetSimulation()
         val expected = host.media
-        host.failRendering(target)
+        renderFailure()
         assertEquals(expected, host.media)
+    }
+
+    @Test fun returningToRoomRejectsSavedRendererFailureButAllowsCurrentFailure() {
+        val host = FakeMediaHost().apply { resetSimulation() }
+        val target = host.media.images.entries.first { it.value.status == dev.forntoh.chat.media.ImageStatus.Ready }.key
+        val obsoleteFailure = host.renderFailureCallback(target)
+        host.switchRoom(); host.switchRoom()
+        assertTrue(host.current(target)) // Sent snapshots deliberately survive navigation.
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "New room session caption"))
+        host.onRequest(dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.View, host.media.revision, target))
+        val expectedState = host.state
+        val expectedMedia = host.media
+        obsoleteFailure()
+        assertEquals(expectedMedia, host.media)
+        assertEquals(expectedState, host.state)
+        assertEquals(target, host.viewer)
+        host.failRendering()
+        assertEquals(dev.forntoh.chat.media.ImageStatus.Missing, host.media.images[target]?.status)
+        assertNull(host.viewer)
+        assertEquals(expectedState, host.state)
     }
 
     @Test fun actionFailureRetriesAndSwitchRejectsLateCompletion() {
