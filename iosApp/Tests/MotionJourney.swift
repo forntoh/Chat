@@ -20,8 +20,9 @@ final class MotionJourney: XCTestCase {
             let sent = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
             XCTAssertTrue(sent.waitForExistence(timeout: 10))
             // Seeded Exchange IDs are public sample row tags; visible counts change under virtualization.
-            let incoming = app.buttons["bubble-arrival-\(custom ? 6 : 2)"]
-            XCTAssertTrue(incoming.waitForExistence(timeout: 10))
+            let incomingRow = app.otherElements["message-arrival-\(custom ? 6 : 2)"]
+            XCTAssertTrue(incomingRow.waitForExistence(timeout: 10))
+            let incoming = incomingRow.buttons.firstMatch
             capture(custom ? "custom-send-incoming" : "default-send-incoming")
             incoming.press(forDuration: 0.7)
             XCTAssertTrue(app.buttons["Reply"].waitForExistence(timeout: 5))
@@ -32,7 +33,7 @@ final class MotionJourney: XCTestCase {
             app.buttons["Cancel reply"].tap()
             XCTAssertTrue((composer.value as? String)?.contains("Unrelated draft retained") == true)
             app.buttons["Send"].tap()
-            XCTAssertTrue(app.buttons["bubble-arrival-\(custom ? 8 : 4)"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["message-arrival-\(custom ? 8 : 4)"].waitForExistence(timeout: 10))
         }
         app.buttons["Leave"].tap()
         app.buttons["Open chat"].tap()

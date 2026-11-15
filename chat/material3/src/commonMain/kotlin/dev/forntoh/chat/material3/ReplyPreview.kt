@@ -23,18 +23,32 @@ import dev.forntoh.chat.core.Message
 @Composable
 fun ReplyPreview(message: Message?, onClick: (() -> Unit)? = null) {
     val foreground = LocalContentColor.current
-    val accent = if (LocalBubbleOutgoing.current) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary
-    Row(Modifier.widthIn(max = 320.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
+    val accent =
+        if (LocalBubbleOutgoing.current) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary
+    Row(
+        Modifier.widthIn(max = 320.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
         .background(foreground.copy(alpha = 0.08f))
-        .then(if (message != null && onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+        .then(
+            if (message != null && onClick != null) Modifier.clickable(
+                role = Role.Button,
+                onClick = onClick
+            ) else Modifier
+        )
         .semantics(mergeDescendants = true) {
-            contentDescription = message?.let { "Reply to ${it.sender.displayName}" } ?: "Message unavailable"
-        }.height(IntrinsicSize.Min)) {
+            contentDescription =
+                message?.let { "Reply to ${it.sender.displayName}" } ?: "Message unavailable"
+        }.height(IntrinsicSize.Min)
+    ) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(accent))
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (message != null) Text(message.sender.displayName.ifBlank { "Unknown sender" },
+        Column(
+            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            if (message != null) Text(
+                message.sender.displayName.ifBlank { "Unknown sender" },
                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
-                color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
             Text(message?.text?.ifBlank { "Message unavailable" } ?: "Message unavailable",
                 style = MaterialTheme.typography.bodyMedium, color = foreground.copy(alpha = 0.85f),
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
