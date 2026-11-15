@@ -75,3 +75,10 @@ description, timestamp and sender name to show existing fallbacks. Multiple sele
 share the bounded preview viewport; each accepted image has its own upload progress/failure
 and exact-target retry. A row remains pending until all uploads settle. These controls and
 outcomes are fixture simulation, not real resource authorization or service reliability.
+
+**Simulate image render failure** reports a load error for the open viewer or first ready
+fixture through the public `ImageState(Missing)` fallback. It closes that viewer but retains
+the resource descriptor, message delivery and unrelated draft text. This differs from resource
+revocation: it demonstrates a host renderer reporting failure, without throwing in composition.
+Late reports must match the complete current target. Real picker, OS permission and upload
+integration remain unverified; the bundled fixture and manual controls simulate those outcomes.

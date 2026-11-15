@@ -92,6 +92,7 @@ fun MediaSample(
                     entry("Reset image simulator", host::resetSimulation)
                     entry("Finish image loading", host::finishLoading)
                     entry("Revoke first image") { host.revokeResource() }
+                    entry("Simulate image render failure") { host.failRendering() }
                     entry("Advance upload progress", host::advanceUpload)
                     entry("Switch media room", host::switchRoom)
                     entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }

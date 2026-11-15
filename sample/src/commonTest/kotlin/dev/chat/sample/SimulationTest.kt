@@ -182,6 +182,50 @@ class SimulationTest {
         assertEquals(4, host.state.messages.size)
     }
 
+    @Test fun resetRejectsSavedSelectionRemovalUploadAndRenderResultsWhilePreservingNewDraft() {
+        val host = FakeMediaHost()
+        val selection = dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.Select,
+            host.media.revision, dev.forntoh.chat.media.MediaTarget(host.state.conversationId, draft = host.state.draft))
+        host.onRequest(selection)
+        host.resolveSelection(choose = true)
+        val removal = dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.Remove,
+            host.media.revision, dev.forntoh.chat.media.MediaTarget(host.state.conversationId,
+                host.state.draft.attachments.single(), draft = host.state.draft))
+        val draft = host.state.draft
+        host.onEvent(ConversationEvent.SendDraft(host.state.conversationId, draft.revision, draft.text, draft.attachments))
+        host.resolveDraft(true)
+        val upload = host.upload!!
+        host.resetSimulation()
+        host.onEvent(ConversationEvent.DraftChanged(host.state.conversationId, "New draft after reset"))
+        val expectedState = host.state
+        val expectedMedia = host.media
+        host.resolveSelection(choose = true, request = selection)
+        host.onRequest(removal)
+        host.completeUpload(true, upload)
+        host.completeUpload(false, upload)
+        host.failRendering(upload)
+        assertEquals(expectedState, host.state)
+        assertEquals(expectedMedia, host.media)
+        assertNull(host.upload)
+        assertNull(host.selection)
+    }
+
+    @Test fun renderFailureClosesExactViewerAndLateFailureCannotChangeResetFixture() {
+        val host = FakeMediaHost().apply { resetSimulation() }
+        val row = host.state.messages.first()
+        val target = dev.forntoh.chat.media.MediaTarget(host.state.conversationId, row.attachments.first(), message = row)
+        host.onRequest(dev.forntoh.chat.media.MediaRequest(dev.forntoh.chat.media.MediaCommand.View, host.media.revision, target))
+        assertEquals(target, host.viewer)
+        host.failRendering(target)
+        assertNull(host.viewer)
+        assertEquals(row, host.state.messages.first())
+        assertEquals(dev.forntoh.chat.media.ImageStatus.Missing, host.media.images[target]?.status)
+        host.resetSimulation()
+        val expected = host.media
+        host.failRendering(target)
+        assertEquals(expected, host.media)
+    }
+
     @Test fun actionFailureRetriesAndSwitchRejectsLateCompletion() {
         val host = FakeHost().apply { startSimulation(Scenario.Actions) }
         fun request(command: dev.forntoh.chat.actions.ActionCommand) = host.onAction(dev.forntoh.chat.actions.ActionRequest(

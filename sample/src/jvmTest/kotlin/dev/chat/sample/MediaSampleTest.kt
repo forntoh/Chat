@@ -17,6 +17,23 @@ import kotlin.test.*
 import dev.forntoh.chat.core.*
 
 class MediaSampleTest {
+    @Test fun simulatedRenderFailureUsesPublicFallbackWithoutRevokingResourceOrChangingDraft() {
+        val host = FakeMediaHost().apply { resetSimulation() }
+        compose.setContent { Box(Modifier.size(400.dp, 900.dp)) { MediaSample(host, manualService = true) } }
+        val original = host.state.messages.first()
+        compose.onNodeWithTag("composer").performTextInput("Preserve newer caption")
+        compose.onNodeWithTag("message-${original.id}").performScrollTo()
+        compose.onNodeWithContentDescription("Image attachment").performClick()
+        compose.onNodeWithText("Shared image").assertExists()
+        compose.onNodeWithText("Close viewer").performClick()
+        mediaDemo("Simulate image render failure")
+        compose.onAllNodesWithText("Image unavailable").assertCountEquals(2)
+        compose.onNodeWithText("View image").assertDoesNotExist()
+        compose.onNodeWithTag("composer").assertTextContains("Preserve newer caption")
+        compose.runOnIdle { assertEquals(original, host.state.messages.first()) }
+        capture("15-render-failure")
+    }
+
     private fun mediaDemo(label: String) {
         compose.onNodeWithTag("media-demo-menu").performClick()
         compose.onNodeWithText(label).performClick()

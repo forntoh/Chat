@@ -181,6 +181,20 @@ class FakeMediaHost {
 
     fun closeViewer() { viewer = null }
 
+    /**
+     * Inject a renderer load error through public media state, without revoking the descriptor
+     * or changing delivery. A late renderer callback must still match the complete ready target.
+     */
+    fun failRendering(target: MediaTarget? = viewer ?: media.images.entries.firstOrNull {
+        it.value.status == ImageStatus.Ready && current(it.key)
+    }?.key) {
+        if (target == null || !current(target) ||
+            (media.images[target]?.status ?: ImageStatus.Ready) != ImageStatus.Ready) return
+        media = media.copy(revision = media.revision + 1,
+            images = media.images + (target to ImageState(ImageStatus.Missing)))
+        if (viewer == target) viewer = null
+    }
+
     /** Retain draft/content per room while invalidating pending media callbacks, even after returning. */
     fun switchRoom() {
         val draft = state.draft.copy(revision = state.draft.revision + 1, submitting = false)
