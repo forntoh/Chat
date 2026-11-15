@@ -61,8 +61,6 @@ fun ChatScaffold(
                     navigationIcon = navigationIcon,
                     actions = actions,
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
                         titleContentColor = contentColor
                     ),
                 )
