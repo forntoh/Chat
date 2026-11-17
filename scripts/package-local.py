@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True
 from verify_packaging import MODULES, verify
 
 
