@@ -35,9 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import dev.forntoh.chat.ui.ChatComposerKeyboardOptions
-import dev.forntoh.chat.ui.Conversation
 import dev.forntoh.chat.ui.ConversationSlots
-import dev.forntoh.chat.ui.ConversationTheme
 import dev.forntoh.chat.ui.HistoryFeedbackContent
 import dev.forntoh.chat.ui.HistoryStatus
 import dev.forntoh.chat.ui.LocalMessageGroupContext
@@ -176,16 +174,6 @@ fun chatConversationSlots(): ConversationSlots = ConversationSlots(
     },
     messageSpacing = { if (it.isFirst) ChatGeometry.GroupGap else ChatGeometry.RowGap },
 )
-
-/**
- * Legacy slots-only provider, retaining host MaterialTheme ownership and existing signatures.
- * Prefer [ChatTheme] for the reference palette and [ChatScaffold] for customizable screen chrome.
- * Existing explicit/bundle overrides still take precedence. No alternate Conversation is created.
- */
-@Composable
-fun JetchatTheme(slots: ConversationSlots = chatConversationSlots(), content: @Composable () -> Unit) {
-    ConversationTheme(slots, content)
-}
 
 @Composable
 fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
