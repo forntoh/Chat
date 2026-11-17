@@ -18,6 +18,7 @@ EXPECTED = {
     "actions": {"core", "ui", "actions"},
     "media": {"core", "ui", "media"},
 }
+DIRECT = {"core": set(), "ui": {"chat-core"}, "material3": {"chat-ui"}, "actions": {"chat-ui"}, "media": {"chat-ui"}}
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 
 
@@ -58,6 +59,10 @@ def verify(repository):
             for dep in variant.get("dependencies", []):
                 dependencies.append((dep["group"], dep["module"], dep.get("version", {}).get("requires")))
             redirect = variant.get("available-at")
+            attributes = variant.get("attributes", {})
+            if not redirect and attributes.get("org.gradle.category") == "library" and attributes.get("org.gradle.usage") in ("java-api", "java-runtime", "kotlin-api", "kotlin-metadata"):
+                internal = {dep["module"] for dep in variant.get("dependencies", []) if dep["group"] == GROUP}
+                require(internal == DIRECT[module], f"Wrong internal variant dependencies: {artifact}/{variant['name']}: {internal}")
             if redirect:
                 require(redirect["group"] == GROUP and redirect["version"] == VERSION, "Wrong variant redirect coordinates")
                 target = (pom_path.parent / redirect["url"]).resolve()
