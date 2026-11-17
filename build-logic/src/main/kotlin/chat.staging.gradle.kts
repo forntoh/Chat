@@ -36,10 +36,13 @@ publishing {
 
 // Carry attribution in binary and source archives; KDoc stays in the source artifacts.
 tasks.withType<AbstractArchiveTask>().configureEach {
-    if (this is Jar || this is com.android.build.gradle.tasks.BundleAar) {
-        from(rootProject.file("LICENSE")) { into("META-INF") }
-        from(rootProject.file("NOTICE")) { into("META-INF") }
-    }
+    from(providers.provider {
+        if (archiveFileName.get().endsWith(".jar") || archiveFileName.get().endsWith(".aar")) {
+            listOf(rootProject.file("LICENSE"), rootProject.file("NOTICE"))
+        } else {
+            emptyList<File>()
+        }
+    }) { into("META-INF") }
 }
 
 // A version is immutable even locally. Partial outputs require a fresh staging directory.
