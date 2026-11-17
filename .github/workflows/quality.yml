@@ -63,9 +63,3 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Build documentation strictly
         run: npm run docs:build
-      - name: Preserve local site for inspection
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: documentation-site
-          path: _build/html/
-          retention-days: 7

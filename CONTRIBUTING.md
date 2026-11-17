@@ -51,6 +51,14 @@ npm run docs:build
 
 The output is in `_build/html/`. The Quality workflow runs the same strict documentation build and Kotlin checks with read-only repository permissions.
 
+### Publish the documentation
+
+The [Documentation Pages workflow](.github/workflows/docs.yml) builds and publishes the site after documentation changes reach `main`. Maintainers can also run it manually against `main`. Pull requests only run the Quality checks; they do not deploy.
+
+Before the first deployment, a repository administrator must select **GitHub Actions** in **Settings → Pages → Build and deployment → Source**. Configure the `github-pages` environment with a required human reviewer, prevent self-review, and restrict deployment branches to `main` before enabling the workflow. Every deployment then waits for that environment approval. The workflow reads the existing Pages configuration without enabling Pages or changing repository settings.
+
+The build uses the locked dependencies and the same strict command above, with MyST’s `BASE_URL` taken from the Pages configuration so links and assets work under the repository path or a custom domain. Only the deployment job receives Pages and OIDC write permissions. The deployed URL appears in the workflow’s environment link after a successful deployment.
+
 Write for someone integrating the library: show the result, explain the next step and use the actual public API. Keep the sidebar short. Use real implementation screenshots and recordings for visible changes, with readable alt text and appropriately sized images. Keep build receipts and delivery evidence out of the user guides.
 
 ## Propose a change
