@@ -47,7 +47,17 @@ python3 scripts/verify_packaging.py /absolute/new/pat273-candidate/repository
 ```
 
 The validator checks metadata-linked artifact sizes/hashes, local variant
-redirects and coordinated internal dependencies. Five selection closures must be:
+redirects and coordinated internal dependencies. Each redirect must select the
+same module's publication for the variant's platform, at its expected local URL;
+the target metadata must identify and link back to the root component. Run the
+focused negative checks against an existing candidate (only temporary copies
+are modified, with refreshed checksum sidecars):
+
+```sh
+python3 scripts/check_packaging_redirects.py /absolute/new/pat273-candidate/repository
+```
+
+Five selection closures must be:
 
 | Selection | Required chat modules |
 | --- | --- |

@@ -65,8 +65,20 @@ def verify(repository):
                 require(internal == DIRECT[module], f"Wrong internal variant dependencies: {artifact}/{variant['name']}: {internal}")
             if redirect:
                 require(redirect["group"] == GROUP and redirect["version"] == VERSION, "Wrong variant redirect coordinates")
+                platform = attributes.get("org.jetbrains.kotlin.platform.type")
+                suffix = {"androidJvm": "-android", "jvm": "-jvm"}.get(platform)
+                if platform == "native":
+                    suffix = {"ios_arm64": "-iosarm64", "ios_simulator_arm64": "-iossimulatorarm64"}.get(attributes.get("org.jetbrains.kotlin.native.target"))
+                require(artifact == "chat-" + module and suffix is not None, f"Unexpected platform redirect: {artifact}/{variant['name']}")
+                expected_artifact = "chat-" + module + suffix
+                require(redirect["module"] == expected_artifact, f"Wrong variant redirect module: {artifact}/{variant['name']}")
                 target = (pom_path.parent / redirect["url"]).resolve()
+                expected_target = repository / GROUP.replace(".", "/") / expected_artifact / VERSION / f"{expected_artifact}-{VERSION}.module"
+                require(target == expected_target, f"Wrong variant redirect URL: {artifact}/{variant['name']}")
                 require(target.is_relative_to(repository) and target.is_file(), f"Missing redirected variant: {target}")
+                component = json.loads(target.read_text())["component"]
+                require((component["group"], component["module"], component["version"]) == (GROUP, artifact, VERSION), f"Wrong redirected component identity: {target}")
+                require((target.parent / component["url"]).resolve() == Path(str(stem) + ".module"), f"Wrong redirected component URL: {target}")
             for entry in variant.get("files", []):
                 target = (pom_path.parent / entry["url"]).resolve()
                 require(target.is_relative_to(repository) and target.is_file(), f"Missing variant artifact: {target}")
