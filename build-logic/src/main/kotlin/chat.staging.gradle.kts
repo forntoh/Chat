@@ -36,7 +36,7 @@ publishing {
 
 // Carry attribution in binary and source archives; KDoc stays in the source artifacts.
 tasks.withType<AbstractArchiveTask>().configureEach {
-    if (archiveExtension.get() in listOf("jar", "aar")) {
+    if (this is Jar || this is com.android.build.gradle.tasks.BundleAar) {
         from(rootProject.file("LICENSE")) { into("META-INF") }
         from(rootProject.file("NOTICE")) { into("META-INF") }
     }
