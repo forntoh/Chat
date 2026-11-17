@@ -1,0 +1,49 @@
+/* Keep the guide readable in both theme modes, with the sample as the focus. */
+article {
+  --guide-accent: #6875f5;
+}
+article h1 {
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+article h2 {
+  letter-spacing: -0.02em;
+  margin-top: 2.5rem;
+}
+article figure img {
+  border-radius: 1.25rem;
+  border: 1px solid rgb(128 128 160 / 18%);
+  box-shadow: 0 16px 48px rgb(44 48 90 / 12%);
+}
+article figure figcaption {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+article table {
+  font-size: 0.9375rem;
+}
+article thead {
+  border-bottom: 2px solid var(--guide-accent);
+}
+article pre {
+  border-radius: 0.75rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  article * {
+    scroll-behavior: auto;
+  }
+}
+
+.chat-hero {
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 0;
+}
+.chat-hero p:first-child > strong {
+  color: #6875f5;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+.chat-hero figure {
+  margin: 0 auto;
+}

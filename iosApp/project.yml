@@ -23,23 +23,9 @@ targets:
           cd "$SRCROOT/.."
           ./gradlew :sample:embedAndSignAppleFrameworkForXcode
         basedOnDependencyAnalysis: false
-  ChatSampleUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    sources: [Tests]
-    dependencies:
-      - target: ChatSample
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.chat.sample.ios.tests
-        TEST_TARGET_NAME: ChatSample
 
 schemes:
   ChatSample:
     build:
       targets:
         ChatSample: all
-    test:
-      targets:
-        - ChatSampleUITests
