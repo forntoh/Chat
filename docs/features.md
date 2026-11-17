@@ -44,7 +44,7 @@ The [sample screen](../sample/src/commonMain/kotlin/dev/chat/sample/SampleApp.kt
 
 Add `chat-actions` for copy, quote, edit and delete flows. The module supplies presentation and user intents; your host decides capabilities and performs the operation.
 
-Retain an `ActionState` with a capabilities map keyed by message ID. Use `rememberMessageActions(conversation, actionState, onAction, onEvent)` to obtain the adapter. Route the conversation’s events through its `onConversationEvent`, wrap rows with `MessageActions`, and render `ActionComposerStatus` above the shared composer. Pass the adapter’s `composer(content)` to your composer renderer.
+Retain an `ActionState` with a capabilities map keyed by message ID. Use `rememberMessageActions(conversation, actionState, onAction, onEvent)` to obtain the adapter. Route the conversation’s events through its `onConversationEvent`, render `MessageActions(adapter, message.id)` alongside each row, and render `ActionComposerStatus` above the shared composer. Pass the adapter’s `composer(content)` to your composer renderer.
 
 The `ActionTheme` slots let you adapt the controls to your design. The public [action components](../chat/actions/src/commonMain/kotlin/dev/forntoh/chat/actions/MessageActions.kt) document their parameters and available commands.
 
