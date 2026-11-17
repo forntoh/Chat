@@ -31,6 +31,14 @@ chat-actions = { module = "dev.forntoh.chat:chat-actions", version.ref = "chat" 
 
 Then add `implementation(libs.chat.media)` or `implementation(libs.chat.actions)` to your shared module’s `commonMain.dependencies`.
 
+## Adapt your existing models
+
+Keep your existing user and message types as the source of truth. Map them to Chat’s `Participant` and `Message` presentation values at the UI boundary, preserving user IDs and message IDs. Your models do not need to inherit from Chat types, and your repository schema stays in your application.
+
+The [getting-started example](getting-started.md#map-existing-models) maps an existing `User` and `ChatMessage`, including the author, localized time and delivery status, then passes the result to `ConversationState`. The current signed-in user’s domain ID becomes `currentParticipantId`. Map media records to attachment descriptors when needed; keep domain-specific card data accessible by the same message IDs for custom slots.
+
+Route UI events back to your existing commands: send accepted draft content through your send operation, resolve retry IDs against your domain messages, and let repository updates produce the next UI snapshot. Retain the composer’s `Draft` separately, or adapt your existing draft while retaining Chat’s revision/submission state. UI values are not a replacement persistence model.
+
 ## Publish immutable snapshots
 
 A `ConversationState` has a conversation ID, current participant ID, draft and messages. Replace the snapshot when data changes; do not mutate a list already handed to the UI.

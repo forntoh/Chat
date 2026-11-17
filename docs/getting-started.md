@@ -1,11 +1,11 @@
 ---
 title: Getting started
-description: Add Compose Chat and build your first working conversation.
+description: Add Compose Chat to your existing messaging models and state holder.
 ---
 
 # Your first conversation
 
-This guide builds a small, local chat screen. You can type a message, press Send and see it in the timeline. Once it works, replace the local handler with your app’s state holder and service.
+Use your existing users, messages, ViewModel and backend. This guide adds a presentation mapping and a Compose screen around the conversation data your app already owns.
 
 ## 1. Add Chat
 
@@ -34,97 +34,96 @@ kotlin {
 
 `chat-material3` brings in the conversation UI and core models. You do not need to add all three separately. Your app also needs its normal Compose and Material 3 dependencies for the composables it uses directly.
 
-## 2. Create a working screen
+(map-existing-models)=
+## 2. Map your existing models
 
-Place this in your shared source set and call `FirstChat()` from your app’s Compose content:
+Keep your app’s users, messages, repository and ViewModel. Chat supplies the conversation UI; its `Participant` and `Message` types are presentation values you map to at the screen boundary. Your domain models do not need to implement a library interface or change their database schema.
+
+For example, suppose your app already has models with these fields. These declarations only describe the example’s existing app types; use your own equivalents:
+
+```kotlin
+// Existing application models, independent of Chat.
+data class User(val id: String, val name: String)
+
+enum class SendStatus { Pending, Delivered, Failed }
+
+data class ChatMessage(
+    val id: String,
+    val author: User,
+    val sentAtMillis: Long,
+    val body: String,
+    val status: SendStatus,
+)
+```
+
+Map those models to UI values. Preserve the original IDs so outgoing alignment, retry and custom-content lookups refer to the same users and messages your app already knows:
+
+```kotlin
+import dev.forntoh.chat.core.Delivery
+import dev.forntoh.chat.core.Message as UiMessage
+import dev.forntoh.chat.core.Participant
+
+fun User.toChatParticipant(): Participant = Participant(id = id, displayName = name)
+
+fun ChatMessage.toChatMessage(formatTime: (Long) -> String): UiMessage = UiMessage(
+    id = id,
+    sender = author.toChatParticipant(),
+    timestampEpochMillis = sentAtMillis,
+    displayTime = formatTime(sentAtMillis),
+    text = body,
+    delivery = when (status) {
+        SendStatus.Pending -> Delivery.Sending
+        SendStatus.Delivered -> Delivery.Sent
+        SendStatus.Failed -> Delivery.Failed
+    },
+)
+```
+
+Then render the messages your app already observes. This screen receives the current user and conversation from your state holder, plus a retained UI draft and an event handler:
 
 ```kotlin
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import dev.forntoh.chat.core.ConversationEvent
 import dev.forntoh.chat.core.ConversationState
-import dev.forntoh.chat.core.Delivery
-import dev.forntoh.chat.core.Message
-import dev.forntoh.chat.core.Participant
+import dev.forntoh.chat.core.Draft
 import dev.forntoh.chat.material3.ChatScaffold
 import dev.forntoh.chat.material3.ChatTheme
 import dev.forntoh.chat.ui.Conversation
 
 @Composable
-fun FirstChat() {
-    val me = remember { Participant("me", "You") }
-    var nextId by remember { mutableStateOf(1L) }
-    var state by remember {
-        mutableStateOf(
-            ConversationState(
-                conversationId = "weekend",
-                currentParticipantId = me.id,
-                messages = listOf(
-                    Message(
-                        id = "welcome",
-                        sender = Participant("scout", "Scout"),
-                        timestampEpochMillis = 0L,
-                        displayTime = "Now",
-                        text = "Where shall we go this weekend?",
-                        delivery = Delivery.Sent,
-                    ),
-                ),
-            ),
-        )
-    }
-
-    val onEvent: (ConversationEvent) -> Unit = event@{ event ->
-        if (event.conversationId != state.conversationId) return@event
-        when (event) {
-            is ConversationEvent.DraftChanged -> {
-                state = state.copy(draft = state.draft.copy(text = event.text))
-            }
-            is ConversationEvent.SendDraft -> {
-                val draft = state.draft
-                if (draft.submitting || !draft.hasContent ||
-                    event.revision != draft.revision ||
-                    event.text != draft.text || event.attachments != draft.attachments
-                ) return@event
-                val row = Message(
-                    id = "local-${nextId++}",
-                    sender = me,
-                    timestampEpochMillis = 0L,
-                    displayTime = "Now",
-                    text = event.text,
-                    delivery = Delivery.Sent,
-                    attachments = event.attachments,
-                )
-                state = state.copy(
-                    messages = state.messages + row,
-                    draft = draft.copy(
-                        text = "",
-                        attachments = emptyList(),
-                        revision = draft.revision + 1,
-                    ),
-                )
-            }
-            is ConversationEvent.RetryMessage -> Unit
-        }
-    }
+fun AppChatScreen(
+    conversationId: String,
+    title: String,
+    currentUser: User,
+    messages: List<ChatMessage>,
+    draft: Draft,
+    formatTime: (Long) -> String,
+    onEvent: (ConversationEvent) -> Unit,
+) {
+    val state = ConversationState(
+        conversationId = conversationId,
+        currentParticipantId = currentUser.id,
+        messages = messages.map { it.toChatMessage(formatTime) },
+        draft = draft,
+    )
 
     ChatTheme {
-        ChatScaffold(title = { Text("Weekend plans") }) {
+        ChatScaffold(title = { Text(title) }) {
             Conversation(state = state, onEvent = onEvent)
         }
     }
 }
 ```
 
-This example accepts messages locally, so it immediately marks them `Sent`. It keeps state in `remember`, which lasts only while this screen stays mounted. The sample’s `Now` label and zero timestamps are placeholders for your app’s localized times.
+Call `AppChatScreen` with the user and messages from your existing ViewModel or state holder. Pass your app’s localized time formatter and handle `onEvent` there. When your repository emits updated messages, publish a new list; the screen maps it to a new UI snapshot. No separate in-memory message store is needed.
 
-## 3. Connect your app
+`Draft` is UI state for composing and acknowledging submissions; retain it in your state holder and update it in response to events. If you already have a draft model, map its text and attachments too, retaining the Chat revision and submission state alongside it. For image messages, map your existing media records to `Attachment` descriptors; keep file loading and uploads in your app. See [the media guide](features.md#image-attachments).
 
-Move the state and event handler into your ViewModel or another retained state holder. Keep the same `Conversation(state, onEvent)` call.
+## 3. Route events to your app
 
-For a network send, insert one stable message ID with `Delivery.Sending`, clear the accepted draft with a new revision, then update that row to `Sent` or `Failed` when the service completes. The UI offers Retry for your own failed messages; your handler retries the existing row.
+Pass your existing state holder’s event handler as `onEvent`. `DraftChanged` updates the retained draft. `SendDraft` carries the exact text, attachments and draft revision: validate them against current state, then invoke your existing send command. On acceptance, clear that draft and increment its revision; on refusal, preserve the content and still increment the revision. Keep authorization and request deduplication in your application and backend.
 
-Continue with [Integration](integration.md) for state ownership, deduplication and service errors, or [Customization](customization.md) to make the screen match your app.
+Your repository continues to own messages. Map its pending, delivered and failed statuses to `Delivery.Sending`, `Sent` and `Failed`. `RetryMessage.messageId` is the original domain ID, so use it to find the failed outgoing message and call your existing retry command. Do not insert a second row on retry.
+
+Continue with [Integration](integration.md) for the full event and state contract, or [Customization](customization.md) to make the screen match your app.
