@@ -50,7 +50,6 @@ fun MessageMetadata(header: @Composable () -> Unit = {}, footer: @Composable () 
     Box(Modifier.layoutId(MetadataElement.Footer)) { footer() }
 }
 
-// Default text publishes its final-line geometry; arbitrary bodies use their full measured bounds.
 internal val LastTextRight = VerticalAlignmentLine(::maxOf)
 internal val LastTextTop = HorizontalAlignmentLine(::maxOf)
 internal val LastTextBottom = HorizontalAlignmentLine(::maxOf)

@@ -580,11 +580,6 @@ private data class TimelineObservation(
     val canScrollForward: Boolean,
 )
 
-/** A single 360ms return, independent of history length. Nearby travel uses pixel scrolling;
- * distant travel seeks virtualized positions each frame so unseen intermediate rows do not
- * block the UI. Both paths settle at the measured trailing edge inside the same scroll session.
- * Reader drag and conversation scope retain cancellation; no distance-dependent tail is queued.
- */
 private suspend fun LazyListState.animateToLatest(motion: ChatMotion) {
     scroll {
         val lazyScope = LazyLayoutScrollScope(this@animateToLatest, this)
@@ -635,7 +630,6 @@ private suspend fun LazyListState.animateToLatest(motion: ChatMotion) {
     }
 }
 
-/** Align the trailing edge too when the last row is taller than the timeline. */
 private suspend fun LazyListState.scrollToLatest(lastIndex: Int) {
     scrollToItem(lastIndex)
     layoutInfo.visibleItemsInfo.lastOrNull { it.index == lastIndex }?.let { last ->

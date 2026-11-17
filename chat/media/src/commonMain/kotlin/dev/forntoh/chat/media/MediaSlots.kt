@@ -72,13 +72,11 @@ fun MediaTheme(slots: MediaSlots = LocalMediaSlots.current, content: @Composable
     MediaTheme(LocalMediaTextStyle.current, slots, content)
 }
 
-/** Host typography bridge for the foundation defaults; existing slot-only calls retain their signature. */
 @Composable
 fun MediaTheme(textStyle: TextStyle, slots: MediaSlots = LocalMediaSlots.current, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalMediaSlots provides slots, LocalMediaTextStyle provides textStyle, content = content)
 }
 
-/** Foundation control usable for delegation from custom slots; minimum target is 48 dp. */
 @Composable
 fun DefaultMediaControl(content: MediaControlContent) {
     Box(

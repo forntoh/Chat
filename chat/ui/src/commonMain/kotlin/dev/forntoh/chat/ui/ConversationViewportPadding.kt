@@ -12,4 +12,4 @@ import androidx.compose.ui.unit.dp
  * not also pad Conversation with these values. Custom composers may read the bottom value to
  * avoid adding a second decorative margin to an already sufficient system safe-area gap.
  */
-val LocalConversationViewportPadding = staticCompositionLocalOf<PaddingValues> { PaddingValues(0.dp) }
+val LocalConversationViewportPadding = staticCompositionLocalOf { PaddingValues(0.dp) }
