@@ -23,7 +23,8 @@ val documentationReadme = tasks.register("writeCentralDocumentation") {
         check(source.matches(Regex("[0-9a-f]{40}"))) { "Expected immutable release-source commit" }
         destination.get().asFile.apply {
             parentFile.mkdirs()
-            writeText("""
+            writeText(
+                """
                 # Chat 0.0.1 project documentation
 
                 This archive is a documentation pointer; it contains no rendered API documentation.
@@ -31,7 +32,8 @@ val documentationReadme = tasks.register("writeCentralDocumentation") {
                 Human-readable project documentation at immutable release source $source:
                 https://github.com/forntoh/Chat/blob/$source/README.md
                 https://github.com/forntoh/Chat/tree/$source/docs
-            """.trimIndent() + "\n")
+                """.trimIndent() + "\n",
+            )
         }
     }
 }
