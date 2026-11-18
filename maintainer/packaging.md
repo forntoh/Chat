@@ -75,10 +75,10 @@ readiness gap. No removed consumer app or test suite is recreated.
 
 Apache-2.0 POM metadata and source/binary JAR/AAR attribution are configured by the
 publishing convention. Source JARs retain Kotlin source and its KDoc. Root
-`LICENSE`/`NOTICE` also accompany the candidate for native outputs. Rendered
-javadoc/KDoc artifacts are absent; the eventual repository's documentation,
-identity/developer, signing and metadata requirements must be confirmed before
-publication. This slice does not select or configure a remote publishing service.
+`LICENSE`/`NOTICE` also accompany the candidate for native outputs. A documentation pointer JAR is attached to each publication, with README links
+to immutable source documentation; it does not contain rendered API docs. POMs
+include owner-confirmed developer attribution without email. Signing and provider
+acceptance remain unverified. This slice does not select or configure a remote publishing service.
 
 ## Failure and immutable versions
 
@@ -109,3 +109,67 @@ Oliver reviews the exact completed candidate first; Zainab assesses release
 preparation afterward, and final owner acceptance remains required. Existing
 platform/device deferrals and Pages protection/deployment prerequisites remain
 unverified. This nonvisual slice adds no UI evidence or platform campaign.
+
+
+## Local Central preparation from verified staging
+
+Central's [requirements](https://central.sonatype.org/publish/requirements/)
+(checked 2026-11-18) permit README placeholder documentation JARs linking to
+project information. This preparation attaches one `-javadoc.jar` to **all 25**
+root/Android/JVM/iOS publications, without assuming a native/platform exemption.
+It preserves source KDoc and MyST and clearly identifies the absence of rendered
+API documentation. The README links to the full candidate commit's README and
+docs directory. Those links are immutable but may not be publicly reachable
+until a separately authorized push; public docs accessibility is unverified.
+
+Use the same tools as above, with an isolated clean checkout at the exact committed
+candidate. A previous `package-local.py`/PAT-291 evidence directory must contain
+`candidate.json`, `inventory.json`, per-file `provenance.json` and `repository/`:
+
+```sh
+python3 scripts/prepare-central.py \
+  --commit FULL_CANDIDATE_COMMIT_SHA \
+  --staged /absolute/prior-verified-evidence \
+  --output /absolute/new/central-preparation
+```
+
+This separate path generates POMs and documentation through Gradle, reuses only
+verified source-identical prior binary/source/Gradle metadata outputs, and records
+original per-file build identities and Git object bindings. It rejects changed
+module/toolchain/legal inputs and build-logic changes beyond the publishing
+convention. It does not compile libraries or consumers again. A publishing
+convention change that affects binaries/sources requires fresh builds instead;
+this slice only adds POM fields and a separate documentation archive.
+
+The prior directory is read-only. Fresh output collision, dirty/mismatched source,
+URL output and input identity failures stop preparation. Failed output stays
+incomplete; fix/commit and choose a new output directory. `inventory.json`,
+`provenance.json`, `source-bindings.json`, `SHA256SUMS`, `gradle.log`, and
+`bundle-audit.json` accompany `central-UNSIGNED.zip`. Fresh POM/docs have all four
+checksum sidecars; unchanged files retain verified sidecars and metadata hashes.
+The ZIP uses [Central's Maven layout](https://central.sonatype.org/publish/publish-portal-upload/)
+at its root. It excludes repository-level `maven-metadata.xml`; it includes all
+exact-version Gradle metadata and tooling metadata. Audit rejects unknown files,
+unsafe paths, symlinks, missing files/checksums, stale docs, developer gaps and
+optional-dependency leaks. Read-only audit and temporary-copy negative checks:
+
+```sh
+python3 scripts/verify_central.py /absolute/new/central-preparation/repository FULL_CANDIDATE_COMMIT_SHA /absolute/new/central-preparation/central-UNSIGNED.zip
+python3 scripts/check_central.py /absolute/new/central-preparation/repository FULL_CANDIDATE_COMMIT_SHA
+```
+
+All success records say `UNSIGNED_NOT_SUBMISSION_READY`. No `.asc` files are
+accepted. `:chat:core:signCentralPublications` is a reserved Gradle `Sign` seam
+that depends on a guard which always fails, before signatory/key access. It is
+not attached to local publishing. No property or environment flag grants signing
+authority. A later separately approved signer integration must deliberately
+replace that guard and wire publication signing. No credentials or keys are
+read, installed, generated or printed here.
+
+A future operator still needs exact-candidate owner acceptance, namespace/access
+verification, approved signer/public-key availability, signing all required files,
+a new signed inventory/bundle audit, and separately authorized Portal validation
+and publication. Portal acceptance, public installation and outside-consumer
+compilation remain unverified. Native Oliver review precedes Zainab's assessment;
+Jonas routes changed-result and remote-action gates. No PR, tag, push, main merge,
+release, hosted run or Portal call is part of this command.
