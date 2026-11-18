@@ -121,7 +121,8 @@ private fun MessageBubbleContent(
     bubbleContentColor: androidx.compose.ui.graphics.Color,
 ) {
     Layout(
-        modifier = Modifier,
+        // The sibling Surface owns the message description and bubble actions.
+        modifier = Modifier.clearAndSetSemantics {},
         content = {
             CompositionLocalProvider(
                 LocalContentColor provides bubbleContentColor,
