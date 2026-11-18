@@ -24,7 +24,7 @@ def verify(repository, source_commit):
             ids = {'chat-' + m + t for m in MODULES for t in TARGETS}
             require(len(parts) == 6 and parts[:3] == ('dev', 'forntoh', 'chat') and parts[3] in ids and parts[4] == VERSION and parts[5].startswith(parts[3] + '-' + VERSION), f'Unsafe repository path: {path}')
             require(path.suffix != '.asc', 'Unsigned preparation must contain no signatures')
-    allowed_suffixes = {'.pom', '.module', '.jar', '.aar', '.klib', '-sources.jar', '-javadoc.jar', '-kotlin-tooling-metadata.json'}
+    allowed_suffixes = {'.pom', '.module', '.jar', '.aar', '.klib', '-sources.jar', '-javadoc.jar', '-kotlin-tooling-metadata.json', '-metadata.jar', '-kotlin_resources.kotlin_resources.zip'}
     for path in repository.rglob('*'):
         if path.is_file():
             base = path.with_suffix('') if path.suffix[1:] in ALGORITHMS else path
