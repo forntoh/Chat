@@ -21,8 +21,8 @@ import androidx.compose.ui.layout.HorizontalAlignmentLine
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
@@ -93,9 +93,7 @@ internal fun MessageBubbleLayout(
         if (outgoing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Layout(content = {
         Surface(
-            modifier = Modifier.clip(shape).then(bubbleModifier).clearAndSetSemantics {
-                contentDescription = slots.messageDescription(message)
-            },
+            modifier = Modifier.clip(shape).then(bubbleModifier),
             color = displayedColor,
             shape = shape,
         ) {}
@@ -121,8 +119,10 @@ private fun MessageBubbleContent(
     bubbleContentColor: androidx.compose.ui.graphics.Color,
 ) {
     Layout(
-        // The sibling Surface owns the message description and bubble actions.
-        modifier = Modifier.clearAndSetSemantics {},
+        // Merge passive content into one description without hiding independently actionable slots.
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = slots.messageDescription(message)
+        },
         content = {
             CompositionLocalProvider(
                 LocalContentColor provides bubbleContentColor,
