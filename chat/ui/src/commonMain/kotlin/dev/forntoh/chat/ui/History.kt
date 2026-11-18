@@ -15,7 +15,10 @@ enum class HistoryStatus { Idle, Loading, Error, Exhausted }
  * @param status Current availability; Error never automatically retries and retains existing rows.
  * @param revision Host request generation, changed on resolution or cancellation; defaults to zero.
  */
-data class HistoryState(val status: HistoryStatus = HistoryStatus.Exhausted, val revision: Long = 0)
+data class HistoryState(
+    val status: HistoryStatus = HistoryStatus.Exhausted,
+    val revision: Long = 0,
+)
 
 /**
  * Request for one earlier page. Route by [conversationId], validate [revision] against the
@@ -27,7 +30,10 @@ data class HistoryState(val status: HistoryStatus = HistoryStatus.Exhausted, val
  * @param conversationId Host room identity, scoped to the currently rendered conversation.
  * @param revision Generation to validate before starting work and again before publishing results.
  */
-data class HistoryRequest(val conversationId: String, val revision: Long)
+data class HistoryRequest(
+    val conversationId: String,
+    val revision: Long,
+)
 
 /**
  * History slot input. Render [state] and invoke [onLoadEarlier] only on explicit activation.
@@ -35,11 +41,18 @@ data class HistoryRequest(val conversationId: String, val revision: Long)
  * [canLoadEarlier] becomes false synchronously on activation and during Loading/Exhausted.
  * Custom slots own wording and semantics, including initial loading, empty and error feedback.
  */
-class HistoryContent(val state: HistoryState, val canLoadEarlier: Boolean, val onLoadEarlier: () -> Unit)
+class HistoryContent(
+    val state: HistoryState,
+    val canLoadEarlier: Boolean,
+    val onLoadEarlier: () -> Unit,
+)
 
 /**
  * Return-to-latest slot input. [hasNewMessages] marks appended messages while reading earlier
  * rows. Invoke [onReturnToLatest] deliberately; it scrolls to the latest row and clears the
  * indicator. Custom slots own their labels and semantics.
  */
-class LatestContent(val hasNewMessages: Boolean, val onReturnToLatest: () -> Unit)
+class LatestContent(
+    val hasNewMessages: Boolean,
+    val onReturnToLatest: () -> Unit,
+)

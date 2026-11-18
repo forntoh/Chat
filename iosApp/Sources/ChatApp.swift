@@ -3,12 +3,12 @@ import ChatSample
 
 @main
 struct ChatApp: App {
-    var body: some Scene { WindowGroup { ChatView().ignoresSafeArea(.keyboard) } }
+    var body: some Scene { WindowGroup { ChatView().ignoresSafeArea() } }
 }
 
 struct ChatView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        return MainViewControllerKt.MainViewController()
     }
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }

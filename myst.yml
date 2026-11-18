@@ -1,0 +1,29 @@
+version: 1
+project:
+  title: Compose Chat
+  description: A conversation worth opening. Chat UI for Compose Multiplatform.
+  license: Apache-2.0
+  toc:
+    - file: docs/index.md
+    - title: Build your chat
+      children:
+        - file: docs/getting-started.md
+        - file: docs/integration.md
+        - file: docs/customization.md
+        - file: docs/features.md
+    - title: Explore the project
+      children:
+        - file: docs/sample.md
+        - file: CONTRIBUTING.md
+site:
+  template: https://github.com/myst-templates/book-theme/archive/39551f85e7540f44b3b7e1341b4fd4ca236621dc.zip
+  nav:
+    - title: Get started
+      url: /getting-started
+    - title: Sample
+      url: /sample
+    - title: GitHub
+      url: https://github.com/forntoh/Chat
+  options:
+    logo_text: Compose Chat
+    style: docs/style.css

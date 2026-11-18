@@ -8,3 +8,8 @@ evidence/
 graphify-out/
 .idea/
 .paperclip/
+
+node_modules/
+_build/
+site/
+.venv-docs/

@@ -1,0 +1,197 @@
+package dev.forntoh.chat.material3
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.visible
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
+import dev.forntoh.chat.ui.ChatComposerKeyboardOptions
+import dev.forntoh.chat.ui.ConversationSlots
+import dev.forntoh.chat.ui.HistoryFeedbackContent
+import dev.forntoh.chat.ui.HistoryStatus
+import dev.forntoh.chat.ui.LocalMessageGroupContext
+import kotlin.math.ceil
+import kotlin.math.floor
+
+/**
+ * Reference-design Material3 implementations of shared UI slots. This factory supplies
+ * each standard renderer/subslot with Material3 content.
+ * Customize the returned bundle with copy(...) to retain these defaults. It creates no services
+ * or behavior state and requires neither actions nor media. Wording is English composable content;
+ * hosts localize subslots directly, including visible and accessible delivery content together.
+ */
+@Suppress("LongMethod") // One immutable bundle of independent renderer lambdas.
+fun chatConversationSlots(): ConversationSlots = ConversationSlots(
+    message = { row, outgoing, retry -> MessageBubble(row, outgoing, retry) },
+    composer = { MessageComposer(it) },
+    history = { HistoryStatusContent(it.history, it.empty) },
+    latest = { LatestControl(it) },
+    messageMetadata = { message ->
+        MessageMetadata(
+            header = {
+                if (!LocalBubbleOutgoing.current && LocalMessageGroupContext.current.isFirst) {
+                    Text(message.sender.displayName.ifBlank { "Unknown sender" }, style = MaterialTheme.typography.labelMedium)
+                }
+            },
+            footer = {
+                Text(
+                    message.displayTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.8f),
+                )
+            },
+        )
+    },
+    messageBody = {
+        val textLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+        Text(
+            text = it.text.ifBlank { "Message unavailable" },
+            style = MaterialTheme.typography.bodyLarge,
+            onTextLayout = { result -> textLayout[0] = result },
+            modifier = Modifier.layout { measurable, constraints ->
+                val text = measurable.measure(constraints)
+                val result = textLayout[0]
+                val lines = if (result == null) {
+                    emptyMap()
+                } else {
+                    val last = result.lineCount - 1
+                    mapOf(
+                        LastTextRight to ceil(result.getLineRight(last)).toInt(),
+                        LastTextTop to floor(result.getLineTop(last)).toInt(),
+                        LastTextBottom to text.height,
+                    )
+                }
+                layout(text.width, text.height, lines) { text.placeRelative(0, 0) }
+            },
+        )
+    },
+    messageDelivery = { DeliveryStatus(it) },
+    messageDescription = {
+        "${it.sender.displayName.ifBlank {
+            "Unknown sender"
+        }}, ${it.text.ifBlank { "Message unavailable" }}, ${it.displayTime}, ${it.delivery.name}"
+    },
+    retry = { TextButton(onClick = it.onRetry) { Text("Retry") } },
+    composerField = {
+        val requester = remember { FocusRequester() }
+        LaunchedEffect(it.focusRequest) { if (it.focusRequest != 0L) requester.requestFocus() }
+        BasicTextField(
+            value = it.draft.text,
+            onValueChange = { text -> if (!it.pending) it.onTextChange(text) },
+            keyboardOptions = ChatComposerKeyboardOptions,
+            minLines = 1,
+            maxLines = 5,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(requester)
+                .testTag("composer").semantics { contentDescription = "Message" },
+            decorationBox = { field ->
+                Box(
+                    Modifier.heightIn(min = ChatGeometry.Control).padding(
+                        horizontal = ChatGeometry.InputHorizontalPadding,
+                        vertical = ChatGeometry.InputVerticalPadding,
+                    ),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (it.draft.text.isEmpty()) {
+                        Text(
+                            "Type a message…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    field()
+                }
+            },
+        )
+    },
+    composerSend = {
+        val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+        FilledIconButton(
+            enabled = it.canSend,
+            onClick = it.onSend,
+            modifier = Modifier
+                .size(ChatGeometry.Control)
+                .focusProperties { canFocus = inputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard }
+                .semantics { contentDescription = "Send" },
+        ) {
+            Icon(
+                ChatIcons.Send,
+                contentDescription = null,
+                modifier = Modifier.size(ChatGeometry.Icon),
+            )
+        }
+    },
+    historyFeedback = { DefaultHistoryFeedback(it) },
+    latestLabel = { Icon(ChatIcons.ChevronDown, contentDescription = if (it.hasNewMessages) "New messages · Latest" else "Latest") },
+    messageAvatar = { message ->
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(ChatGeometry.Avatar).clearAndSetSemantics {},
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = message.sender.displayName.trim().split(Regex("\\s+"))
+                        .filter(String::isNotBlank)
+                        .take(2).joinToString("") { it.take(1) }.uppercase().ifEmpty { "?" },
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    },
+    messageSpacing = { if (it.isFirst) ChatGeometry.GroupGap else ChatGeometry.RowGap },
+)
+
+@Composable
+fun DefaultHistoryFeedback(content: HistoryFeedbackContent) {
+    val history = content.history
+    when (history.state.status) {
+        HistoryStatus.Idle -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) { Text("Load earlier") }
+
+        HistoryStatus.Loading -> Text("Loading messages…", Modifier.padding(12.dp))
+
+        HistoryStatus.Error -> TextButton(enabled = history.canLoadEarlier, onClick = history.onLoadEarlier) {
+            Text("Couldn't load messages · Retry")
+        }
+
+        HistoryStatus.Exhausted -> Text(
+            if (content.empty) "No messages yet" else "Start of conversation",
+            Modifier.padding(8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

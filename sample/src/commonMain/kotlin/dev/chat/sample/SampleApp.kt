@@ -1,149 +1,215 @@
 package dev.chat.sample
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import dev.forntoh.chat.actions.*
-import dev.forntoh.chat.core.Delivery
-import dev.forntoh.chat.material3.MessageComposer
-import dev.forntoh.chat.material3.ChatScaffold
+import dev.chat.sample.resources.Res
+import dev.chat.sample.resources.mountain
 import dev.forntoh.chat.material3.ChatIcons
+import dev.forntoh.chat.material3.ChatScaffold
+import dev.forntoh.chat.material3.MessageBubble
+import dev.forntoh.chat.material3.MessageComposer
+import dev.forntoh.chat.material3.MessageSupplement
+import dev.forntoh.chat.media.LocalMediaSlots
+import dev.forntoh.chat.media.MediaAttachments
+import dev.forntoh.chat.media.MediaCommand
+import dev.forntoh.chat.media.MediaDraft
+import dev.forntoh.chat.media.MediaTarget
+import dev.forntoh.chat.media.MediaTheme
+import dev.forntoh.chat.media.rememberMedia
 import dev.forntoh.chat.ui.Conversation
 import dev.forntoh.chat.ui.LocalConversationSlots
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
+import kotlin.time.Duration.Companion.milliseconds
 
-/** In-memory chat. [manualService] lets focused journeys control fake acceptance/delivery. */
 @Composable
-fun SampleApp(host: FakeHost = remember { FakeHost().apply { useChatFixture() } }, manualService: Boolean = false) {
-    var mediaDemo by remember { mutableStateOf(false) }
-    val mediaHost = remember { FakeMediaHost() }
-    if (mediaDemo) {
-        MediaSample(mediaHost, onBack = { mediaDemo = false })
-        return
+fun SampleApp(host: BotHost = remember { BotHost() }) {
+    var alternateTheme by remember { mutableStateOf(false) }
+    DisposableEffect(host) {
+        host.start()
+        onDispose { host.stop() }
     }
-    val clipboard = LocalClipboardManager.current
-    var manualCompletion by remember { mutableStateOf(manualService) }
-    fun finishFakeSubmission() {
-        if (!manualCompletion) {
-            host.accept()
-            host.completeDelivery(Delivery.Sent)
-            if (host.pendingAction != null) host.completeAction(true)
+    LaunchedEffect(host) {
+        while (true) {
+            delay(DEMO_TICK_MILLIS.milliseconds)
+            host.advanceBy(DEMO_TICK_MILLIS)
         }
     }
-    val actions = rememberMessageActions(host.state, host.actions,
-        onAction = { request -> host.onAction(request) { clipboard.setText(AnnotatedString(it)) }; finishFakeSubmission() },
-        onEvent = { host.onEvent(it); finishFakeSubmission() })
-    var showConversation by remember { mutableStateOf(true) }
-    var custom by remember { mutableStateOf(false) }
-    var hostTheme by remember { mutableStateOf(false) }
-    var demoMenu by remember { mutableStateOf(false) }
-    SampleTheme(hostTheme) {
-        ChatScaffold(
-            title = { Column {
-                Text(if (host.state.conversationId == "studio") "Design team" else "Project room",
-                    style = MaterialTheme.typography.titleMedium)
-                Text("Avery, Morgan and you", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } },
-            avatar = { SampleAvatar("DT") },
-            navigationIcon = {
-                IconButton(onClick = { showConversation = !showConversation }, modifier = Modifier.semantics {
-                    contentDescription = if (showConversation) "Leave" else "Open chat"
-                }) { Icon(if (showConversation) ChatIcons.ArrowLeft else ChatIcons.ArrowRight, null) }
-            },
-            actions = { Box {
-                IconButton(onClick = { demoMenu = true }, modifier = Modifier.testTag("demo-menu")
-                    .semantics { contentDescription = "Conversation options" }) { Icon(ChatIcons.DotsVertical, null) }
-                DropdownMenu(expanded = demoMenu, onDismissRequest = { demoMenu = false }) {
-                    @Composable fun entry(label: String, action: () -> Unit) {
-                        DropdownMenuItem(text = { Text(label) }, onClick = { demoMenu = false; action() })
-                    }
-                    entry("Image sample") { mediaDemo = true }
-                    entry(if (manualCompletion) "Automatic service" else "Manual service") { manualCompletion = !manualCompletion }
-                    entry("History fixture", host::useHistoryFixture)
-                    entry("Switch room", host::switchRoom)
-                    entry(if (hostTheme) "Default chat theme" else "Host theme") { hostTheme = !hostTheme }
-                    entry(if (custom) "Material3 UI" else "Custom UI") { custom = !custom }
-                    entry("New arrival", host::receiveMessage)
-                    if (host.pendingHistory != null) {
-                        entry("Complete page") { host.completeHistory() }; entry("Fail page", host::failHistory)
-                    }
-                    if (host.pendingAction != null) {
-                        entry("Complete action") { host.completeAction(true) }; entry("Fail action") { host.completeAction(false) }
-                    }
-                    if (host.pendingDraft != null) {
-                        entry("Accept", host::accept); entry("Keep draft", host::refuse)
-                    }
-                    if (host.state.messages.any { it.delivery == Delivery.Sending }) {
-                        entry("Deliver") { host.completeDelivery(Delivery.Sent) }
-                        entry("Fail delivery") { host.completeDelivery(Delivery.Failed) }
-                    }
-                    entry("About this sample") { showConversation = false }
-                }
-            } },
-        ) {
-            if (showConversation) {
-                val base = LocalConversationSlots.current
-                // Wrappers add supported optional actions; default message/composer presentation comes from the artifact.
-                Conversation(host.state, actions::onConversationEvent, modifier = Modifier.weight(1f),
-                    slots = base.copy(message = { message, outgoing, retry ->
-                        Box {
-                            Column(Modifier.combinedClickable(
-                                onClickLabel = "Message actions",
-                                onClick = { actions.request(ActionCommand.OpenMenu, message.id) },
-                                onLongClick = { actions.request(ActionCommand.OpenMenu, message.id) },
-                            )) {
-                                host.actions.quotes[message.id]?.let { QuotedMessage(actions, it) }
-                                if (custom && !outgoing) {
-                                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer,
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                        modifier = Modifier.testTag("custom-incoming").clearAndSetSemantics {
-                                            contentDescription = "${message.sender.displayName}, ${message.text}, ${message.displayTime}, ${message.delivery.name}"
-                                        }) {
-                                        Column(Modifier.padding(16.dp)) {
-                                            Text(message.sender.displayName, style = MaterialTheme.typography.titleSmall)
-                                            Text(message.text, style = MaterialTheme.typography.bodyLarge)
-                                            Text("${message.displayTime} · ${message.delivery.name}", style = MaterialTheme.typography.labelSmall)
-                                        }
-                                    }
-                                } else base.message(message, outgoing, retry)
-                            }
-                            DropdownMenu(expanded = host.actions.menuTargetId == message.id,
-                                onDismissRequest = { actions.request(ActionCommand.CloseMenu) }) {
-                                MessageActions(actions, message.id, LocalActionSlots.current.copy(
-                                    control = { button ->
-                                        if (button.command != ActionCommand.OpenMenu) DropdownMenuItem(
-                                            text = { ActionLabel(button.command) }, enabled = button.enabled, onClick = button.onClick)
-                                    },
-                                    menu = { it() },
-                                ))
-                            }
-                        }
-                    }, composer = { content ->
-                        Column {
-                            ActionComposerStatus(actions)
-                            if (custom) Text("Custom composer · host draft", style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                            if (host.actions.editing != null) {
-                                MessageComposer(actions.composer(content), base.copy(composerSend = { composer ->
-                                    TextButton(onClick = composer.onSend, enabled = composer.canSend) { Text("Save edit") }
-                                }))
-                            } else base.composer(actions.composer(content))
-                        }
-                    }), history = host.history, onLoadEarlier = host::loadEarlier)
-            } else Text("In-memory sample. Messages and drafts last only while the app is open. " +
-                "Images use a bundled resource; there is no server, upload service or persistence. " +
-                "Your draft stays with this retained host. Demo scenarios are in the toolbar menu.", Modifier.padding(24.dp))
+    SampleTheme(alternateTheme) {
+        MediaTheme(textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+            BotConversation(host, alternateTheme) { alternateTheme = !alternateTheme }
         }
     }
 }
+
+@Composable
+private fun BotConversation(host: BotHost, alternateTheme: Boolean, onTheme: () -> Unit) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val images = host.mediaHost
+    val media = rememberMedia(host.state, images.media, images::onRequest, host::onEvent)
+    val base = LocalConversationSlots.current
+    val bodySlots = base.copy(
+        messageBody = { row ->
+            val suggestion = host.suggestions[row.id]
+            if (suggestion == null) base.messageBody(row) else TrailCard(suggestion)
+        },
+    )
+    ChatScaffold(
+        title = {
+            Column {
+                Text("Scout", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "A little inspiration for outside",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        avatar = { SampleAvatar("S") },
+        actions = {
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.testTag("bot-menu").semantics { contentDescription = "Chat options" },
+            ) { Icon(ChatIcons.DotsVertical, null) }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(if (alternateTheme) "Classic theme" else "Forest theme") },
+                    onClick = {
+                        menuExpanded = false
+                        onTheme()
+                    },
+                    modifier = Modifier.testTag("theme-switch"),
+                )
+                DropdownMenuItem(
+                    text = { Text(if (host.paused) "Resume bot" else "Pause bot") },
+                    onClick = {
+                        menuExpanded = false
+                        if (host.paused) host.resume() else host.pause()
+                    },
+                )
+            }
+        },
+    ) {
+        Conversation(
+            host.state,
+            media.onConversationEvent,
+            modifier = Modifier.weight(1f),
+            slots = bodySlots.copy(
+                message = { row, outgoing, retry ->
+                    val imageOnly = row.text.isBlank() && row.attachments.isNotEmpty()
+                    Column {
+                        if (!imageOnly) MessageBubble(row, outgoing, retry, bodySlots)
+                        MessageSupplement(outgoing) {
+                            if (imageOnly) Text(row.sender.displayName, style = MaterialTheme.typography.labelMedium)
+                            MediaAttachments(media, row, { BundledImage(it) })
+                            if (imageOnly) {
+                                Text(
+                                    "${row.displayTime} · ${row.delivery.name}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                },
+                composer = { content ->
+                    val adapted = media.composer(content)
+                    val mediaSlots = LocalMediaSlots.current
+                    MessageComposer(
+                        adapted,
+                        base,
+                        headerContent = {
+                            MediaDraft(
+                                media,
+                                content,
+                                { BundledImage(it) },
+                                mediaSlots.copy(control = {
+                                    if (it.command != MediaCommand.Select) mediaSlots.control(it)
+                                }),
+                            )
+                        },
+                        leadingContent = {
+                            IconButton(
+                                onClick = { media.request(MediaCommand.Select, composer = adapted) },
+                                enabled = !adapted.pending,
+                                modifier = Modifier.semantics { contentDescription = "Attach image" },
+                            ) {
+                                Icon(ChatIcons.Paperclip, null)
+                            }
+                        },
+                    )
+                },
+            ),
+        )
+        if (images.selection != null) {
+            AlertDialog(
+                onDismissRequest = { images.resolveSelection() },
+                title = { Text("Mountain morning") },
+                text = {
+                    Column {
+                        Image(painterResource(Res.drawable.mountain), "Mountain morning illustration", Modifier.size(240.dp, 120.dp))
+                        Text("An illustration bundled with this offline demo.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                },
+                confirmButton = { TextButton(onClick = { images.resolveSelection(choose = true) }) { Text("Attach image") } },
+                dismissButton = { TextButton(onClick = { images.resolveSelection() }) { Text("Cancel") } },
+            )
+        }
+        images.viewer?.let { target ->
+            AlertDialog(
+                onDismissRequest = images::closeViewer,
+                title = { Text("Mountain morning") },
+                text = { BundledImage(target) },
+                confirmButton = { TextButton(onClick = images::closeViewer) { Text("Close") } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrailCard(suggestion: TrailSuggestion) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.testTag("trail-suggestion"),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text("TRAIL IDEA", style = MaterialTheme.typography.labelSmall)
+            Text(suggestion.title, style = MaterialTheme.typography.titleMedium)
+            Text(suggestion.detail, style = MaterialTheme.typography.labelMedium)
+            Text(suggestion.description, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun BundledImage(target: MediaTarget) {
+    if (target.attachment?.contentReference == "bundled:mountain") {
+        Image(painterResource(Res.drawable.mountain), null, Modifier.size(240.dp, 120.dp))
+    }
+}
+
+private const val DEMO_TICK_MILLIS = 100L

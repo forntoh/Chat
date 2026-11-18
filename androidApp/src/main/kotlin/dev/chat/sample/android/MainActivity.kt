@@ -3,17 +3,23 @@ package dev.chat.sample.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import dev.chat.sample.SampleApp
-import dev.chat.sample.FakeHost
+import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import dev.chat.sample.BotHost
+import dev.chat.sample.SampleApp
 
-class RetainedHost : ViewModel() { val host = FakeHost() }
+class RetainedHost : ViewModel() {
+    val host = BotHost()
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val host = ViewModelProvider(this)[RetainedHost::class.java].host
-        setContent { SampleApp(host) }
+        enableEdgeToEdge()
+        val retained = ViewModelProvider(this)[RetainedHost::class.java]
+        setContent {
+            SampleApp(retained.host)
+        }
     }
 }

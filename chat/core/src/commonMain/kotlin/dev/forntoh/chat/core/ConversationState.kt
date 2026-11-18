@@ -10,10 +10,6 @@ package dev.forntoh.chat.core
  * merge rows. IDs must be unique within this list, but may recur in another conversation.
  * Empty defaults show an empty timeline and a blank, enabled-for-editing composer.
  *
- * @param conversationId Stable host key scoping events, drafts and message identities.
- * @param currentParticipantId Host participant key used for outgoing presentation, not authorization.
- * @param draft Retained host composer state; defaults to an empty, editable draft at revision zero.
- * @param messages Immutable snapshot in host-defined display order; defaults to empty and requires unique IDs.
  * @throws IllegalArgumentException when a snapshot contains duplicate message IDs.
  */
 data class ConversationState(
@@ -22,5 +18,7 @@ data class ConversationState(
     val draft: Draft = Draft(),
     val messages: List<Message> = emptyList(),
 ) {
-    init { require(messages.map { it.id }.distinct().size == messages.size) { "Message IDs must be unique within a snapshot" } }
+    init {
+        require(messages.map { it.id }.distinct().size == messages.size) { "Message IDs must be unique within a snapshot" }
+    }
 }

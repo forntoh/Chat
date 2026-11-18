@@ -1,123 +1,100 @@
-# Conversation customization
+---
+title: Customization
+description: Match your palette and render your own message content.
+---
 
-Use `chat-ui` for host-rendered content without Material3. Optional `chat-material3` supplies
-English default message, composer, history and latest controls. Core state and service results
-stay host-owned. Neither integration persists drafts or installs services.
+# Make it feel like your app
 
-`ConversationSlots`, `LocalConversationSlots` and `ConversationTheme` live in `dev.forntoh.chat.ui`
-and configure presentation for the one shared `dev.forntoh.chat.ui.Conversation`. The neutral defaults
-work without Material3. Optional `dev.forntoh.chat.material3.ChatTheme` installs Material3 renderers
-through that same provider; it supplies no second Conversation implementation.
+Start by changing colors. Replace individual rendering slots when you need more control; the conversation’s state and event handler stay the same.
 
-For the Material3 path, wrap the shared Conversation in `ChatTheme { ... }`.
-Derive `chatConversationSlots().copy(...)` for customized defaults. Shared themes and
-foundation-only hosts derive `LocalConversationSlots.current.copy(...)`. Hosts author
-wording directly with composables, using their own resources and semantics. When slot code
-uses Material3 controls, declare Material3 in the host too (see the standalone default consumer):
+```{figure} assets/forest-theme.png
+:width: 320px
+:alt: Scout conversation with a green Forest theme and a retained message draft
+
+The sample’s Forest theme changes the palette without replacing the conversation.
+```
+
+## Set your palette
+
+`ChatTheme` accepts a Material 3 color scheme, typography and slots. For example, apply your product’s primary color:
 
 ```kotlin
-ConversationTheme(slots = LocalConversationSlots.current.copy(
-    composerSend = { composer ->
-        Button(onClick = composer.onSend, enabled = composer.canSend) { Text("Post") }
-    },
-    retry = { retry -> TextButton(onClick = retry.onRetry) { Text("Try again") } },
-)) {
-    Conversation(hostState, ::handleIntent)
+import androidx.compose.ui.graphics.Color
+import dev.forntoh.chat.material3.ChatTheme
+import dev.forntoh.chat.material3.chatColorScheme
+
+ChatTheme(
+    colorScheme = chatColorScheme().copy(primary = Color(0xFF356859)),
+) {
+    // Your ChatScaffold and Conversation.
 }
 ```
 
-A direct renderer (`messageContent`, `composerContent`, `historyContent`, `latestContent`) wins
-over its effective bundle. An explicit `slots` bundle replaces the ambient theme; derive
-`LocalConversationSlots.current.copy(...)` to preserve other themed slots. Otherwise the nearest
-theme applies, with usable built-in defaults when none is supplied. `MessageBubble`,
-`MessageComposer`, `HistoryStatusContent` and `LatestControl` are separately callable defaults;
-delegate to them without recursively invoking their top-level slot. Pass a bundle explicitly to
-customize their subslots locally. MaterialTheme continues to supply colors, typography and shapes.
+`chatColorScheme(darkTheme = true)` supplies the dark palette. Keep theme choice in your app’s state and change the theme around the existing conversation, rather than creating another host or clearing its draft.
 
-Message metadata, body, delivery and the ordered semantics description can be customized
-independently. When localizing delivery, change both `messageDelivery` and `messageDescription`.
-The default text group announces sender, content, host time and delivery once; retry stays a
-separate action. Custom rows own equivalent semantics. Field/send, history feedback and latest
-label subslots receive typed host state and guarded callbacks, so host copy needs no label DTO.
-Custom controls must honor enabled/pending state and provide keyboard, focus and accessibility
-behavior. Rendering must not invoke intents or keep a second draft.
+## Render a custom message
 
-Keep one Conversation call mounted across theme or renderer changes. Its shared behavior retains
-pending submission and history position. Theme changes do not accept a draft or emit a send;
-the host resolves submissions with fresh draft revisions. Delivery remains independent of draft
-acceptance. The default Material3 composer places a circular Tabler Send beside a rounded gray input surface and scrolls after five lines. Its field preserves exact multiline text; disabled/pending controls still use the shared guards.
+A message body can contain a product card, booking summary or recommendation. Keep domain data in your app and look it up by message ID. Copy the current slots so ordinary messages retain their default rendering.
 
-This is a deliberate prerelease API migration: `ConversationStrings`, `ActionLabels` and their
-label-dependent overloads were removed without adapters. The unshipped Material3-specific Conversation entry points are also removed: import
-`dev.forntoh.chat.ui.Conversation` and install `ChatTheme` instead. Compatible shared direct slots and
-standalone renderer/retry calls remain available; no published binary compatibility is claimed.
-
-The sample uses the library's reference palette, directional pills and scaffold. Host theme and
-custom UI switches retain host state. Its in-memory fake service proves no real transport,
-persistence, permissions or physical-device behavior.
-
-## Message grouping and avatars
-
-`Conversation` provides `LocalMessageGroupContext` to every effective message renderer, including
-explicit row overrides and action/media wrappers. `isFirst`/`isLast` describe contiguous sender IDs
-in host list order; formatted time strings are never parsed and no date boundary is invented.
-Prepending history recalculates adjacency while retaining message keys. Standalone renderers see
-a complete one-message group. There is no remembered grouping state.
-
-Material3 reserves a 36dp incoming gutter and renders a 30dp `messageAvatar` at group end, with
-initials as its decorative fallback. Replace that composable to draw a host-provided avatar;
-the artifact performs no image lookup or fetch. `messageSpacing` selects the gap before rows
-(except the first loaded row): neutral defaults retain 12dp, Material3 uses 8dp between groups
-and 4dp within groups. Legacy constructor/copy adapters preserve the original source call forms;
-consumers recompile against the new local candidate. There is no published binary guarantee.
-The original thirteen-parameter constructor/copy forms remain source overloads, so trailing
-`latestLabel` lambdas keep their meaning. A legacy `copy { ... }` retains avatar/spacing overrides.
-The immutable bundle explicitly preserves copy/equality/hash/component semantics: component13 and
-thirteen-position destructuring still yield latestLabel; avatar/spacing remain components 14/15.
-These mappings are independent of constructor order, so new defaults cannot shift legacy components.
-
-Host-formatted time appears inside each bubble; each message still has its full host-authored ordered semantics.
-Material3 omits routine Sent text visually, retains Sending/Failed feedback and a separate Retry.
-Host delivery subslots are still invoked on every row. Explicit/bundle/ambient precedence is
-unchanged. `ChatTheme { Conversation(...) }` supplies these defaults without sample renderers,
-actions, media or another state engine; the independent default-material3 consumer demonstrates it.
-
-Both sample screens use the library ChatScaffold with a left identity header and consumed safe-inset padding. The sample opens as a multi-participant conversation. Tap or long-press a message for its supported
-context menu. The toolbar overflow contains theme/fixture switches and **Manual service**;
-ordinary fake sends complete automatically. Manual mode exposes acceptance/refusal and delivery,
-action or upload outcomes in that same menu. These remain in-memory demonstrations, not services.
-See [reference comparison](jetchat-fidelity.md) for the current reference and intentional differences.
-
-## Full scaffold and theme
+This example adds a small recommendation to messages present in a host-provided `recommendations` map:
 
 ```kotlin
-ChatTheme { // default blue/white/gray palette; pass colorScheme/typography to customize
-    ChatScaffold(
-        title = { Text("Avery Chen") },
-        avatar = { HostAvatar() },
-        navigationIcon = {
-            IconButton(onClick = ::goBack) { Icon(ChatIcons.ArrowLeft, "Back") }
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.ui.Conversation
+import dev.forntoh.chat.ui.LocalConversationSlots
+
+@Composable
+fun RecommendationsChat(
+    state: ConversationState,
+    onEvent: (ConversationEvent) -> Unit,
+    recommendations: Map<String, String>,
+) {
+    val defaults = LocalConversationSlots.current
+    val slots = defaults.copy(
+        messageBody = { message ->
+            val recommendation = recommendations[message.id]
+            if (recommendation == null) {
+                defaults.messageBody(message)
+            } else {
+                Column {
+                    Text("RECOMMENDED FOR YOU")
+                    Text(recommendation)
+                }
+            }
         },
-        actions = { HostConversationMenu() },
-    ) {
-        Conversation(hostState, ::handleIntent)
-    }
+    )
+    Conversation(state = state, onEvent = onEvent, slots = slots)
 }
 ```
 
-ChatScaffold is optional. Override `topBar` to replace the full default header, or supply
-`bottomBar`, `snackbarHost`, `floatingActionButton`, container/content colors and
-`contentWindowInsets`. Its content is a bounded Column with Scaffold padding already applied
-and consumed; do not apply it again. Conversation handles remaining IME insets. The shell
-inherits ambient theme/slots and owns no navigation, chat state or services. Hosts retain all
-identity content and optional controls; empty navigation/actions add no placeholder buttons.
+Call this inside `ChatTheme` and a bounded screen such as `ChatScaffold`. The surrounding bubble, metadata and delivery status still come from the default theme.
 
-`ChatTheme` installs `chatColorScheme()` and the default slot bundle. Pass your own ColorScheme,
-Typography or `chatConversationSlots().copy(...)` to customize. Legacy `JetchatTheme` and
-`jetchatConversationSlots` retain their signatures; the legacy theme remains a slots-only
-provider using the host MaterialTheme. Prefer the new names for current integrations.
+```{figure} assets/custom-card.png
+:width: 320px
+:alt: A lakeside trail recommendation rendered inside the Scout conversation
 
-`ChatIcons` delegates to the requested `com.composables:icons-tabler-outline-cmp:2.2.1` library.
-The version-catalog alias is `libs.tabler.icons`; the dependency stays inside chat-material3.
-Core/custom-UI/actions/media consumers do not inherit it unless they select Material3.
-Icons are bundled by the dependency; no copied vector paths or runtime icon fetch is used.
+The Scout sample uses this same message-body seam for a trail card.
+```
+
+## Choose the right slot
+
+| Change | Override |
+| --- | --- |
+| Content inside the existing bubble | `messageBody` |
+| Sender/time or delivery presentation | `messageMetadata` or `messageDelivery` |
+| The whole row, including layout | `message` or `Conversation.messageContent` |
+| Composer layout | `composer` or `Conversation.composerContent` |
+| Field or Send control only | `composerField` or `composerSend` |
+| Earlier-history or return-to-latest feedback | `history`, `historyFeedback`, `latest` or `latestLabel` |
+
+An explicit renderer argument wins over the slot bundle; an explicit bundle wins over theme defaults. `presentedMessage`, when set, takes precedence over the regular `message` slot and provides transient highlight context.
+
+For a custom composer, forward the supplied `ComposerContent` callbacks and pending state. Keeping a second text field state bypasses the shared draft and send guards.
+
+Custom renderers own their accessibility: provide readable labels and separately named controls. If your visible content differs from `Message.text`, update `messageDescription` to describe it accurately. Avoid announcing sender, body, time and delivery twice.
+
+For a complete card and a composer with an attachment button, see [SampleApp.kt](../sample/src/commonMain/kotlin/dev/chat/sample/SampleApp.kt).

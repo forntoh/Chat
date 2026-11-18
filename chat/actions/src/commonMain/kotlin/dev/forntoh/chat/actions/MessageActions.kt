@@ -1,8 +1,25 @@
 package dev.forntoh.chat.actions
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
-import dev.forntoh.chat.core.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import dev.forntoh.chat.core.Attachment
+import dev.forntoh.chat.core.ConversationEvent
+import dev.forntoh.chat.core.ConversationState
+import dev.forntoh.chat.core.Draft
+import dev.forntoh.chat.core.Message
+import dev.forntoh.chat.ui.ChatMotionVisibility
 import dev.forntoh.chat.ui.ComposerContent
 
 enum class MessageAction { Copy, Quote, Edit, Delete }
@@ -13,7 +30,11 @@ enum class MessageAction { Copy, Quote, Edit, Delete }
  * pre-edit composer on cancellation or acceptance. Editing text lives in the normal host draft.
  * Restoring the draft requires a fresh submission revision, not reuse of a resolved version.
  */
-data class EditingMessage(val original: Message, val retainedDraft: Draft, val retainedQuoteTargetId: String? = null)
+data class EditingMessage(
+    val original: Message,
+    val retainedDraft: Draft,
+    val retainedQuoteTargetId: String? = null,
+)
 
 /**
  * Retained, immutable host action snapshot for one conversation; all fields default to inactive.
@@ -36,7 +57,20 @@ data class ActionState(
     val error: String? = null,
 )
 
-enum class ActionCommand { OpenMenu, CloseMenu, Copy, Quote, CancelQuote, SendQuote, BeginEdit, CancelEdit, SubmitEdit, RequestDelete, CancelDelete, ConfirmDelete }
+enum class ActionCommand {
+    OpenMenu,
+    CloseMenu,
+    Copy,
+    Quote,
+    CancelQuote,
+    SendQuote,
+    BeginEdit,
+    CancelEdit,
+    SubmitEdit,
+    RequestDelete,
+    CancelDelete,
+    ConfirmDelete,
+}
 
 /**
  * Synchronous host intent, never an assertion of persistence or permission.
@@ -63,6 +97,7 @@ class ActionsContent internal constructor(
     val state: ActionState,
     private val dispatch: (ActionRequest) -> Unit,
     private val conversationEvent: (ConversationEvent) -> Unit,
+    internal val composerFocus: Long,
 ) {
     val canEdit: Boolean get() = state.editing?.let { edit ->
         conversation.messages.find { it.id == edit.original.id } == edit.original &&
@@ -74,8 +109,14 @@ class ActionsContent internal constructor(
      * value to the renderer and render an edit-submit control while editing. This preserves the
      * UI's synchronous send latch. Cancel stays available through [ActionComposerStatus].
      */
-    fun composer(content: ComposerContent): ComposerContent = ComposerContent(content.draft,
-        content.pending || state.pending || (state.editing != null && !canEdit), content.onTextChange, content.onSend, content.onDraftAction)
+    fun composer(content: ComposerContent): ComposerContent = ComposerContent(
+        content.draft,
+        content.pending || state.pending || (state.editing != null && !canEdit),
+        content.onTextChange,
+        content.onSend,
+        content.onDraftAction,
+        composerFocus,
+    )
 
     /** Emit only explicit user activation; targets/capabilities and current context are revalidated. */
     fun request(command: ActionCommand, targetId: String? = null) {
@@ -89,14 +130,35 @@ class ActionsContent internal constructor(
      * Hosts resolve acceptance or refusal with fresh action and draft revisions. Pending and
      * replaced snapshots are rejected; no callback implies delivery or persisted modification.
      */
-    fun onConversationEvent(event: ConversationEvent) {
-        if (event is ConversationEvent.SendDraft && state.editing != null) {
-            dispatch(ActionRequest(event.conversationId, state.revision, ActionCommand.SubmitEdit,
-                state.editing.original.id, event.text, event.revision))
-        } else if (event is ConversationEvent.SendDraft && state.quoteTargetId != null) {
-            dispatch(ActionRequest(event.conversationId, state.revision, ActionCommand.SendQuote,
-                state.quoteTargetId, event.text, event.revision, event.attachments))
-        } else conversationEvent(event)
+    fun onConversationEvent(event: ConversationEvent) = when (event) {
+        is ConversationEvent.SendDraft if state.editing != null -> {
+            dispatch(
+                ActionRequest(
+                    event.conversationId,
+                    state.revision,
+                    ActionCommand.SubmitEdit,
+                    state.editing.original.id,
+                    event.text,
+                    event.revision,
+                ),
+            )
+        }
+
+        is ConversationEvent.SendDraft if state.quoteTargetId != null -> {
+            dispatch(
+                ActionRequest(
+                    event.conversationId,
+                    state.revision,
+                    ActionCommand.SendQuote,
+                    state.quoteTargetId,
+                    event.text,
+                    event.revision,
+                    event.attachments,
+                ),
+            )
+        }
+
+        else -> conversationEvent(event)
     }
 }
 
@@ -123,20 +185,23 @@ fun rememberMessageActions(
     onAction: (ActionRequest) -> Unit,
     onEvent: (ConversationEvent) -> Unit,
 ): ActionsContent {
+    var composerFocus by remember(conversation.conversationId) { mutableStateOf(0L) }
     val latestConversation by rememberUpdatedState(conversation)
     val latestState by rememberUpdatedState(state)
     val latestAction by rememberUpdatedState(onAction)
     val latestEvent by rememberUpdatedState(onEvent)
     var emitted by remember(conversation.conversationId, state.revision) { mutableStateOf(false) }
     return ActionsContent(
+        composerFocus = composerFocus,
         conversation = conversation,
         state = state,
         dispatch = dispatch@{ request ->
             val now = latestConversation
             val actions = latestState
-            if (emitted || actions.pending || now.conversationId != conversation.conversationId ||
-                actions != state || now.draft != conversation.draft
-            ) return@dispatch
+            if (emitted || actions.pending) return@dispatch
+            if (now.conversationId != conversation.conversationId || actions != state || now.draft != conversation.draft) {
+                return@dispatch
+            }
             val target = now.messages.find { it.id == request.targetId }
             val capability = when (request.command) {
                 ActionCommand.Copy -> MessageAction.Copy
@@ -145,37 +210,55 @@ fun rememberMessageActions(
                 ActionCommand.RequestDelete, ActionCommand.ConfirmDelete -> MessageAction.Delete
                 else -> null
             }
-            if (capability != null && (target == null || capability !in actions.capabilities[target.id].orEmpty() ||
-                        target != conversation.messages.find { it.id == target.id })
-            ) return@dispatch
+            if (capability != null) {
+                if (target == null || capability !in actions.capabilities[target.id].orEmpty()) return@dispatch
+                if (target != conversation.messages.find { it.id == target.id }) return@dispatch
+            }
+            val composerBusy = actions.editing != null || actions.deleting != null || now.draft.submitting
             if (request.command in setOf(
                     ActionCommand.BeginEdit,
                     ActionCommand.Quote,
                     ActionCommand.RequestDelete,
-                    ActionCommand.OpenMenu
+                    ActionCommand.OpenMenu,
                 ) &&
-                (actions.editing != null || actions.deleting != null || now.draft.submitting)
-            ) return@dispatch
+                composerBusy
+            ) {
+                return@dispatch
+            }
             if (request.command == ActionCommand.ConfirmDelete && target != actions.deleting) return@dispatch
             if (request.command == ActionCommand.OpenMenu &&
                 (target == null || actions.capabilities[target.id].isNullOrEmpty())
-            ) return@dispatch
-            if (request.command == ActionCommand.SubmitEdit &&
-                (target != actions.editing?.original || now.draft.submitting ||
-                        request.draftRevision != now.draft.revision || request.text != now.draft.text || request.text.isNullOrBlank())
-            ) return@dispatch
-            if (request.command == ActionCommand.SendQuote &&
-                (now.draft.submitting || request.text != now.draft.text || !now.draft.hasContent || request.attachments != now.draft.attachments ||
-                        request.draftRevision != now.draft.revision || request.targetId != actions.quoteTargetId)
-            ) return@dispatch
+            ) {
+                return@dispatch
+            }
+            val draftMatches = request.draftRevision == now.draft.revision && request.text == now.draft.text
+            if (request.command == ActionCommand.SubmitEdit) {
+                if (target != actions.editing?.original || now.draft.submitting) return@dispatch
+                if (!draftMatches || request.text.isNullOrBlank()) return@dispatch
+            }
+            if (request.command == ActionCommand.SendQuote) {
+                if (now.draft.submitting || !now.draft.hasContent || !draftMatches) return@dispatch
+                if (request.attachments != now.draft.attachments || request.targetId != actions.quoteTargetId) return@dispatch
+            }
             emitted = true
+            if (request.command in setOf(
+                    ActionCommand.Quote,
+                    ActionCommand.BeginEdit,
+                    ActionCommand.CancelEdit,
+                    ActionCommand.CancelQuote,
+                )
+            ) {
+                composerFocus++
+            }
             latestAction(request)
         },
         conversationEvent = { event ->
-            if (latestConversation.conversationId == conversation.conversationId &&
-                latestConversation.draft == conversation.draft && latestState == state && !latestState.pending
-            ) latestEvent(event)
-        }
+            val currentConversation = latestConversation.conversationId == conversation.conversationId &&
+                latestConversation.draft == conversation.draft
+            if (currentConversation && latestState == state && !latestState.pending) {
+                latestEvent(event)
+            }
+        },
     )
 }
 
@@ -191,14 +274,57 @@ fun MessageActions(content: ActionsContent, messageId: String, slots: ActionSlot
     if (content.conversation.messages.none { it.id == messageId } || enabled.isEmpty()) return
     ActionTheme(slots = slots) {
         slots.menu {
-            slots.control(ActionControlContent(ActionCommand.OpenMenu, !content.state.pending && content.state.editing == null && content.state.deleting == null) { content.request(ActionCommand.OpenMenu, messageId) })
+            slots.control(
+                ActionControlContent(
+                    ActionCommand.OpenMenu,
+                    !content.state.pending && content.state.editing == null && content.state.deleting == null,
+                ) {
+                    content.request(ActionCommand.OpenMenu, messageId)
+                },
+            )
             if (content.state.menuTargetId == messageId) {
                 FlowRow {
-                    if (MessageAction.Copy in enabled) slots.control(ActionControlContent(ActionCommand.Copy, !content.state.pending) { content.request(ActionCommand.Copy, messageId) })
-                    if (MessageAction.Quote in enabled) slots.control(ActionControlContent(ActionCommand.Quote, !content.state.pending) { content.request(ActionCommand.Quote, messageId) })
-                    if (MessageAction.Edit in enabled) slots.control(ActionControlContent(ActionCommand.BeginEdit, !content.state.pending) { content.request(ActionCommand.BeginEdit, messageId) })
-                    if (MessageAction.Delete in enabled) slots.control(ActionControlContent(ActionCommand.RequestDelete, !content.state.pending) { content.request(ActionCommand.RequestDelete, messageId) })
-                    slots.control(ActionControlContent(ActionCommand.CloseMenu, !content.state.pending) { content.request(ActionCommand.CloseMenu) })
+                    if (MessageAction.Copy in
+                        enabled
+                    ) {
+                        slots.control(
+                            ActionControlContent(ActionCommand.Copy, !content.state.pending) {
+                                content.request(ActionCommand.Copy, messageId)
+                            },
+                        )
+                    }
+                    if (MessageAction.Quote in
+                        enabled
+                    ) {
+                        slots.control(
+                            ActionControlContent(ActionCommand.Quote, !content.state.pending) {
+                                content.request(ActionCommand.Quote, messageId)
+                            },
+                        )
+                    }
+                    if (MessageAction.Edit in
+                        enabled
+                    ) {
+                        slots.control(
+                            ActionControlContent(ActionCommand.BeginEdit, !content.state.pending) {
+                                content.request(ActionCommand.BeginEdit, messageId)
+                            },
+                        )
+                    }
+                    if (MessageAction.Delete in
+                        enabled
+                    ) {
+                        slots.control(
+                            ActionControlContent(ActionCommand.RequestDelete, !content.state.pending) {
+                                content.request(ActionCommand.RequestDelete, messageId)
+                            },
+                        )
+                    }
+                    slots.control(
+                        ActionControlContent(ActionCommand.CloseMenu, !content.state.pending) {
+                            content.request(ActionCommand.CloseMenu)
+                        },
+                    )
                 }
             }
         }
@@ -210,36 +336,95 @@ fun MessageActions(content: ActionsContent, messageId: String, slots: ActionSlot
 @Composable
 fun QuotedMessage(content: ActionsContent, targetId: String, slots: ActionSlots = LocalActionSlots.current) {
     ActionTheme(slots = slots) {
-        slots.quote(ActionQuoteContent(targetId, content.conversation.messages.find { it.id == targetId }))
+        val target = content.conversation.messages.find { it.id == targetId }
+        val presentation = dev.forntoh.chat.ui.LocalMessagePresentation.current
+        slots.quote(
+            ActionQuoteContent(
+                targetId,
+                target,
+                if (target != null) ({ presentation.onNavigateToMessage(targetId) }) else null,
+            ),
+        )
     }
 }
 
 /**
- * Retained edit/quote context and operation feedback above a host composer. [slots] replaces the
+ * Retained edit/quote context and operation feedback for a host composer header. Dismiss controls
+ * sit beside context; pending/error/delete feedback remains below it. [slots] replaces the
  * ambient bundle, including nested quote/confirmation content. Pending/errors describe actions,
  * separately from message delivery. The host restores the retained pre-edit draft on cancellation;
- * this component only emits guarded intents. It renders no input and retains no second draft.
+ * this component only emits guarded intents. Selecting/cancelling reply or edit requests focus
+ * through the adapted composer. It renders no input and retains no second draft.
  */
 @Composable
 fun ActionComposerStatus(content: ActionsContent, slots: ActionSlots = LocalActionSlots.current) {
-    ActionTheme(slots = slots) {
-        slots.composerStatus {
-            content.state.editing?.let {
-                slots.status(ActionStatusContent(ActionStatusKind.Editing))
-                if (!content.canEdit) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
-                slots.control(ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) { content.request(ActionCommand.CancelEdit) })
+    key(content.conversation.conversationId) {
+        ActionTheme(slots = slots) {
+            slots.composerStatus {
+                val quoteId = content.state.quoteTargetId
+                val presentation = dev.forntoh.chat.ui.LocalMessagePresentation.current
+                val quote = quoteId?.let { id ->
+                    val message = content.conversation.messages.find { it.id == id }
+                    ActionQuoteContent(id, message, if (message != null) ({ presentation.onNavigateToMessage(id) }) else null)
+                }
+                val preview = if (content.state.editing != null || quote != null) {
+                    ComposerPreview(
+                        editing = content.state.editing != null,
+                        unavailable = content.state.editing != null && !content.canEdit,
+                        quote = quote,
+                        cancelEdit = if (content.state.editing !=
+                            null
+                        ) {
+                            ActionControlContent(ActionCommand.CancelEdit, !content.state.pending) {
+                                content.request(ActionCommand.CancelEdit)
+                            }
+                        } else {
+                            null
+                        },
+                        cancelQuote = if (quote !=
+                            null
+                        ) {
+                            ActionControlContent(
+                                ActionCommand.CancelQuote,
+                                !content.state.pending && !content.conversation.draft.submitting,
+                            ) { content.request(ActionCommand.CancelQuote) }
+                        } else {
+                            null
+                        },
+                    )
+                } else {
+                    null
+                }
+                ChatMotionVisibility(preview) { shown ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(LocalActionStyle.current.composerPadding),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            if (shown.editing) slots.status(ActionStatusContent(ActionStatusKind.Editing))
+                            if (shown.unavailable) slots.status(ActionStatusContent(ActionStatusKind.Unavailable))
+                            shown.quote?.let { slots.quote(it) }
+                        }
+                        shown.cancelEdit?.let { slots.control(it) }
+                        shown.cancelQuote?.let { slots.control(it) }
+                    }
+                }
+                DeleteConfirmation(content)
+                ChatMotionVisibility(content.state.pending) { slots.status(ActionStatusContent(ActionStatusKind.Pending)) }
+                content.state.error?.let { slots.status(ActionStatusContent(ActionStatusKind.Error, it)) }
             }
-            content.state.quoteTargetId?.let {
-                slots.status(ActionStatusContent(ActionStatusKind.Replying))
-                QuotedMessage(content, it)
-                slots.control(ActionControlContent(ActionCommand.CancelQuote, !content.state.pending && !content.conversation.draft.submitting) { content.request(ActionCommand.CancelQuote) })
-            }
-            DeleteConfirmation(content)
-            if (content.state.pending) slots.status(ActionStatusContent(ActionStatusKind.Pending))
-            content.state.error?.let { slots.status(ActionStatusContent(ActionStatusKind.Error, it)) }
         }
     }
 }
+
+// Only presentation and already-guarded controls survive the finite exit, never another draft.
+private data class ComposerPreview(
+    val editing: Boolean,
+    val unavailable: Boolean,
+    val quote: ActionQuoteContent?,
+    val cancelEdit: ActionControlContent?,
+    val cancelQuote: ActionControlContent?,
+)
 
 /**
  * Explicit target-bound confirm/cancel, using typed controls and prompt/quote slots. [slots]
@@ -257,8 +442,16 @@ fun DeleteConfirmation(content: ActionsContent, slots: ActionSlots = LocalAction
             slots.status(ActionStatusContent(ActionStatusKind.DeletePrompt))
             QuotedMessage(content, target.id)
             Row {
-                slots.control(ActionControlContent(ActionCommand.ConfirmDelete, canDelete && !content.state.pending) { content.request(ActionCommand.ConfirmDelete, target.id) })
-                slots.control(ActionControlContent(ActionCommand.CancelDelete, !content.state.pending) { content.request(ActionCommand.CancelDelete) })
+                slots.control(
+                    ActionControlContent(ActionCommand.ConfirmDelete, canDelete && !content.state.pending) {
+                        content.request(ActionCommand.ConfirmDelete, target.id)
+                    },
+                )
+                slots.control(
+                    ActionControlContent(ActionCommand.CancelDelete, !content.state.pending) {
+                        content.request(ActionCommand.CancelDelete)
+                    },
+                )
             }
         }
     }

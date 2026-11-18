@@ -1,0 +1,15 @@
+{
+  "name": "compose-chat-docs",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "docs:build": "myst build --html --check-links --strict",
+    "docs:serve": "myst start"
+  },
+  "devDependencies": {
+    "mystmd": "1.13.0"
+  }
+}

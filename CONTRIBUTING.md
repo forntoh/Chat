@@ -1,33 +1,66 @@
 # Contributing
 
-Discuss a focused issue before changing public state/event contracts or dependency boundaries.
-Keep core free of UI/services; ui owns shared behavior; Material3, actions and media stay optional.
-The host owns authorization, data, transport and persistence. Never commit credentials or real user data.
+Use the [sample](docs/sample.md) to explore behavior and the [integration guide](docs/integration.md) to understand state ownership before changing a public contract.
 
-Use the pinned toolchains and platform setup in [README](README.md) and [support](docs/support.md).
-Use separate Git worktrees for concurrent independent changes. Keep changes small and include meaningful
-public KDoc, migration notes and a changelog entry when public behavior changes.
+## Project structure
 
-Follow test-driven development at the agreed public seam: host snapshots into `Conversation`, captured
-public events out, or published artifacts into an independent consumer. Add a failing focused check,
-then the smallest implementation. Reuse matching prior evidence and run affected checks; avoid an
-exhaustive module/runtime matrix. The README lists build commands. For the combined dependency seam:
+| Directory | Responsibility |
+| --- | --- |
+| `chat/core` | Plain Kotlin state and events. |
+| `chat/ui` | Conversation behavior and foundation slots. |
+| `chat/material3` | Material 3 presentation. |
+| `chat/media`, `chat/actions` | Optional feature adapters and presentation. |
+| `sample`, `androidApp`, `iosApp` | Shared demo and platform entry points. |
+| `build-logic` | Shared build and quality conventions. |
+| `docs` | User guides and real sample media. |
+
+Keep service, storage and platform resource operations in the host. Optional modules must remain optional. Put dependency and plugin versions in `gradle/libs.versions.toml`, reusing its aliases in Gradle scripts.
+
+## Check Kotlin
+
+With the [sample toolchain](docs/sample.md#platforms-and-requirements) configured:
 
 ```sh
-./gradlew -p consumers -PchatRepository=/absolute/path/to/staging :combined:verifySelection
+./gradlew detekt ktlintCheck
 ```
 
-This resolves JVM runtime, Android compile and both iOS compile artifact graphs; it is not a native
-runtime test. Stage artifacts locally first as described in README. Do not substitute producer project
-or included-build dependencies for consumer evidence.
+Run `./gradlew ktlintFormat` to format changes, then rerun the checks. Both tools share the repository’s EditorConfig and quality configuration. Maintained Kotlin and Gradle Kotlin scripts are checked; generated and build output are excluded. Detekt’s rule exceptions are in `config/quality/detekt.yml`.
 
-Describe the problem, resulting behavior, exact candidate/toolchain and commands/results in a concise
-PR. For visible changes attach current implementation screenshots at 320px width, plus a recording
-when needed to show interaction/navigation. Preserve evidence of genuine failures/skips. Obtain
-independent code review and owner sign-off. Production migrations/database pushes, main merges and
-releases require explicit human approval; no push, tag, signing or publication is implied by a local build.
+For a shared UI change, compile the desktop sample and Android app:
 
-Original library code is under [Apache-2.0](LICENSE). Intentionally submitted contributions are under
-the same terms unless explicitly stated otherwise, consistent with section 5. Preserve applicable
-third-party terms and document provenance; do not infer dependency licenses from this project's license.
-See [dependency inventory](docs/dependencies.md).
+```sh
+./gradlew :sample:compileKotlinJvm :androidApp:assembleDebug
+```
+
+Verify relevant interactions through the public conversation seam. Document actual results and limits; do not treat a prior run as validation of new code.
+
+## Preview the documentation
+
+Use Node.js 22 or later. The MyST CLI and theme are pinned, and npm dependencies are locked:
+
+```sh
+npm ci --ignore-scripts
+npm run docs:serve
+```
+
+Open the local address printed by MyST. Before submitting changes, build the static site and check references:
+
+```sh
+npm run docs:build
+```
+
+The output is in `_build/html/`. The Quality workflow runs the same strict documentation build and Kotlin checks with read-only repository permissions.
+
+### Publish the documentation
+
+The [Documentation Pages workflow](.github/workflows/docs.yml) builds and publishes the site after documentation changes reach `main`. Maintainers can also run it manually against `main`. Pull requests only run the Quality checks; they do not deploy.
+
+Before the first deployment, a repository administrator must select **GitHub Actions** in **Settings → Pages → Build and deployment → Source**. Configure the `github-pages` environment with a required human reviewer, prevent self-review, and restrict deployment branches to `main` before enabling the workflow. Every deployment then waits for that environment approval. The workflow reads the existing Pages configuration without enabling Pages or changing repository settings.
+
+The build uses the locked dependencies and the same strict command above, with MyST’s `BASE_URL` taken from the Pages configuration so links and assets work under the repository path or a custom domain. Only the deployment job receives Pages and OIDC write permissions. The deployed URL appears in the workflow’s environment link after a successful deployment.
+
+Write for someone integrating the library: show the result, explain the next step and use the actual public API. Keep the sidebar short. Use real implementation screenshots and recordings for visible changes, with readable alt text and appropriately sized images. Keep build receipts and delivery evidence out of the user guides.
+
+## Propose a change
+
+Keep the change focused and explain the behavior it improves. Include relevant validation and current screenshots for UI changes. Do not commit local SDK paths, credentials or generated build output. Publication, deployment and releases are separate maintainer actions.

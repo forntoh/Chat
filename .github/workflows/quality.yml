@@ -1,0 +1,65 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.kt'
+      - '**/*.kts'
+      - '.editorconfig'
+      - 'config/quality/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'docs/**'
+      - '*.md'
+      - 'myst.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/quality.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  kotlin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-java@v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Check Kotlin
+        run: ./gradlew detekt ktlintCheck --continue
+      - name: Preserve quality reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: kotlin-quality
+          path: build/reports/quality/
+          if-no-files-found: ignore
+          retention-days: 7
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned documentation dependencies
+        run: npm ci --ignore-scripts
+      - name: Build documentation strictly
+        run: npm run docs:build
